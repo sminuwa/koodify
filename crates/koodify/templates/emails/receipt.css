@@ -1,0 +1,103 @@
+/* Koodify payment receipt — injected into <style> for clients that support it.
+   Critical layout also uses inline styles in receipt.html for Outlook/Gmail. */
+
+:root {
+  --kd-ink: #061526;
+  --kd-muted: #1a2f45;
+  --kd-soft: #334e6d;
+  --kd-line: #b7c7db;
+  --kd-blue: #0f57d9;
+  --kd-blue-deep: #0a3a9a;
+  --kd-paper: #e8eef6;
+  --kd-card: #f4f8ff;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--kd-paper);
+  font-family: "DM Sans", Helvetica, Arial, sans-serif;
+  color: var(--kd-ink);
+}
+
+.kd-wrap {
+  width: 100%;
+  background: var(--kd-paper);
+  padding: 32px 16px;
+}
+
+.kd-card {
+  max-width: 560px;
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--kd-line);
+}
+
+.kd-logo-bar {
+  background: #ffffff;
+  padding: 22px 32px 18px;
+  border-bottom: 1px solid #d5deea;
+}
+
+.kd-logo {
+  display: block;
+  border: 0;
+  outline: none;
+  text-decoration: none;
+  height: 40px;
+  width: auto;
+  max-width: 168px;
+}
+
+.kd-hero {
+  background: linear-gradient(135deg, var(--kd-blue), var(--kd-blue-deep));
+  padding: 28px 32px;
+}
+
+.kd-title {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.kd-amount-box {
+  background: var(--kd-card);
+  border-radius: 12px;
+  border: 1px solid #b9cef0;
+}
+
+.kd-amount {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--kd-blue-deep);
+  letter-spacing: -0.02em;
+}
+
+.kd-row-label {
+  font-size: 13px;
+  color: var(--kd-soft);
+}
+
+.kd-row-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--kd-ink);
+}
+
+.kd-mono {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.kd-footer {
+  font-size: 12px;
+  color: var(--kd-soft);
+}
+
+.kd-footer strong {
+  color: var(--kd-blue-deep);
+}

@@ -105,7 +105,18 @@ pub async fn inbound(
                 .payment_date
                 .as_deref()
                 .or(event.data.txn_date.as_deref());
-            receipt::maybe_send_on_deposit_webhook(&state, txn_ref, amount, paid_at).await;
+            receipt::maybe_send_on_deposit_webhook(
+                &state,
+                txn_ref,
+                amount,
+                paid_at,
+                event.data.narration.as_deref(),
+                event.data.bank_name.as_deref(),
+                event.data.sender.as_deref(),
+                event.data.sender_name.as_deref(),
+                event.data.zainbox_name.as_deref(),
+            )
+            .await;
         }
     }
 

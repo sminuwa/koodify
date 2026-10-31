@@ -1,10 +1,26 @@
 //! Resend-backed payer receipt emails.
+//!
+//! HTML / CSS live under `crates/koodify/templates/emails/` and are loaded at
+//! compile time via `include_str!` — keep presentation out of this module.
 
-use resend_rs::types::CreateEmailBaseOptions;
+use resend_rs::types::{CreateAttachment, CreateEmailBaseOptions};
 use resend_rs::Resend;
 use tracing::{info, warn};
 
 use crate::config::Config;
+
+const RECEIPT_HTML: &str = include_str!("../../templates/emails/receipt.html");
+const RECEIPT_CSS: &str = include_str!("../../templates/emails/receipt.css");
+const LOGO_PNG: &[u8] = include_bytes!("../../templates/emails/koodify-logo.png");
+/// Inline CID referenced by `receipt.html` (`src="cid:koodify-logo"`).
+const LOGO_CID: &str = "koodify-logo";
+
+#[derive(Debug, Clone)]
+pub struct ReceiptDetail {
+    pub label: String,
+    pub value: String,
+    pub mono: bool,
+}
 
 #[derive(Debug, Clone)]
 pub struct ReceiptEmail {
@@ -14,6 +30,13 @@ pub struct ReceiptEmail {
     pub currency: String,
     pub reference: String,
     pub paid_at: Option<String>,
+    pub business_name: Option<String>,
+    pub narration: Option<String>,
+    pub sender_bank: Option<String>,
+    pub sender_account: Option<String>,
+    pub sender_name: Option<String>,
+    /// Extra merchant `customParam` rows (already humanized labels).
+    pub custom_params: Vec<(String, String)>,
 }
 
 /// Send a branded payment receipt. No-op when `RESEND_API_KEY` is unset.
@@ -41,8 +64,13 @@ pub async fn send_payment_receipt(config: &Config, receipt: ReceiptEmail) -> any
         receipt.currency, receipt.amount_label
     );
     let html = render_receipt_html(&receipt);
+    let logo = CreateAttachment::from_content(LOGO_PNG.to_vec())
+        .with_filename("koodify-logo.png")
+        .with_content_type("image/png")
+        .with_content_id(LOGO_CID);
     let email = CreateEmailBaseOptions::new(config.resend_from.clone(), [to.to_string()], subject)
-        .with_html(&html);
+        .with_html(&html)
+        .with_attachment(logo);
 
     let sent = resend.emails.send(email).await.map_err(|err| {
         anyhow::anyhow!("resend send failed for {}: {err}", receipt.reference)
@@ -64,89 +92,129 @@ fn escape(s: &str) -> String {
         .replace('"', "&quot;")
 }
 
+fn opt_trim(s: Option<&String>) -> Option<&str> {
+    s.map(|v| v.as_str().trim()).filter(|v| !v.is_empty())
+}
+
+fn detail_rows(receipt: &ReceiptEmail) -> Vec<ReceiptDetail> {
+    let mut rows = Vec::new();
+
+    if let Some(name) = opt_trim(receipt.business_name.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Business Name".into(),
+            value: name.into(),
+            mono: false,
+        });
+    }
+
+    rows.push(ReceiptDetail {
+        label: "Reference".into(),
+        value: receipt.reference.clone(),
+        mono: true,
+    });
+
+    if let Some(n) = opt_trim(receipt.narration.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Narration".into(),
+            value: n.into(),
+            mono: false,
+        });
+    }
+
+    let paid_at = opt_trim(receipt.paid_at.as_ref()).unwrap_or("Just now");
+    rows.push(ReceiptDetail {
+        label: "Date".into(),
+        value: paid_at.into(),
+        mono: false,
+    });
+
+    if let Some(bank) = opt_trim(receipt.sender_bank.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Sender's Bank".into(),
+            value: bank.into(),
+            mono: false,
+        });
+    }
+
+    if let Some(acct) = opt_trim(receipt.sender_account.as_ref()) {
+        let value = match opt_trim(receipt.sender_name.as_ref()) {
+            Some(n) => format!("{n} · {acct}"),
+            None => acct.into(),
+        };
+        rows.push(ReceiptDetail {
+            label: "Sender's Account".into(),
+            value,
+            mono: true,
+        });
+    } else if let Some(n) = opt_trim(receipt.sender_name.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Sender".into(),
+            value: n.into(),
+            mono: false,
+        });
+    }
+
+    for (label, value) in &receipt.custom_params {
+        let l = label.trim();
+        let v = value.trim();
+        if l.is_empty() || v.is_empty() {
+            continue;
+        }
+        rows.push(ReceiptDetail {
+            label: l.into(),
+            value: v.into(),
+            mono: false,
+        });
+    }
+
+    rows
+}
+
+fn render_detail_rows_html(rows: &[ReceiptDetail]) -> String {
+    let mut out = String::new();
+    let last = rows.len().saturating_sub(1);
+    for (i, row) in rows.iter().enumerate() {
+        let border = if i == last {
+            ""
+        } else {
+            "border-bottom:1px solid #d5deea;"
+        };
+        let mono = if row.mono {
+            "font-family:ui-monospace,Menlo,Consolas,monospace;"
+        } else {
+            ""
+        };
+        out.push_str(&format!(
+            r#"                <tr>
+                  <td class="kd-row-label" style="padding:10px 0;{border}font-size:13px;color:#334e6d;">{label}</td>
+                  <td class="kd-row-value" align="right" style="padding:10px 0;{border}font-size:13px;font-weight:700;color:#061526;{mono}">{value}</td>
+                </tr>
+"#,
+            border = border,
+            label = escape(&row.label),
+            value = escape(&row.value),
+            mono = mono,
+        ));
+    }
+    out
+}
+
 pub fn render_receipt_html(receipt: &ReceiptEmail) -> String {
-    let name = receipt
-        .payer_name
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or("there");
+    let name = opt_trim(receipt.payer_name.as_ref()).unwrap_or("there");
     let amount = escape(&receipt.amount_label);
     let currency = escape(&receipt.currency);
-    let reference = escape(&receipt.reference);
-    let paid_at = receipt
-        .paid_at
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(escape)
-        .unwrap_or_else(|| "Just now".into());
+    let payer_email = escape(receipt.to.trim());
     let greeting = escape(name);
+    let rows_html = render_detail_rows_html(&detail_rows(receipt));
 
-    format!(
-        r##"<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Payment receipt · Koodify</title>
-</head>
-<body style="margin:0;padding:0;background:#eef3f9;font-family:'DM Sans',Helvetica,Arial,sans-serif;color:#061526;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef3f9;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #c5d3e6;">
-          <tr>
-            <td style="background:linear-gradient(135deg,#0f57d9,#0a3a9a);padding:28px 32px;">
-              <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.78);">Koodify</p>
-              <h1 style="margin:10px 0 0;font-size:26px;line-height:1.2;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Payment received</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:28px 32px 8px;">
-              <p style="margin:0 0 16px;font-size:16px;line-height:1.55;color:#2a405c;">
-                Hi {greeting},
-              </p>
-              <p style="margin:0 0 24px;font-size:16px;line-height:1.55;color:#2a405c;">
-                We’ve confirmed your bank transfer. Here’s a quick receipt for your records.
-              </p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f8ff;border-radius:12px;border:1px solid #d9e6ff;">
-                <tr>
-                  <td style="padding:20px 22px;">
-                    <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#5b6b8c;">Amount paid</p>
-                    <p style="margin:0;font-size:28px;font-weight:800;color:#0f57d9;letter-spacing:-0.02em;">{currency} {amount}</p>
-                  </td>
-                </tr>
-              </table>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;">
-                <tr>
-                  <td style="padding:10px 0;border-bottom:1px solid #e8eef6;font-size:13px;color:#5b6b8c;">Reference</td>
-                  <td align="right" style="padding:10px 0;border-bottom:1px solid #e8eef6;font-size:13px;font-weight:700;color:#061526;font-family:ui-monospace,Menlo,Consolas,monospace;">{reference}</td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 0;font-size:13px;color:#5b6b8c;">Paid at</td>
-                  <td align="right" style="padding:10px 0;font-size:13px;font-weight:600;color:#061526;">{paid_at}</td>
-                </tr>
-              </table>
-              <p style="margin:24px 0 0;font-size:14px;line-height:1.55;color:#5b6b8c;">
-                If you didn’t make this payment, reply to this email or contact the merchant who sent you the checkout link.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:20px 32px 28px;">
-              <p style="margin:0;font-size:12px;color:#8a9bb3;">
-                Powered by <strong style="color:#0f57d9;">Koodify</strong> · Secure bank-transfer checkout
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>"##
-    )
+    RECEIPT_HTML
+        .replace("{{styles}}", RECEIPT_CSS)
+        .replace("{{logo_src}}", &format!("cid:{LOGO_CID}"))
+        .replace("{{currency}}", &currency)
+        .replace("{{amount}}", &amount)
+        .replace("{{payer_email}}", &payer_email)
+        .replace("{{greeting}}", &greeting)
+        .replace("{{detail_rows}}", &rows_html)
 }
 
 #[cfg(test)]
@@ -154,18 +222,35 @@ mod tests {
     use super::*;
 
     #[test]
-    fn receipt_html_includes_brand_and_reference() {
+    fn receipt_html_includes_brand_and_rich_fields() {
         let html = render_receipt_html(&ReceiptEmail {
             to: "payer@example.com".into(),
             payer_name: Some("Ada".into()),
             amount_label: "500".into(),
             currency: "NGN".into(),
             reference: "ORDER_123".into(),
-            paid_at: Some("2026-10-31".into()),
+            paid_at: Some("2026-10-31 14:03".into()),
+            business_name: Some("Acme Stores".into()),
+            narration: Some("School fees".into()),
+            sender_bank: Some("GTBank".into()),
+            sender_account: Some("0123456789".into()),
+            sender_name: Some("Ada Lovelace".into()),
+            custom_params: vec![("Student Id".into(), "STU001".into())],
         });
         assert!(html.contains("Koodify"));
+        assert!(html.contains(r#"src="cid:koodify-logo""#));
         assert!(html.contains("ORDER_123"));
         assert!(html.contains("NGN 500"));
         assert!(html.contains("Hi Ada"));
+        assert!(html.contains("payer@example.com"));
+        assert!(html.contains("Acme Stores"));
+        assert!(html.contains("School fees"));
+        assert!(html.contains("GTBank"));
+        assert!(html.contains("Ada Lovelace · 0123456789"));
+        assert!(html.contains("Student Id"));
+        assert!(html.contains("STU001"));
+        assert!(html.contains("Secure bank-transfer checkout"));
+        assert!(!html.contains("{{"));
+        assert!(!LOGO_PNG.is_empty());
     }
 }
