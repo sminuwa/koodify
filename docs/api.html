@@ -1,0 +1,2264 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Koodify API Reference</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            ink: { 950: '#0c1222', 900: '#121a2f', 700: '#2a3655', 500: '#5b6b8c' },
+            accent: { DEFAULT: '#0f766e', soft: '#ccfbf1' },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    [data-nav].is-active { background: #fff; color: #0f766e; font-weight: 600; }
+    #sidebar-nav { scrollbar-width: thin; }
+  </style>
+</head>
+<body class="bg-[radial-gradient(ellipse_at_top,_#e8f5f3_0%,_#f8fafc_45%,_#f1f5f9_100%)] text-ink-900 font-sans antialiased">
+  <div class="min-h-screen lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+    <aside class="border-b border-slate-200 bg-white/90 lg:sticky lg:top-0 lg:h-screen lg:overflow-hidden lg:border-b-0 lg:border-r">
+      <div class="border-b border-slate-200 px-5 py-5">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Koodify</p>
+        <p class="mt-1 text-lg font-semibold text-ink-950">API reference</p>
+        <p class="mt-1 text-xs text-ink-500">baseURL + path below</p>
+      </div>
+      <nav id="sidebar-nav" class="max-h-[50vh] space-y-0.5 overflow-y-auto px-3 py-4 lg:max-h-[calc(100vh-7.5rem)]">
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#auth">Authentication</a><a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#metadata">Metadata</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#health">Health</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#health-check" title="GET /health">GET /health</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#api-v1">API v1 convenience</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-zainbox-snapshot" title="GET /api/v1/zainbox/{zainboxCode}">GET /api/v1/zainbox/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-zainbox-wallet" title="GET /api/v1/zainbox/{zainboxCode}/wallet">GET /api/v1/zainbox/{zainboxCode}/wallet</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-zainbox-activity" title="GET /api/v1/zainbox/{zainboxCode}/activity">GET /api/v1/zainbox/{zainboxCode}/activity</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-zainbox-settlement" title="GET /api/v1/zainbox/{zainboxCode}/settlement">GET /api/v1/zainbox/{zainboxCode}/settlement</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-zainbox-billing" title="GET /api/v1/zainbox/{zainboxCode}/billing">GET /api/v1/zainbox/{zainboxCode}/billing</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-zainbox-subscriptions" title="GET /api/v1/zainbox/{zainboxCode}/subscriptions">GET /api/v1/zainbox/{zainboxCode}/subscriptions</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-va-wallet" title="GET /api/v1/virtual-account/{accountNumber}">GET /api/v1/virtual-account/{accountNumber}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-bank-resolve" title="GET /api/v1/bank/resolve">GET /api/v1/bank/resolve</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-merchant-activity" title="GET /api/v1/merchant/activity">GET /api/v1/merchant/activity</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-payout-prep" title="GET /api/v1/payout/prep">GET /api/v1/payout/prep</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-transfer" title="POST /api/v1/transfer">POST /api/v1/transfer</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-deposit" title="GET /api/v1/deposit/{txnRef}">GET /api/v1/deposit/{txnRef}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#api-settlement" title="POST /api/v1/settlement">POST /api/v1/settlement</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#customers">Customers</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#customers-create" title="POST /customers">POST /customers</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#customers-list" title="GET /customers">GET /customers</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#customers-get" title="GET /customers/{id}">GET /customers/{id}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#customers-update" title="PUT /customers/{id}">PUT /customers/{id}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#customers-status" title="PATCH /customers/{id}/status">PATCH /customers/{id}/status</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#kyc">KYC</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#kyc-upsert" title="PUT /kyc">PUT /kyc</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#kyc-list" title="GET /kyc">GET /kyc</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#kyc-by-customer" title="GET /kyc/by-customer/{customerId}">GET /kyc/by-customer/{customerId}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#kyc-get" title="GET /kyc/{id}">GET /kyc/{id}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#kyc-status" title="PATCH /kyc/{id}/status">PATCH /kyc/{id}/status</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#credentials">Credentials</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#credentials-upsert" title="PUT /credentials">PUT /credentials</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#credentials-list" title="GET /credentials">GET /credentials</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#credentials-by-customer" title="GET /credentials/by-customer/{customerId}">GET /credentials/by-customer/{customerId}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#credentials-by-env" title="GET /credentials/by-customer/{customerId}/{environment}">GET /credentials/by-customer/{customerId}/{environment}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#credentials-get" title="GET /credentials/{id}">GET /credentials/{id}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#credentials-status" title="PATCH /credentials/{id}/status">PATCH /credentials/{id}/status</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#local">Local lookups</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#local-va" title="GET /virtual-accounts/{accountNumber}">GET /virtual-accounts/{accountNumber}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#local-va-balance" title="GET /virtual-accounts/{accountNumber}/balance">GET /virtual-accounts/{accountNumber}/balance</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#local-ops" title="GET /operations/{resourceKey}">GET /operations/{resourceKey}</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#zainbox">Zainbox (proxy)</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-create" title="POST /zainbox/create/request">POST /zainbox/create/request</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-list" title="GET /zainbox/list">GET /zainbox/list</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-update" title="PATCH /zainbox/update">PATCH /zainbox/update</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-vas" title="GET /zainbox/virtual-accounts/{zainboxCode}">GET /zainbox/virtual-accounts/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-balances" title="GET /zainbox/accounts/balance/{zainboxCode}">GET /zainbox/accounts/balance/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-merchant-txns" title="GET /zainbox/transactions">GET /zainbox/transactions</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-txns" title="GET /zainbox/transactions/{zainboxCode}">GET /zainbox/transactions/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-deposit-summary" title="GET /zainbox/transfer/deposit/summary/{zainboxCode}">GET /zainbox/transfer/deposit/summary/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-profile" title="GET /zainbox/profile/{zainboxCode}">GET /zainbox/profile/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-profile-v2" title="GET /zainbox/profile/v2/{zainboxCode}">GET /zainbox/profile/v2/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-billing" title="GET /zainbox/billing/config/{zainboxCode}">GET /zainbox/billing/config/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-txn-summary" title="GET /zainbox/transactions/summary">GET /zainbox/transactions/summary</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-card-txns" title="GET /zainbox/card/transactions/{zainboxCode}">GET /zainbox/card/transactions/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-subscribe" title="POST /zainbox/service-subscription/subscribe">POST /zainbox/service-subscription/subscribe</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-unsubscribe" title="POST /zainbox/service-subscription/unsubscribe">POST /zainbox/service-subscription/unsubscribe</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-subs-all" title="GET /zainbox/service-subscription/subscriptions/all/{zainboxCode}">GET /zainbox/service-subscription/subscriptions/all/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#zb-subs-active" title="GET /zainbox/service-subscription/subscriptions/active/{zainboxCode}">GET /zainbox/service-subscription/subscriptions/active/{zainboxCode}</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#virtual-account">Virtual accounts (proxy)</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-create" title="POST /virtual-account/create/request">POST /virtual-account/create/request</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-dynamic" title="POST /virtual-account/dynamic/create/request">POST /virtual-account/dynamic/create/request</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-balance" title="GET /virtual-account/wallet/balance/v2/{accountNumber}">GET /virtual-account/wallet/balance/v2/{accountNumber}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-balance-alias" title="GET /zainbox/virtual-account/wallet/balance/v2/{accountNumber}">GET /zainbox/virtual-account/wallet/balance/v2/{accountNumber}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-status" title="PATCH /virtual-account/change/account/status">PATCH /virtual-account/change/account/status</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-bvn" title="POST /virtual-account/update/bvn">POST /virtual-account/update/bvn</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-txns" title="GET /virtual-account/wallet/transactions/{accountNumber}">GET /virtual-account/wallet/transactions/{accountNumber}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-dyn-status" title="GET /virtual-account/dynamic/deposit/status/{txnRef}">GET /virtual-account/dynamic/deposit/status/{txnRef}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-fund-static" title="POST /virtual-account/static/fund">POST /virtual-account/static/fund</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#va-fund-dynamic" title="POST /virtual-account/dynamic/fund">POST /virtual-account/dynamic/fund</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#bank">Bank</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#bank-list" title="GET /bank/list">GET /bank/list</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#bank-name" title="GET /bank/name-enquiry">GET /bank/name-enquiry</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#bank-list-alias" title="GET /zainbox/bank/list">GET /zainbox/bank/list</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#bank-name-alias" title="GET /zainbox/bank/name-enquiry">GET /zainbox/bank/name-enquiry</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#transfers">Transfers</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#trf-create" title="POST /bank/transfer/v2">POST /bank/transfer/v2</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#trf-alias" title="POST /zainbox/bank/transfer/v2">POST /zainbox/bank/transfer/v2</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#trf-verify" title="GET /virtual-account/wallet/transaction/verify/{txnRef}">GET /virtual-account/wallet/transaction/verify/{txnRef}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#trf-network" title="GET /bank/transfer/network/status">GET /bank/transfer/network/status</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#settlements">Settlements</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#set-create" title="POST /zainbox/settlement">POST /zainbox/settlement</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#set-get" title="GET /zainbox/settlement">GET /zainbox/settlement</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#set-history" title="GET /zainbox/settlement/history/{zainboxCode}">GET /zainbox/settlement/history/{zainboxCode}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#set-internal" title="GET /zainbox/internal-settlement-account/{zainboxCode}">GET /zainbox/internal-settlement-account/{zainboxCode}</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#reconciliation">Reconciliation</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#rec-deposit" title="GET /virtual-account/wallet/deposit/verify/v2/{txnRef}">GET /virtual-account/wallet/deposit/verify/v2/{txnRef}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#rec-bank" title="GET /virtual-account/wallet/transaction/reconcile/bank-deposit">GET /virtual-account/wallet/transaction/reconcile/bank-deposit</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#rec-card" title="GET /virtual-account/wallet/transaction/reconcile/card-payment">GET /virtual-account/wallet/transaction/reconcile/card-payment</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#cards">Cards</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#card-init" title="POST /zainbox/card/initialize/payment">POST /zainbox/card/initialize/payment</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#card-recurring" title="POST /zainbox/card/recurring/purchase">POST /zainbox/card/recurring/purchase</a><a data-nav class="mt-3 block rounded-md px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-white hover:text-accent" href="#webhooks">Webhooks</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#wh-inbound" title="POST /webhooks/zainpay">POST /webhooks/zainpay</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#wh-repush-dep" title="GET /zainbox/repush/deposit/{txnRef}">GET /zainbox/repush/deposit/{txnRef}</a><a data-nav class="ml-2 block truncate rounded-md px-3 py-1.5 font-mono text-[11px] text-ink-500 hover:bg-white hover:text-accent" href="#wh-repush-card" title="GET /zainbox/repush/card-payment/{txnRef}">GET /zainbox/repush/card-payment/{txnRef}</a>
+      </nav>
+    </aside>
+    <div>
+      <header class="border-b border-slate-200/80 bg-white/70 backdrop-blur">
+        <div class="mx-auto max-w-5xl px-6 py-12">
+          <h1 class="text-5xl font-bold tracking-tight text-ink-950 sm:text-6xl">Gateway endpoints</h1>
+          <p class="mt-5 max-w-3xl text-lg leading-8 text-ink-700">
+            Plain <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">/api/v1</code> convenience routes,
+            local customer APIs, and Zainpay proxies. Each endpoint includes a sample response.
+          </p>
+          <p class="mt-3 text-sm text-ink-500">Composite deep-dive: <a class="text-accent underline" href="composite-endpoints.html">composite-endpoints.html</a>. Inline checkout: <a class="text-accent underline" href="inline-checkout.html">inline-checkout.html</a>.</p>
+        </div>
+      </header>
+      <main class="mx-auto max-w-5xl px-6 py-12">
+        <section id="auth" class="scroll-mt-24 border-b border-slate-200 pb-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Authentication</h2>
+          <div class="mt-6 grid gap-8 xl:grid-cols-2">
+            <ul class="space-y-3 text-base leading-7 text-ink-700">
+              <li>Most routes: <code class="font-mono text-sm">X-Api-Key: $GATEWAY_API_KEY</code></li>
+              <li>Upstream Zainpay: server <code class="font-mono text-sm">ZAINPAY_API_KEY</code> (Bearer)</li>
+              <li><code class="font-mono text-sm">POST /webhooks/zainpay</code>: HMAC <code class="font-mono text-sm">Zainpay-Signature</code></li>
+              <li><code class="font-mono text-sm">GET /health</code> is open</li>
+            </ul>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample request</p>
+              <pre class="mt-3 overflow-x-auto rounded-lg bg-ink-950 p-4 font-mono text-xs text-slate-100"><code>curl -H "X-Api-Key: $GATEWAY_API_KEY" \
+  "$HOST/api/v1/zainbox/charg_0atrmzL5qsMFKGYPrahj"</code></pre>
+            </div>
+          </div>
+        </section>
+        <section id="metadata" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Metadata on mutations</h2>
+          <div class="mt-6 grid gap-8 xl:grid-cols-2">
+            <p class="text-base leading-7 text-ink-700">
+              Mutating Zainpay proxies accept custom metadata that is persisted locally and never forwarded upstream.
+              Successful responses include <code class="font-mono text-sm">data.metadata</code>.
+            </p>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample body</p>
+              <pre class="mt-3 overflow-x-auto rounded-lg bg-ink-950 p-4 font-mono text-xs text-slate-100"><code>{
+  "zainpay": { "...": "official Zainpay fields" },
+  "metadata": { "orderId": "ord_123" }
+}</code></pre>
+            </div>
+          </div>
+        </section>
+        <section id="health" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Health</h2><div class="mt-2">
+<article id="health-check" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Health check</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/health</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Returns plain text. No auth required.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>ok</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="api-v1" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">API v1 convenience</h2><div class="mt-2">
+<article id="api-zainbox-snapshot" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Zainbox snapshot</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Profile + balances for one zainbox.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /zainbox/profile/{zainboxCode}</li><li>GET /zainbox/accounts/balance/{zainboxCode}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: zainbox profile + balances&quot;,
+  &quot;data&quot;: {
+    &quot;profile&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;name&quot;: &quot;kamfany&quot;,
+        &quot;codeName&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+        &quot;isActive&quot;: true
+      }
+    },
+    &quot;balances&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;accountNumber&quot;: &quot;5006079921&quot;,
+          &quot;balance&quot;: &quot;125000.00&quot;
+        }
+      ]
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-zainbox-wallet" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Zainbox wallet</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/wallet</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Virtual accounts + balances.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /zainbox/virtual-accounts/{zainboxCode}</li><li>GET /zainbox/accounts/balance/{zainboxCode}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: zainbox virtual accounts + balances&quot;,
+  &quot;data&quot;: {
+    &quot;virtualAccounts&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;accountNumber&quot;: &quot;5006079921&quot;,
+          &quot;accountName&quot;: &quot;KAMFANY LTD&quot;
+        }
+      ]
+    },
+    &quot;balances&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;accountNumber&quot;: &quot;5006079921&quot;,
+          &quot;balance&quot;: &quot;125000.00&quot;
+        }
+      ]
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-zainbox-activity" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Zainbox activity</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/activity</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Transactions + deposit summary.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">count, txnType, accountNumber, paymentChannel, dateFrom, dateTo</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /zainbox/transactions/{zainboxCode}</li><li>GET /zainbox/transfer/deposit/summary/{zainboxCode}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: zainbox transactions + deposit summary&quot;,
+  &quot;data&quot;: {
+    &quot;transactions&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;txnRef&quot;: &quot;txn_1&quot;,
+          &quot;amount&quot;: &quot;5000&quot;,
+          &quot;txnType&quot;: &quot;credit&quot;
+        }
+      ]
+    },
+    &quot;depositSummary&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;totalDeposits&quot;: &quot;150000&quot;,
+        &quot;count&quot;: 12
+      }
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-zainbox-settlement" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Settlement context</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/settlement</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Settlement config + internal settlement account.</p>
+      <p class="mt-3 text-sm leading-6 text-ink-700">Live settlement GET may return HTTP 405.</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /zainbox/settlement?zainboxCode=</li><li>GET /zainbox/internal-settlement-account/{zainboxCode}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: settlement config + internal account&quot;,
+  &quot;data&quot;: {
+    &quot;settlement&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+        &quot;scheduleType&quot;: &quot;auto&quot;
+      }
+    },
+    &quot;internalAccount&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;accountNumber&quot;: &quot;5006079921&quot;,
+        &quot;bankName&quot;: &quot;Zainpay MFB&quot;
+      }
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-zainbox-billing" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Profile + billing</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/billing</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Profile alongside billing config.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /zainbox/profile/{zainboxCode}</li><li>GET /zainbox/billing/config/{zainboxCode}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: zainbox profile + billing config&quot;,
+  &quot;data&quot;: {
+    &quot;profile&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;name&quot;: &quot;kamfany&quot;,
+        &quot;codeName&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;
+      }
+    },
+    &quot;billingConfig&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;feeBearer&quot;: &quot;merchant&quot;
+      }
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-zainbox-subscriptions" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Subscriptions bundle</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/subscriptions</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">All + active subscriptions.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>…/subscriptions/all/{zainboxCode}</li><li>…/subscriptions/active/{zainboxCode}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: subscriptions all + active&quot;,
+  &quot;data&quot;: {
+    &quot;all&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;serviceName&quot;: &quot;virtualAccount&quot;,
+          &quot;status&quot;: &quot;active&quot;
+        }
+      ]
+    },
+    &quot;active&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;serviceName&quot;: &quot;virtualAccount&quot;,
+          &quot;status&quot;: &quot;active&quot;
+        }
+      ]
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-va-wallet" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Virtual-account wallet</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/virtual-account/{accountNumber}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Balance + transactions for one VA.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">count, txnType, paymentChannel, dateFrom, dateTo</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /virtual-account/wallet/balance/v2/{accountNumber}</li><li>GET /virtual-account/wallet/transactions/{accountNumber}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: virtual-account balance + transactions&quot;,
+  &quot;data&quot;: {
+    &quot;balance&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;accountNumber&quot;: &quot;5006079921&quot;,
+        &quot;balanceAmount&quot;: &quot;125000.00&quot;
+      }
+    },
+    &quot;transactions&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;txnRef&quot;: &quot;txn_1&quot;,
+          &quot;amount&quot;: &quot;5000&quot;
+        }
+      ]
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-bank-resolve" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Name resolve</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/bank/resolve</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Bank list + name enquiry.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">bankCode, accountNumber</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /bank/list</li><li>GET /bank/name-enquiry</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: bank list + name enquiry&quot;,
+  &quot;data&quot;: {
+    &quot;banks&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;code&quot;: &quot;000013&quot;,
+          &quot;name&quot;: &quot;GTBank&quot;
+        }
+      ]
+    },
+    &quot;nameEnquiry&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;accountName&quot;: &quot;ZNPAY SUNUSI INUWA&quot;,
+        &quot;accountNumber&quot;: &quot;5006079921&quot;
+      }
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-merchant-activity" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Merchant activity</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/merchant/activity</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Merchant-wide summary + transaction list.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">dateFrom, dateTo, count, txnType, accountNumber, paymentChannel</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /zainbox/transactions/summary</li><li>GET /zainbox/transactions</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: merchant transactions summary + list&quot;,
+  &quot;data&quot;: {
+    &quot;summary&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;totalCredit&quot;: &quot;1000000&quot;,
+        &quot;totalDebit&quot;: &quot;250000&quot;
+      }
+    },
+    &quot;transactions&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;txnRef&quot;: &quot;txn_9&quot;,
+          &quot;amount&quot;: &quot;10000&quot;
+        }
+      ]
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-payout-prep" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Payout prep</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/payout/prep</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Network status + name enquiry before transfer.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">bankCode, accountNumber</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET /bank/transfer/network/status</li><li>GET /bank/name-enquiry</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: transfer network status + name enquiry&quot;,
+  &quot;data&quot;: {
+    &quot;networkStatus&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;status&quot;: &quot;UP&quot;
+      }
+    },
+    &quot;nameEnquiry&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;accountName&quot;: &quot;ZNPAY SUNUSI INUWA&quot;
+      }
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-transfer" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Transfer and verify</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/transfer</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Funds transfer then verify by request txnRef.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">Same as <code class="font-mono text-sm">POST /bank/transfer/v2</code>; optional <code class="font-mono text-sm">metadata</code>.</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>POST /bank/transfer/v2</li><li>GET …/transaction/verify/{txnRef}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: funds transfer + verify&quot;,
+  &quot;data&quot;: {
+    &quot;transfer&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;txnRef&quot;: &quot;trf_001&quot;,
+        &quot;status&quot;: &quot;pending&quot;
+      }
+    },
+    &quot;verify&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;txnRef&quot;: &quot;trf_001&quot;,
+        &quot;status&quot;: &quot;success&quot;
+      }
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-deposit" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Dynamic deposit check</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/deposit/{txnRef}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Dynamic deposit status + deposit verify.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>GET …/dynamic/deposit/status/{txnRef}</li><li>GET …/deposit/verify/v2/{txnRef}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: dynamic deposit status + deposit verify&quot;,
+  &quot;data&quot;: {
+    &quot;depositStatus&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;txnRef&quot;: &quot;dep_001&quot;,
+        &quot;paid&quot;: true
+      }
+    },
+    &quot;depositVerify&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;txnRef&quot;: &quot;dep_001&quot;,
+        &quot;verified&quot;: true
+      }
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="api-settlement" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Settlement create with history</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/api/v1/settlement</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Create settlement then fetch history.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">count, dateFrom, dateTo, status</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">Same as <code class="font-mono text-sm">POST /zainbox/settlement</code>; optional <code class="font-mono text-sm">metadata</code>.</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p><ul class="mt-2 space-y-1 font-mono text-xs text-ink-700"><li>POST /zainbox/settlement</li><li>GET /zainbox/settlement/history/{zainboxCode}</li></ul>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;composite: settlement create + history&quot;,
+  &quot;data&quot;: {
+    &quot;create&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: {
+        &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+        &quot;status&quot;: &quot;active&quot;
+      }
+    },
+    &quot;history&quot;: {
+      &quot;code&quot;: &quot;00&quot;,
+      &quot;status&quot;: &quot;200 OK&quot;,
+      &quot;description&quot;: &quot;successful&quot;,
+      &quot;data&quot;: [
+        {
+          &quot;id&quot;: &quot;set_1&quot;,
+          &quot;status&quot;: &quot;completed&quot;
+        }
+      ]
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="customers" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Customers</h2><div class="mt-2">
+<article id="customers-create" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Create customer</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/customers</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Assigns integer id and UUID uuid.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">displayName (required), email, mobileNumber, zainboxCode, metadata, status</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;uuid&quot;: &quot;814e819e-34ce-4853-b21a-1ed38ebad3e1&quot;,
+  &quot;id&quot;: 1,
+  &quot;displayName&quot;: &quot;kamfany&quot;,
+  &quot;email&quot;: &quot;itkamfany@gmail.com&quot;,
+  &quot;mobileNumber&quot;: null,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;metadata&quot;: {
+    &quot;source&quot;: &quot;zainbox-sync&quot;
+  },
+  &quot;status&quot;: &quot;active&quot;,
+  &quot;createdAt&quot;: &quot;2026-10-30T11:00:00Z&quot;,
+  &quot;updatedAt&quot;: &quot;2026-10-30T11:00:00Z&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="customers-list" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">List customers</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/customers</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Optionally filter by status.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">status</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>[
+  {
+    &quot;uuid&quot;: &quot;814e819e-34ce-4853-b21a-1ed38ebad3e1&quot;,
+    &quot;id&quot;: 1,
+    &quot;displayName&quot;: &quot;kamfany&quot;,
+    &quot;email&quot;: &quot;itkamfany@gmail.com&quot;,
+    &quot;mobileNumber&quot;: null,
+    &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+    &quot;metadata&quot;: {
+      &quot;source&quot;: &quot;zainbox-sync&quot;
+    },
+    &quot;status&quot;: &quot;active&quot;,
+    &quot;createdAt&quot;: &quot;2026-10-30T11:00:00Z&quot;,
+    &quot;updatedAt&quot;: &quot;2026-10-30T11:00:00Z&quot;
+  }
+]</code></pre>
+    </div>
+  </div>
+</article>
+<article id="customers-get" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Get customer</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/customers/{id}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Fetch by integer id.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;uuid&quot;: &quot;814e819e-34ce-4853-b21a-1ed38ebad3e1&quot;,
+  &quot;id&quot;: 1,
+  &quot;displayName&quot;: &quot;kamfany&quot;,
+  &quot;email&quot;: &quot;itkamfany@gmail.com&quot;,
+  &quot;mobileNumber&quot;: null,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;metadata&quot;: {
+    &quot;source&quot;: &quot;zainbox-sync&quot;
+  },
+  &quot;status&quot;: &quot;active&quot;,
+  &quot;createdAt&quot;: &quot;2026-10-30T11:00:00Z&quot;,
+  &quot;updatedAt&quot;: &quot;2026-10-30T11:00:00Z&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="customers-update" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-violet-100 px-2 py-1 font-mono text-xs font-semibold text-violet-800">PUT</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Update customer</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/customers/{id}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Replace customer fields.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">displayName, email, mobileNumber, zainboxCode, metadata, status</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;uuid&quot;: &quot;814e819e-34ce-4853-b21a-1ed38ebad3e1&quot;,
+  &quot;id&quot;: 1,
+  &quot;displayName&quot;: &quot;kamfany&quot;,
+  &quot;email&quot;: &quot;itkamfany@gmail.com&quot;,
+  &quot;mobileNumber&quot;: null,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;metadata&quot;: {
+    &quot;source&quot;: &quot;zainbox-sync&quot;
+  },
+  &quot;status&quot;: &quot;active&quot;,
+  &quot;createdAt&quot;: &quot;2026-10-30T11:00:00Z&quot;,
+  &quot;updatedAt&quot;: &quot;2026-10-30T11:00:00Z&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="customers-status" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-amber-100 px-2 py-1 font-mono text-xs font-semibold text-amber-800">PATCH</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Update customer status</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/customers/{id}/status</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Patch status only.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">{ "status": "active" }</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;uuid&quot;: &quot;814e819e-34ce-4853-b21a-1ed38ebad3e1&quot;,
+  &quot;id&quot;: 1,
+  &quot;displayName&quot;: &quot;kamfany&quot;,
+  &quot;email&quot;: &quot;itkamfany@gmail.com&quot;,
+  &quot;mobileNumber&quot;: null,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;metadata&quot;: {
+    &quot;source&quot;: &quot;zainbox-sync&quot;
+  },
+  &quot;status&quot;: &quot;active&quot;,
+  &quot;createdAt&quot;: &quot;2026-10-30T11:00:00Z&quot;,
+  &quot;updatedAt&quot;: &quot;2026-10-30T11:00:00Z&quot;
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="kyc" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">KYC</h2><div class="mt-2">
+<article id="kyc-upsert" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-violet-100 px-2 py-1 font-mono text-xs font-semibold text-violet-800">PUT</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Upsert KYC</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/kyc</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Linked by customerId → customers.id.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">customerId, title, firstName, surname, email, mobileNumber, bvn, dob, gender, address, state, …</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;,
+  &quot;customerId&quot;: 1,
+  &quot;title&quot;: &quot;Mr&quot;,
+  &quot;firstName&quot;: &quot;Muhammad&quot;,
+  &quot;surname&quot;: &quot;Abdullahi&quot;,
+  &quot;email&quot;: &quot;muhammad@example.com&quot;,
+  &quot;mobileNumber&quot;: &quot;08012345678&quot;,
+  &quot;bvn&quot;: &quot;12345678901&quot;,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;status&quot;: &quot;active&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="kyc-list" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">List KYC profiles</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/kyc</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Optionally filter by status.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">status</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>[
+  {
+    &quot;id&quot;: &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;,
+    &quot;customerId&quot;: 1,
+    &quot;title&quot;: &quot;Mr&quot;,
+    &quot;firstName&quot;: &quot;Muhammad&quot;,
+    &quot;surname&quot;: &quot;Abdullahi&quot;,
+    &quot;email&quot;: &quot;muhammad@example.com&quot;,
+    &quot;mobileNumber&quot;: &quot;08012345678&quot;,
+    &quot;bvn&quot;: &quot;12345678901&quot;,
+    &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+    &quot;status&quot;: &quot;active&quot;
+  }
+]</code></pre>
+    </div>
+  </div>
+</article>
+<article id="kyc-by-customer" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">KYC by customer</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/kyc/by-customer/{customerId}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Fetch KYC for a customer id.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;,
+  &quot;customerId&quot;: 1,
+  &quot;title&quot;: &quot;Mr&quot;,
+  &quot;firstName&quot;: &quot;Muhammad&quot;,
+  &quot;surname&quot;: &quot;Abdullahi&quot;,
+  &quot;email&quot;: &quot;muhammad@example.com&quot;,
+  &quot;mobileNumber&quot;: &quot;08012345678&quot;,
+  &quot;bvn&quot;: &quot;12345678901&quot;,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;status&quot;: &quot;active&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="kyc-get" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">KYC by profile UUID</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/kyc/{id}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Fetch by KYC row UUID.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;,
+  &quot;customerId&quot;: 1,
+  &quot;title&quot;: &quot;Mr&quot;,
+  &quot;firstName&quot;: &quot;Muhammad&quot;,
+  &quot;surname&quot;: &quot;Abdullahi&quot;,
+  &quot;email&quot;: &quot;muhammad@example.com&quot;,
+  &quot;mobileNumber&quot;: &quot;08012345678&quot;,
+  &quot;bvn&quot;: &quot;12345678901&quot;,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;status&quot;: &quot;active&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="kyc-status" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-amber-100 px-2 py-1 font-mono text-xs font-semibold text-amber-800">PATCH</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Update KYC status</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/kyc/{id}/status</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Patch status only.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">{ "status": "active" }</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;,
+  &quot;customerId&quot;: 1,
+  &quot;title&quot;: &quot;Mr&quot;,
+  &quot;firstName&quot;: &quot;Muhammad&quot;,
+  &quot;surname&quot;: &quot;Abdullahi&quot;,
+  &quot;email&quot;: &quot;muhammad@example.com&quot;,
+  &quot;mobileNumber&quot;: &quot;08012345678&quot;,
+  &quot;bvn&quot;: &quot;12345678901&quot;,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;status&quot;: &quot;active&quot;
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="credentials" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Credentials</h2><div class="mt-2">
+<article id="credentials-upsert" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-violet-100 px-2 py-1 font-mono text-xs font-semibold text-violet-800">PUT</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Upsert credentials</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/credentials</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">One test + one live pair per customer. Seed sets privateKey = zainbox codeName.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">customerId, environment (test|live), publicKey, privateKey, metadata, status</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;2b018720-a714-4e9e-861f-488e7e795d9f&quot;,
+  &quot;customerId&quot;: 1,
+  &quot;environment&quot;: &quot;live&quot;,
+  &quot;publicKey&quot;: &quot;eyJ0eXAiOiJKV1QiLCJhbGciOi\u2026&quot;,
+  &quot;privateKey&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;status&quot;: &quot;active&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="credentials-list" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">List credentials</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/credentials</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Filter by customer and environment.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">customerId, environment</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>[
+  {
+    &quot;id&quot;: &quot;2b018720-a714-4e9e-861f-488e7e795d9f&quot;,
+    &quot;customerId&quot;: 1,
+    &quot;environment&quot;: &quot;live&quot;,
+    &quot;publicKey&quot;: &quot;eyJ0eXAiOiJKV1QiLCJhbGciOi\u2026&quot;,
+    &quot;privateKey&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+    &quot;status&quot;: &quot;active&quot;
+  }
+]</code></pre>
+    </div>
+  </div>
+</article>
+<article id="credentials-by-customer" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Credentials for customer</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/credentials/by-customer/{customerId}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Returns test + live rows.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>[
+  {
+    &quot;id&quot;: &quot;2b018720-a714-4e9e-861f-488e7e795d9f&quot;,
+    &quot;customerId&quot;: 1,
+    &quot;environment&quot;: &quot;live&quot;,
+    &quot;publicKey&quot;: &quot;eyJ0eXAiOiJKV1QiLCJhbGciOi\u2026&quot;,
+    &quot;privateKey&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+    &quot;status&quot;: &quot;active&quot;
+  },
+  {
+    &quot;id&quot;: &quot;2b018720-a714-4e9e-861f-488e7e795d9f&quot;,
+    &quot;customerId&quot;: 1,
+    &quot;environment&quot;: &quot;test&quot;,
+    &quot;publicKey&quot;: &quot;eyJ0eXAiOiJKV1QiLCJhbGciOi\u2026&quot;,
+    &quot;privateKey&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+    &quot;status&quot;: &quot;active&quot;
+  }
+]</code></pre>
+    </div>
+  </div>
+</article>
+<article id="credentials-by-env" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Credential by env</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/credentials/by-customer/{customerId}/{environment}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Single environment row.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;2b018720-a714-4e9e-861f-488e7e795d9f&quot;,
+  &quot;customerId&quot;: 1,
+  &quot;environment&quot;: &quot;live&quot;,
+  &quot;publicKey&quot;: &quot;eyJ0eXAiOiJKV1QiLCJhbGciOi\u2026&quot;,
+  &quot;privateKey&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;status&quot;: &quot;active&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="credentials-get" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Credential by UUID</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/credentials/{id}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Fetch by credential UUID.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;2b018720-a714-4e9e-861f-488e7e795d9f&quot;,
+  &quot;customerId&quot;: 1,
+  &quot;environment&quot;: &quot;live&quot;,
+  &quot;publicKey&quot;: &quot;eyJ0eXAiOiJKV1QiLCJhbGciOi\u2026&quot;,
+  &quot;privateKey&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;status&quot;: &quot;active&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="credentials-status" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-amber-100 px-2 py-1 font-mono text-xs font-semibold text-amber-800">PATCH</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Update credential status</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/credentials/{id}/status</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Patch status only.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">{ "status": "active" }</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;2b018720-a714-4e9e-861f-488e7e795d9f&quot;,
+  &quot;customerId&quot;: 1,
+  &quot;environment&quot;: &quot;live&quot;,
+  &quot;publicKey&quot;: &quot;eyJ0eXAiOiJKV1QiLCJhbGciOi\u2026&quot;,
+  &quot;privateKey&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;status&quot;: &quot;active&quot;
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="local" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Local lookups</h2><div class="mt-2">
+<article id="local-va" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">DB virtual account</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-accounts/{accountNumber}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Gateway-persisted VA with metadata.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;id&quot;: &quot;9f3c2a1b-0000-4000-8000-000000000001&quot;,
+  &quot;accountNumber&quot;: &quot;5006079921&quot;,
+  &quot;accountName&quot;: &quot;KAMFANY LTD&quot;,
+  &quot;bankName&quot;: &quot;Zainpay MFB&quot;,
+  &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+  &quot;metadata&quot;: {
+    &quot;orderId&quot;: &quot;ord_123&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="local-va-balance" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">VA balance via gateway</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-accounts/{accountNumber}/balance</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Proxies live balance for a known account.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;balanceAmount&quot;: &quot;125000.00&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="local-ops" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Operation history</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/operations/{resourceKey}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Lookup by txnRef / accountNumber / zainboxCode.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>[
+  {
+    &quot;id&quot;: &quot;op-1&quot;,
+    &quot;operation&quot;: &quot;virtual_account.create&quot;,
+    &quot;resourceKey&quot;: &quot;5006079921&quot;,
+    &quot;zainpayCode&quot;: &quot;00&quot;,
+    &quot;metadata&quot;: {
+      &quot;orderId&quot;: &quot;ord_123&quot;
+    }
+  }
+]</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="zainbox" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Zainbox (proxy)</h2><div class="mt-2">
+<article id="zb-create" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Create zainbox</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/create/request</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Proxies Zainpay create; optional metadata.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">name, callbackUrl, …; optional metadata wrapper</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;codeName&quot;: &quot;store_abc&quot;,
+    &quot;name&quot;: &quot;My Store&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-list" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">List zainboxes</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/list</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">All merchant zainboxes.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">status</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;name&quot;: &quot;kamfany&quot;,
+      &quot;codeName&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+      &quot;isActive&quot;: true
+    },
+    {
+      &quot;name&quot;: &quot;main&quot;,
+      &quot;codeName&quot;: &quot;73971_zAIbbOG148EjIaSWCIFR&quot;,
+      &quot;isActive&quot;: true
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-update" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-amber-100 px-2 py-1 font-mono text-xs font-semibold text-amber-800">PATCH</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Update zainbox</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/update</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Update name/callback and related fields.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">codeName, name, …</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;codeName&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+    &quot;name&quot;: &quot;kamfany&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-vas" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">List VAs for zainbox</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/virtual-accounts/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Virtual accounts under a zainbox.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;accountNumber&quot;: &quot;5006079921&quot;,
+      &quot;accountName&quot;: &quot;KAMFANY LTD&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-balances" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Account balances</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/accounts/balance/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Balances for accounts in a zainbox.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;accountNumber&quot;: &quot;5006079921&quot;,
+      &quot;balance&quot;: &quot;125000.00&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-merchant-txns" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Merchant transactions</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/transactions</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Merchant-wide transaction list.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">count, txnType, accountNumber, paymentChannel, dateFrom, dateTo</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;txnRef&quot;: &quot;txn_1&quot;,
+      &quot;amount&quot;: &quot;5000&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-txns" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Zainbox transactions</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/transactions/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Transactions for one zainbox.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">count, txnType, accountNumber, paymentChannel, dateFrom, dateTo</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;txnRef&quot;: &quot;txn_1&quot;,
+      &quot;amount&quot;: &quot;5000&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-deposit-summary" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Deposit summary</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/transfer/deposit/summary/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Deposit aggregates for a date window.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">dateFrom, dateTo</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;totalDeposits&quot;: &quot;150000&quot;,
+    &quot;count&quot;: 12
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-profile" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Profile</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/profile/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Zainbox profile.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;name&quot;: &quot;kamfany&quot;,
+    &quot;codeName&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-profile-v2" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Profile v2</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/profile/v2/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Expanded profile payload.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;name&quot;: &quot;kamfany&quot;,
+    &quot;billing&quot;: {
+      &quot;feeBearer&quot;: &quot;merchant&quot;
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-billing" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Billing config</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/billing/config/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Billing configuration for a zainbox.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;feeBearer&quot;: &quot;merchant&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-txn-summary" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Transactions summary</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/transactions/summary</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Merchant-wide totals.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">dateFrom, dateTo</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;totalCredit&quot;: &quot;1000000&quot;,
+    &quot;totalDebit&quot;: &quot;250000&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-card-txns" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Card transactions</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/card/transactions/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Card payments for a zainbox.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">count, dateFrom, dateTo, status, email, txnRef</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;txnRef&quot;: &quot;card_1&quot;,
+      &quot;amount&quot;: &quot;2000&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-subscribe" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Subscribe</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/service-subscription/subscribe</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Subscribe a zainbox to a service.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">zainboxCode, serviceName</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;subscribed&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-unsubscribe" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Unsubscribe</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/service-subscription/unsubscribe</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Remove a service subscription.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">zainboxCode, serviceName</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;subscribed&quot;: false
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-subs-all" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">All subscriptions</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/service-subscription/subscriptions/all/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">All subscriptions for a zainbox.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">serviceName</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;serviceName&quot;: &quot;virtualAccount&quot;,
+      &quot;status&quot;: &quot;active&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="zb-subs-active" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Active subscriptions</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/service-subscription/subscriptions/active/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Active-only subscriptions.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;serviceName&quot;: &quot;virtualAccount&quot;,
+      &quot;status&quot;: &quot;active&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="virtual-account" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Virtual accounts (proxy)</h2><div class="mt-2">
+<article id="va-create" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Create static VA</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/create/request</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Create a static virtual account.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">KYC fields + zainboxCode; optional metadata</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;Virtual account created&quot;,
+  &quot;data&quot;: {
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;accountName&quot;: &quot;MUHAMMAD ABDULLAHI&quot;,
+    &quot;bankName&quot;: &quot;Zainpay MFB&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-dynamic" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Create dynamic VA</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/dynamic/create/request</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Create a dynamic virtual account.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">Zainpay dynamic VA fields</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountNumber&quot;: &quot;9001112223&quot;,
+    &quot;txnRef&quot;: &quot;dyn_001&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-balance" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">VA balance</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/wallet/balance/v2/{accountNumber}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Live balance path.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;balanceAmount&quot;: &quot;125000.00&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-balance-alias" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">VA balance (legacy alias)</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/virtual-account/wallet/balance/v2/{accountNumber}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Same handler as the canonical balance path.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;balanceAmount&quot;: &quot;125000.00&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-status" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-amber-100 px-2 py-1 font-mono text-xs font-semibold text-amber-800">PATCH</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Change VA status</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/change/account/status</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Enable/disable a virtual account.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">accountNumber, zainboxCode, status</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;status&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-bvn" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Update VA BVN</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/update/bvn</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Update BVN on an account.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">accountNumber, zainboxCode, bvn</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;updated&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-txns" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">VA transactions</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/wallet/transactions/{accountNumber}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Transactions for one account.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">count, txnType, paymentChannel, dateFrom, dateTo</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;txnRef&quot;: &quot;txn_1&quot;,
+      &quot;amount&quot;: &quot;5000&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-dyn-status" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Dynamic deposit status</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/dynamic/deposit/status/{txnRef}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Poll dynamic deposit payment status.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;txnRef&quot;: &quot;dep_001&quot;,
+    &quot;paid&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-fund-static" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Sandbox fund static VA</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/static/fund</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Mock host funding helper.</p>
+      <p class="mt-3 text-sm leading-6 text-ink-700">Sandbox / mock host only.</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;funded&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="va-fund-dynamic" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Sandbox fund dynamic VA</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/dynamic/fund</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Mock host funding helper.</p>
+      <p class="mt-3 text-sm leading-6 text-ink-700">Sandbox / mock host only.</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;funded&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="bank" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Bank</h2><div class="mt-2">
+<article id="bank-list" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Bank list</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/bank/list</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Canonical live path.</p>
+      <p class="mt-3 text-sm leading-6 text-ink-700">Prefer this over the legacy alias.</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;code&quot;: &quot;000013&quot;,
+      &quot;name&quot;: &quot;GTBank&quot;
+    },
+    {
+      &quot;code&quot;: &quot;000014&quot;,
+      &quot;name&quot;: &quot;Access Bank&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="bank-name" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Name enquiry</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/bank/name-enquiry</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Resolve account name.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">bankCode, accountNumber</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountName&quot;: &quot;ZNPAY SUNUSI INUWA&quot;,
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;bankCode&quot;: &quot;000013&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="bank-list-alias" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Bank list (legacy alias)</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/bank/list</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Same handler as /bank/list.</p>
+      <p class="mt-3 text-sm leading-6 text-ink-700">Live /zainbox/bank/list returns 405.</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;code&quot;: &quot;000013&quot;,
+      &quot;name&quot;: &quot;GTBank&quot;
+    },
+    {
+      &quot;code&quot;: &quot;000014&quot;,
+      &quot;name&quot;: &quot;Access Bank&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="bank-name-alias" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Name enquiry (legacy alias)</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/bank/name-enquiry</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Same handler as /bank/name-enquiry.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountName&quot;: &quot;ZNPAY SUNUSI INUWA&quot;,
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;bankCode&quot;: &quot;000013&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="transfers" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Transfers</h2><div class="mt-2">
+<article id="trf-create" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Funds transfer</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/bank/transfer/v2</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Initiate a bank transfer.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">destinationAccountNumber, destinationBankCode, sourceAccountNumber, sourceBankCode, amount, txnRef, zainboxCode</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;txnRef&quot;: &quot;trf_001&quot;,
+    &quot;status&quot;: &quot;pending&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="trf-alias" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Funds transfer (legacy alias)</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/bank/transfer/v2</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Same handler as /bank/transfer/v2.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;txnRef&quot;: &quot;trf_001&quot;,
+    &quot;status&quot;: &quot;pending&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="trf-verify" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Verify transaction</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/wallet/transaction/verify/{txnRef}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Verify transfer/wallet transaction.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;txnRef&quot;: &quot;trf_001&quot;,
+    &quot;status&quot;: &quot;success&quot;,
+    &quot;amount&quot;: &quot;5000&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="trf-network" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Network status</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/bank/transfer/network/status</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Transfer rail availability.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;status&quot;: &quot;UP&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="settlements" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Settlements</h2><div class="mt-2">
+<article id="set-create" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Create settlement</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/settlement</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Create a settlement schedule.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">name, scheduleType, schedulePeriod, zainboxCode, status, settlementAccountList</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+    &quot;scheduleType&quot;: &quot;auto&quot;,
+    &quot;status&quot;: &quot;active&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="set-get" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Get settlement config</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/settlement</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Fetch settlement configuration.</p>
+      <p class="mt-3 text-sm leading-6 text-ink-700">Live may return HTTP 405.</p><p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">zainboxCode</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;zainboxCode&quot;: &quot;charg_0atrmzL5qsMFKGYPrahj&quot;,
+    &quot;scheduleType&quot;: &quot;auto&quot;,
+    &quot;status&quot;: &quot;active&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="set-history" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Settlement history</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/settlement/history/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Historical settlement runs.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">count, dateFrom, dateTo, status</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;id&quot;: &quot;set_1&quot;,
+      &quot;amount&quot;: &quot;100000&quot;,
+      &quot;status&quot;: &quot;completed&quot;
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="set-internal" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Internal settlement account</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/internal-settlement-account/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Internal payout wallet for a zainbox.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;accountNumber&quot;: &quot;5006079921&quot;,
+    &quot;accountName&quot;: &quot;INTERNAL SETTLEMENT&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="reconciliation" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Reconciliation</h2><div class="mt-2">
+<article id="rec-deposit" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Verify deposit</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/wallet/deposit/verify/v2/{txnRef}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Verify a deposit by txnRef.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;txnRef&quot;: &quot;dep_001&quot;,
+    &quot;verified&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="rec-bank" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Reconcile bank deposit</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/wallet/transaction/reconcile/bank-deposit</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Reconcile a bank deposit.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">bankType, verificationType, accountNumber, sessionId</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;reconciled&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="rec-card" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Reconcile card payment</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/virtual-account/wallet/transaction/reconcile/card-payment</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Reconcile a card payment.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p><p class="mt-2 font-mono text-sm text-ink-700">txnRef and related Zainpay params</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;reconciled&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="cards" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Cards</h2><div class="mt-2">
+<article id="card-init" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Initialize card payment</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/card/initialize/payment</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Start a card checkout.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">Zainpay card init fields; optional metadata</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: &quot;https://checkout.example/pay/abc123&quot;
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="card-recurring" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Recurring card purchase</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/card/recurring/purchase</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Charge a saved card.</p>
+      <p class="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p><p class="mt-2 text-sm leading-6 text-ink-700">Zainpay recurring fields</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;txnRef&quot;: &quot;card_rec_1&quot;,
+    &quot;status&quot;: &quot;success&quot;
+  }
+}</code></pre>
+    </div>
+  </div>
+</article></div></section><section id="webhooks" class="scroll-mt-24 border-b border-slate-200 py-12"><h2 class="text-4xl font-semibold tracking-tight text-ink-950">Webhooks</h2><div class="mt-2">
+<article id="wh-inbound" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-sky-100 px-2 py-1 font-mono text-xs font-semibold text-sky-800">POST</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Inbound Zainpay webhook</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/webhooks/zainpay</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Receive Zainpay webhook events.</p>
+      <p class="mt-3 text-sm leading-6 text-ink-700">HMAC Zainpay-Signature via ZAINPAY_WEBHOOK_SECRET. No X-Api-Key.</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;received&quot;: true
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="wh-repush-dep" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Repush deposit</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/repush/deposit/{txnRef}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Ask Zainpay to repush a deposit webhook.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;txnRef&quot;: &quot;dep_001&quot;,
+    &quot;repushed&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article>
+<article id="wh-repush-card" class="scroll-mt-24 border-b border-slate-200 py-10">
+  <div class="grid gap-8 xl:grid-cols-2">
+    <div>
+      <div class="flex flex-wrap items-center gap-3"><span class="rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs font-semibold text-emerald-800">GET</span></div>
+      <h3 class="mt-3 text-2xl font-semibold tracking-tight text-ink-950">Repush card payment</h3>
+      <p class="mt-2 break-all font-mono text-sm text-accent">/zainbox/repush/card-payment/{txnRef}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Ask Zainpay to repush a card-payment webhook.</p>
+      
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{
+  &quot;code&quot;: &quot;00&quot;,
+  &quot;status&quot;: &quot;200 OK&quot;,
+  &quot;description&quot;: &quot;successful&quot;,
+  &quot;data&quot;: {
+    &quot;txnRef&quot;: &quot;dep_001&quot;,
+    &quot;repushed&quot;: true
+  }
+}</code></pre>
+    </div>
+  </div>
+</article></div></section>
+        <section class="py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Base URL &amp; env</h2>
+          <ul class="mt-6 space-y-3 text-base leading-7 text-ink-700">
+            <li>Bind: <code class="font-mono text-sm">GATEWAY_BIND</code> (default <code class="font-mono text-sm">0.0.0.0:8080</code>)</li>
+            <li>Gateway key: <code class="font-mono text-sm">GATEWAY_API_KEY</code></li>
+            <li>Database: <code class="font-mono text-sm">DATABASE_URL</code></li>
+            <li>Zainpay: <code class="font-mono text-sm">ZAINPAY_BASE_URL</code>, <code class="font-mono text-sm">ZAINPAY_API_KEY</code>, <code class="font-mono text-sm">ZAINPAY_WEBHOOK_SECRET</code></li>
+          </ul>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const links = [...document.querySelectorAll("[data-nav]")];
+      const map = links.map((a) => {
+        const id = a.getAttribute("href").slice(1);
+        return { a, el: document.getElementById(id) };
+      }).filter((x) => x.el);
+      const io = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        const id = visible.target.id;
+        links.forEach((a) => a.classList.toggle("is-active", a.getAttribute("href") === "#" + id));
+        const active = links.find((a) => a.getAttribute("href") === "#" + id);
+        if (active) active.scrollIntoView({ block: "nearest" });
+      }, { rootMargin: "-20% 0px -65% 0px", threshold: [0, 0.2, 0.6] });
+      map.forEach(({ el }) => io.observe(el));
+    })();
+  </script>
+</body>
+</html>

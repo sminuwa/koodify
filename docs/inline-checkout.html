@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Koodify Inline Checkout</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            ink: { 950: '#0c1222', 900: '#121a2f', 700: '#2a3655', 500: '#5b6b8c' },
+            accent: { DEFAULT: '#0f766e', soft: '#ccfbf1' },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    [data-nav].is-active { background: #fff; color: #0f766e; font-weight: 600; }
+    #sidebar-nav { scrollbar-width: thin; }
+  </style>
+</head>
+<body class="bg-[radial-gradient(ellipse_at_top,_#e8f5f3_0%,_#f8fafc_45%,_#f1f5f9_100%)] text-ink-900 font-sans antialiased">
+  <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+    <aside class="border-b border-slate-200 bg-white/90 lg:sticky lg:top-0 lg:h-screen lg:overflow-hidden lg:border-b-0 lg:border-r">
+      <div class="border-b border-slate-200 px-5 py-5">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Koodify</p>
+        <p class="mt-1 text-lg font-semibold text-ink-950">Inline checkout</p>
+        <p class="mt-1 text-xs text-ink-500">Bank transfer widget</p>
+      </div>
+      <nav id="sidebar-nav" class="max-h-[50vh] space-y-0.5 overflow-y-auto px-3 py-4 lg:max-h-[calc(100vh-7.5rem)]">
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#overview">Overview</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#install">Install</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#quickstart">Quick start</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#config">Config fields</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#custom-param">customParam</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#callback">Callback response</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#flow">Payment flow</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#gateway">Gateway routes</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#demo">Local demo</a>
+        <a data-nav class="mt-4 block rounded-md px-3 py-2 text-sm text-ink-500 hover:bg-white hover:text-accent" href="api.html">← API reference</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-500 hover:bg-white hover:text-accent" href="composite-endpoints.html">Composite endpoints</a>
+      </nav>
+    </aside>
+
+    <div>
+      <header class="border-b border-slate-200/80 bg-white/70 backdrop-blur">
+        <div class="mx-auto max-w-4xl px-6 py-16">
+          <p class="text-xs font-semibold uppercase tracking-[0.22em] text-accent">Browser · packages/koodify-inline</p>
+          <h1 class="mt-4 text-6xl font-bold tracking-tight text-ink-950 sm:text-7xl">Inline checkout</h1>
+          <p class="mt-6 max-w-2xl text-lg leading-8 text-ink-700">
+            Drop-in bank-transfer checkout. Call
+            <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">koodifyInitPayment</code>
+            to open a modal, show a one-time virtual account, auto-poll for payment, then return
+            <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">payer</code>
+            and optional
+            <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">customParam</code>
+            on the callback.
+          </p>
+          <p class="mt-4 text-sm text-ink-500">
+            Prefer routing through the <strong>koodify gateway</strong>
+            <code class="font-mono text-xs">auth: "gateway"</code>
+            so payer + custom params are stored and re-attached on status.
+          </p>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-4xl px-6 py-14">
+        <section id="overview" class="scroll-mt-24 border-b border-slate-200 pb-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Overview</h2>
+          <ul class="mt-6 space-y-3 text-base leading-7 text-ink-700">
+            <li>Bank transfer only — no card UI.</li>
+            <li>Creates a temporary virtual account for the exact amount.</li>
+            <li>Listens for settlement automatically; merchant can also tap <em>Check Payment Status</em>.</li>
+            <li>Success screen stays open ~10 seconds (or until Done / close).</li>
+            <li>Works best with koodify <code class="font-mono text-sm">X-Api-Key</code>, not the browser talking to Zainpay directly (CORS).</li>
+          </ul>
+        </section>
+
+        <section id="install" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Install</h2>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            Build the IIFE from
+            <code class="font-mono text-sm">packages/koodify-inline</code>
+            and serve
+            <code class="font-mono text-sm">dist/koodify-inline.js</code>
+            (or the demo copy).
+          </p>
+          <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>cd packages/koodify-inline
+npm install
+npm run build
+# → dist/koodify-inline.js</code></pre>
+          <p class="mt-6 text-base leading-7 text-ink-700">Include on your page:</p>
+          <pre class="mt-4 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>&lt;script src="/path/to/koodify-inline.js"&gt;&lt;/script&gt;</code></pre>
+          <p class="mt-4 text-sm text-ink-500">
+            Exposes global
+            <code class="font-mono text-xs">koodifyInitPayment</code>
+            (and <code class="font-mono text-xs">KoodifyInline.koodifyInitPayment</code>).
+          </p>
+        </section>
+
+        <section id="quickstart" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Quick start</h2>
+          <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>koodifyInitPayment(
+  {
+    amount: "500",
+    txnRef: "ORDER_" + Date.now(),
+    mobileNumber: "08012345678",
+    zainboxCode: "YOUR_ZAINBOX_CODE",
+    emailAddress: "customer@example.com",
+    callBackUrl: "https://example.com/webhook",
+    name: "Ada Lovelace",
+    currencyCode: "NGN",
+    bankType: "gtBank",
+    auth: "gateway",
+    baseUrl: "https://your-koodify-host", // or http://localhost:8080
+    customParam: {
+      matric: "ND/12/2211",
+      session: "2026",
+      paymentType: "School Fees",
+      studentId: "STU001"
+    }
+  },
+  function (response) {
+    console.log(response);
+    // { status, reference, description, payer?, customParam? }
+  },
+  "YOUR_GATEWAY_API_KEY", // X-Api-Key
+  "sandbox"               // ignored when baseUrl is set
+);</code></pre>
+          <p class="mt-6 text-base leading-7 text-ink-700">
+            The function also returns a
+            <code class="font-mono text-sm">Promise</code>
+            that resolves on success and rejects on cancel / failure.
+          </p>
+        </section>
+
+        <section id="config" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Config fields</h2>
+          <div class="mt-8 overflow-x-auto rounded-lg ring-1 ring-slate-200 bg-white/80">
+            <table class="min-w-full text-left text-sm">
+              <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.14em] text-ink-500">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">Field</th>
+                  <th class="px-4 py-3 font-semibold">Required</th>
+                  <th class="px-4 py-3 font-semibold">Notes</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-ink-700">
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">amount</td>
+                  <td class="px-4 py-3">yes</td>
+                  <td class="px-4 py-3">Naira string. Prefer whole amounts (<code class="font-mono text-xs">"500"</code>).</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">mobileNumber</td>
+                  <td class="px-4 py-3">yes</td>
+                  <td class="px-4 py-3">Stored as <code class="font-mono text-xs">payer.phone</code>.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">txnRef</td>
+                  <td class="px-4 py-3">yes</td>
+                  <td class="px-4 py-3">Unique per attempt. Used as koodify operation key.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">emailAddress</td>
+                  <td class="px-4 py-3">yes</td>
+                  <td class="px-4 py-3">Stored as <code class="font-mono text-xs">payer.email</code>.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">zainboxCode</td>
+                  <td class="px-4 py-3">yes</td>
+                  <td class="px-4 py-3">Merchant zainbox code.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">callBackUrl</td>
+                  <td class="px-4 py-3">yes</td>
+                  <td class="px-4 py-3">Merchant webhook / return URL passed upstream.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">name</td>
+                  <td class="px-4 py-3">no</td>
+                  <td class="px-4 py-3">Koodify-only. Or <code class="font-mono text-xs">payer: { name }</code>. Stripped before Zainpay.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">customParam</td>
+                  <td class="px-4 py-3">no</td>
+                  <td class="px-4 py-3">Arbitrary object. Stored + returned. Alias: <code class="font-mono text-xs">customParams</code>.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">currencyCode</td>
+                  <td class="px-4 py-3">no</td>
+                  <td class="px-4 py-3">Default <code class="font-mono text-xs">NGN</code>.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">bankType</td>
+                  <td class="px-4 py-3">no</td>
+                  <td class="px-4 py-3">Default <code class="font-mono text-xs">gtBank</code>.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">logoUrl</td>
+                  <td class="px-4 py-3">no</td>
+                  <td class="px-4 py-3">Overrides the default Koodify wordmark in the sheet header.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">auth</td>
+                  <td class="px-4 py-3">no</td>
+                  <td class="px-4 py-3"><code class="font-mono text-xs">"gateway"</code> / <code class="font-mono text-xs">"koodify"</code> → send <code class="font-mono text-xs">X-Api-Key</code>.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">baseUrl</td>
+                  <td class="px-4 py-3">no</td>
+                  <td class="px-4 py-3">Koodify origin, e.g. <code class="font-mono text-xs">http://localhost:8080</code>.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">allowRecurringPayment</td>
+                  <td class="px-4 py-3">no</td>
+                  <td class="px-4 py-3">Forwarded on init when set.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="custom-param" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">customParam</h2>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            Pass any merchant key/value map alongside the payment. Koodify peels it off before calling Zainpay,
+            stores it under <code class="font-mono text-sm">operation_records.metadata.customParam</code>,
+            and returns it as <code class="font-mono text-sm">data.customParam</code> on init / status —
+            and on the browser callback.
+          </p>
+          <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>"customParam": {
+  "matric": "ND/12/2211",
+  "session": "2026",
+  "paymentType": "School Fees",
+  "studentId": "STU001"
+}</code></pre>
+          <p class="mt-6 text-sm text-ink-500">
+            You can also nest under <code class="font-mono text-xs">metadata.customParam</code> on raw gateway POSTs;
+            the inline widget sends top-level <code class="font-mono text-xs">customParam</code>.
+          </p>
+        </section>
+
+        <section id="callback" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Callback response</h2>
+          <p class="mt-4 text-base leading-7 text-ink-700">Shape passed to the callback and Promise:</p>
+          <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>{
+  "status": "success",
+  "reference": "ORDER_1793402668162",
+  "description": "Payment was successful",
+  "payer": {
+    "email": "customer@example.com",
+    "phone": "08012345678",
+    "name": "Ada Lovelace"
+  },
+  "customParam": {
+    "matric": "ND/12/2211",
+    "session": "2026",
+    "paymentType": "School Fees",
+    "studentId": "STU001"
+  }
+}</code></pre>
+          <div class="mt-8 overflow-x-auto rounded-lg ring-1 ring-slate-200 bg-white/80">
+            <table class="min-w-full text-left text-sm">
+              <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.14em] text-ink-500">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">status</th>
+                  <th class="px-4 py-3 font-semibold">When</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-ink-700">
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">success</td>
+                  <td class="px-4 py-3">Transfer confirmed (auto-close or Done).</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">cancelled</td>
+                  <td class="px-4 py-3">User closed / cancelled before success.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">failed</td>
+                  <td class="px-4 py-3">Init or hard failure.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="flow" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Payment flow</h2>
+          <ol class="mt-6 list-decimal space-y-3 pl-5 text-base leading-7 text-ink-700">
+            <li>
+              <code class="font-mono text-sm">POST …/zainbox/card/initialize/payment/inline</code>
+              — session + store payer / customParam.
+            </li>
+            <li>
+              <code class="font-mono text-sm">GET …/zainbox/card/generate-temporary-virtual-account</code>
+              — one-time account for the amount.
+            </li>
+            <li>
+              Modal shows bank details; auto-polls
+              <code class="font-mono text-sm">…/temporary-virtual-account-payment-status</code>
+              every ~3s.
+            </li>
+            <li>On success: confirmation UI (~10s), then callback with status / payer / customParam.</li>
+          </ol>
+        </section>
+
+        <section id="gateway" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Gateway routes used</h2>
+          <ul class="mt-6 space-y-2 font-mono text-sm text-ink-700">
+            <li>POST /zainbox/card/initialize/payment/inline</li>
+            <li>GET /zainbox/card/generate-temporary-virtual-account?bankType=&amp;e=</li>
+            <li>GET /zainbox/card/temporary-virtual-account-payment-status?txnRef=</li>
+          </ul>
+          <p class="mt-6 text-base leading-7 text-ink-700">
+            Auth header:
+            <code class="font-mono text-sm">X-Api-Key: $GATEWAY_API_KEY</code>
+            when <code class="font-mono text-sm">auth: "gateway"</code>.
+            Full catalogue:
+            <a class="text-accent underline" href="api.html">docs/api.html</a>.
+          </p>
+        </section>
+
+        <section id="demo" class="scroll-mt-24 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Local demo</h2>
+          <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code># terminal 1 — gateway
+cargo run -p koodify
+
+# terminal 2 — checkout demo (proxies /proxy/koodify → :8080)
+cd packages/koodify-inline
+npm install
+npm run demo
+# open http://localhost:5179</code></pre>
+          <p class="mt-6 text-sm text-ink-500">
+            Package source:
+            <code class="font-mono text-xs">packages/koodify-inline</code>.
+            Ensure <code class="font-mono text-xs">GATEWAY_API_KEY</code> is set in the repo
+            <code class="font-mono text-xs">.env</code> for the demo proxy.
+          </p>
+        </section>
+      </main>
+
+      <footer class="border-t border-slate-200/80 bg-white/50">
+        <div class="mx-auto max-w-4xl px-6 py-8 text-sm text-ink-500">
+          Open locally: <code class="font-mono">docs/inline-checkout.html</code>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const links = [...document.querySelectorAll("[data-nav]")];
+    const sections = links
+      .map((a) => {
+        const id = a.getAttribute("href");
+        if (!id || !id.startsWith("#")) return null;
+        const el = document.querySelector(id);
+        return el ? { a, el } : null;
+      })
+      .filter(Boolean);
+
+    function sync() {
+      let current = sections[0];
+      for (const item of sections) {
+        if (item.el.getBoundingClientRect().top <= 120) current = item;
+      }
+      links.forEach((a) => a.classList.remove("is-active"));
+      current?.a.classList.add("is-active");
+    }
+    sync();
+    window.addEventListener("scroll", sync, { passive: true });
+  </script>
+</body>
+</html>

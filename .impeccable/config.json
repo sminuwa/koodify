@@ -1,0 +1,53 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          "/Users/sminuwa/Projects/Web/Templates/zainpay_docs/zainpay-rs/docs/composite-endpoints.html"
+        ],
+        "createdAt": "2026-10-30T11:19:50.001Z",
+        "reason": "API reference docs: each endpoint section is a top-level content block, not nested UI cards; amber callouts are documentation warnings not nested cards"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "/Users/sminuwa/Projects/Web/Templates/zainpay_docs/zainpay-rs/docs/composite-endpoints.html"
+        ],
+        "createdAt": "2026-10-30T11:20:28.434Z",
+        "reason": "API reference doc: intentional multi-section reference with repeated h2/body pairs; hero already uses text-5xl/6xl vs text-lg; detector flags per-section h2/body rhythm as flat"
+      },
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          "/Users/sminuwa/Projects/Web/Templates/zainpay_docs/zainpay-rs/docs/api.html"
+        ],
+        "createdAt": "2026-10-30T13:12:41.722Z",
+        "reason": "API reference: sectioned endpoint docs use flat dividers, not nested UI cards"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "/Users/sminuwa/Projects/Web/Templates/zainpay_docs/zainpay-rs/docs/api.html"
+        ],
+        "createdAt": "2026-10-30T13:12:41.766Z",
+        "reason": "API reference: intentional repeated h2/body rhythm across many endpoint sections"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "docs/inline-checkout.html"
+        ],
+        "createdAt": "2026-10-30T23:40:40.742Z",
+        "reason": "HTML API docs match existing docs/composite-endpoints.html and docs/api.html type scale; not a product UI surface"
+      }
+    ]
+  }
+}

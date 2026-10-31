@@ -1,0 +1,19 @@
+{
+  "name": "@koodify/inline",
+  "version": "0.1.0",
+  "description": "Koodify bank-transfer checkout — koodifyInitPayment",
+  "main": "dist/koodify-inline.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "esbuild src/index.js --bundle --minify --format=iife --global-name=KoodifyInline --loader:.css=text --loader:.png=dataurl --outfile=dist/koodify-inline.js && node scripts/postbuild.js",
+    "build:dev": "esbuild src/index.js --bundle --format=iife --global-name=KoodifyInline --loader:.css=text --loader:.png=dataurl --outfile=dist/koodify-inline.js && node scripts/postbuild.js",
+    "demo": "npm run build:dev && node scripts/demo-server.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "license": "UNLICENSED"
+}

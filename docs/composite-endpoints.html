@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Koodify Composite Endpoints</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            ink: { 950: '#0c1222', 900: '#121a2f', 700: '#2a3655', 500: '#5b6b8c' },
+            accent: { DEFAULT: '#0f766e', soft: '#ccfbf1' },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body class="bg-[radial-gradient(ellipse_at_top,_#e8f5f3_0%,_#f8fafc_45%,_#f1f5f9_100%)] text-ink-900 font-sans antialiased">
+  <header class="border-b border-slate-200/80 bg-white/80 backdrop-blur">
+    <div class="mx-auto max-w-4xl px-6 py-16">
+      <p class="text-xs font-semibold uppercase tracking-[0.22em] text-accent">Koodify · Client SDK</p>
+      <h1 class="mt-4 text-6xl font-bold tracking-tight text-ink-950 sm:text-7xl">Composite endpoints</h1>
+      <p class="mt-6 max-w-2xl text-lg leading-8 text-ink-700">
+        Each route calls <span class="font-semibold text-ink-900">two Zainpay upstream endpoints</span>
+        and returns one envelope. Nested fields keep the original Zainpay
+        <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">ApiResponse</code>
+        so you can still read each upstream
+        <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">code</code>.
+      </p>
+      <p class="mt-4 text-sm text-ink-500">Full gateway catalogue: <a class="text-accent underline" href="api.html">docs/api.html</a>. Inline checkout: <a class="text-accent underline" href="inline-checkout.html">docs/inline-checkout.html</a>.</p>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-4xl px-6 py-14">
+    <section class="border-b border-slate-200 pb-12">
+      <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Auth &amp; response shape</h2>
+      <ul class="mt-6 space-y-3 text-base leading-7 text-ink-700">
+        <li>Gateway auth: <code class="font-mono text-sm">X-Api-Key</code> (same as other koodify routes).</li>
+        <li>Upstream auth: merchant <code class="font-mono text-sm">ZAINPAY_API_KEY</code> on the server.</li>
+        <li>Outer envelope uses <code class="font-mono text-sm">code: "00"</code> when both HTTP calls succeed.</li>
+        <li>SDK: <code class="font-mono text-sm">client.composite().…()</code>.</li>
+      </ul>
+      <pre class="mt-8 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "composite: …",
+  "data": {
+    "firstPart": { "code": "00", "status": "…", "description": "…", "data": { } },
+    "secondPart": { "code": "00", "status": "…", "description": "…", "data": { } }
+  }
+}</code></pre>
+    </section>
+
+    <section id="zainbox-snapshot" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Zainbox snapshot</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Dashboard header for one zainbox: profile plus account balances.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /zainbox/profile/{zainboxCode}</li>
+        <li>GET /zainbox/accounts/balance/{zainboxCode}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">profile</span>, <span class="text-accent">balances</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().zainbox_snapshot(code).await?</code></pre>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Example</p>
+      <pre class="mt-3 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm text-slate-100"><code>curl -H "X-Api-Key: $GATEWAY_API_KEY" \
+  "$HOST/api/v1/zainbox/charg_0atrmzL5qsMFKGYPrahj"</code></pre>
+    </section>
+
+    <section id="zainbox-wallet" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Zainbox wallet view</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/wallet</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Virtual-account inventory plus balances for one zainbox.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /zainbox/virtual-accounts/{zainboxCode}</li>
+        <li>GET /zainbox/accounts/balance/{zainboxCode}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">virtualAccounts</span>, <span class="text-accent">balances</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().zainbox_wallet_view(code).await?</code></pre>
+    </section>
+
+    <section id="zainbox-activity" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Zainbox activity</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/activity</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Ledger lines plus deposit totals for the same date window.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p>
+      <p class="mt-3 font-mono text-sm text-ink-700">count, txnType, accountNumber, paymentChannel, dateFrom, dateTo</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /zainbox/transactions/{zainboxCode}</li>
+        <li>GET /zainbox/transfer/deposit/summary/{zainboxCode}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">transactions</span>, <span class="text-accent">depositSummary</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().zainbox_activity(code, count, txn_type, account_number, payment_channel, date_from, date_to).await?</code></pre>
+    </section>
+
+    <section id="settlement-context" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Settlement context</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/settlement</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Settlement configuration plus the internal settlement wallet.</p>
+      <p class="mt-6 border-l-4 border-amber-400 pl-4 text-sm leading-6 text-amber-950">
+        Live <code class="font-mono">GET /zainbox/settlement</code> may return HTTP 405. If that happens the whole composite fails; use settlement history separately as a fallback.
+      </p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /zainbox/settlement?zainboxCode=</li>
+        <li>GET /zainbox/internal-settlement-account/{zainboxCode}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">settlement</span>, <span class="text-accent">internalAccount</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().settlement_context(code).await?</code></pre>
+    </section>
+
+    <section id="profile-billing" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Profile + billing</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/billing</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Zainbox profile alongside billing configuration.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /zainbox/profile/{zainboxCode}</li>
+        <li>GET /zainbox/billing/config/{zainboxCode}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">profile</span>, <span class="text-accent">billingConfig</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().zainbox_profile_billing(code).await?</code></pre>
+    </section>
+
+    <section id="subscriptions" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Subscriptions bundle</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/zainbox/{zainboxCode}/subscriptions</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Full subscription list and active-only list in one response.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /zainbox/service-subscription/subscriptions/all/{zainboxCode}</li>
+        <li>GET /zainbox/service-subscription/subscriptions/active/{zainboxCode}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">all</span>, <span class="text-accent">active</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().subscriptions_bundle(code).await?</code></pre>
+    </section>
+
+    <section id="va-wallet" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Virtual-account wallet</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/virtual-account/{accountNumber}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Balance and recent transactions for one virtual account.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p>
+      <p class="mt-3 font-mono text-sm text-ink-700">count, txnType, paymentChannel, dateFrom, dateTo</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /virtual-account/wallet/balance/v2/{accountNumber}</li>
+        <li>GET /virtual-account/wallet/transactions/{accountNumber}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">balance</span>, <span class="text-accent">transactions</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().virtual_account_wallet(acct, count, txn_type, payment_channel, date_from, date_to).await?</code></pre>
+    </section>
+
+    <section id="name-resolve" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Name resolve</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/bank/resolve?bankCode=&amp;accountNumber=</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Bank catalogue plus name enquiry for a destination account.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /bank/list</li>
+        <li>GET /bank/name-enquiry</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">banks</span>, <span class="text-accent">nameEnquiry</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().name_resolve(bank_code, account_number).await?</code></pre>
+    </section>
+
+    <section id="merchant-activity" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Merchant activity</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/merchant/activity</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Merchant-wide summary totals plus the paginated transaction list.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query</p>
+      <p class="mt-3 font-mono text-sm text-ink-700">dateFrom, dateTo, count, txnType, accountNumber, paymentChannel</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /zainbox/transactions/summary</li>
+        <li>GET /zainbox/transactions</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">summary</span>, <span class="text-accent">transactions</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().merchant_activity(date_from, date_to, count, txn_type, account_number, payment_channel).await?</code></pre>
+    </section>
+
+    <section id="payout-prep" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Payout prep</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/payout/prep?bankCode=&amp;accountNumber=</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Preflight before a transfer: network status and destination name enquiry.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /bank/transfer/network/status</li>
+        <li>GET /bank/name-enquiry</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">networkStatus</span>, <span class="text-accent">nameEnquiry</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().payout_prep(bank_code, account_number).await?</code></pre>
+    </section>
+
+    <section id="transfer-verify" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">POST</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Transfer and verify</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/transfer</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Executes a funds transfer then immediately verifies using the request <code class="font-mono text-sm">txnRef</code>.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p>
+      <p class="mt-3 text-base leading-7 text-ink-700">Same as <code class="font-mono text-sm">POST /bank/transfer/v2</code> (optional nested <code class="font-mono text-sm">metadata</code>).</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>POST /bank/transfer/v2</li>
+        <li>GET /virtual-account/wallet/transaction/verify/{txnRef}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">transfer</span>, <span class="text-accent">verify</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().transfer_and_verify(&amp;req).await?</code></pre>
+    </section>
+
+    <section id="deposit-check" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">GET</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Dynamic deposit check</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/deposit/{txnRef}</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Dynamic deposit status plus deposit verify for the same transaction reference.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>GET /virtual-account/dynamic/deposit/status/{txnRef}</li>
+        <li>GET /virtual-account/wallet/deposit/verify/v2/{txnRef}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">depositStatus</span>, <span class="text-accent">depositVerify</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().dynamic_deposit_check(txn_ref).await?</code></pre>
+    </section>
+
+    <section id="settlement-create-history" class="scroll-mt-10 border-b border-slate-200 py-12">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">POST</p>
+      <h2 class="mt-3 text-4xl font-semibold tracking-tight text-ink-950">Settlement create with history</h2>
+      <p class="mt-2 font-mono text-sm text-accent">/api/v1/settlement</p>
+      <p class="mt-4 text-base leading-7 text-ink-700">Creates a settlement schedule then fetches history for the same zainbox.</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Query (history filter)</p>
+      <p class="mt-3 font-mono text-sm text-ink-700">count, dateFrom, dateTo, status</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Body</p>
+      <p class="mt-3 text-base leading-7 text-ink-700">Same as <code class="font-mono text-sm">POST /zainbox/settlement</code> (optional <code class="font-mono text-sm">metadata</code>).</p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Combines</p>
+      <ul class="mt-3 space-y-1 font-mono text-sm text-ink-700">
+        <li>POST /zainbox/settlement</li>
+        <li>GET /zainbox/settlement/history/{zainboxCode}</li>
+      </ul>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">data fields</p>
+      <p class="mt-3 font-mono text-sm"><span class="text-accent">create</span>, <span class="text-accent">history</span></p>
+      <p class="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">SDK</p>
+      <pre class="mt-3 overflow-x-auto bg-white/70 p-4 font-mono text-sm ring-1 ring-slate-200"><code>client.composite().settlement_create_with_history(&amp;req, count, date_from, date_to, status).await?</code></pre>
+    </section>
+
+    <section class="py-12">
+      <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Changelog</h2>
+      <ol class="mt-6 list-decimal space-y-4 pl-5 text-base leading-7 text-ink-700">
+        <li><span class="font-semibold text-ink-900">client</span> — added <code class="font-mono text-sm">CompositeApi</code> via <code class="font-mono text-sm">client.composite()</code> (13 methods) and typed <code class="font-mono text-sm">types::composite</code> payloads.</li>
+        <li><span class="font-semibold text-ink-900">koodify</span> — added matching <code class="font-mono text-sm">/api/v1/*</code> HTTP routes (auth via <code class="font-mono text-sm">X-Api-Key</code>).</li>
+        <li><span class="font-semibold text-ink-900">docs</span> — this page documents every combination, upstream paths, response fields, and SDK calls.</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="border-t border-slate-200 bg-white/70">
+    <div class="mx-auto max-w-4xl px-6 py-8 text-sm text-ink-500">
+      Open locally: <code class="font-mono">docs/composite-endpoints.html</code>
+    </div>
+  </footer>
+</body>
+</html>
