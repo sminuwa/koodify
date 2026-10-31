@@ -6,13 +6,13 @@ use serde_json::Value;
 use client::{InitializeCardPaymentRequest, RecurringCardPurchaseRequest};
 use tracing::warn;
 
-use crate::auth::{ApiKeyAuth, PublicApiKeyAuth};
+use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::{payer, proxy};
 use crate::state::AppState;
 
-/// Checkout requires publishable key + an active seeded `zainboxCode`.
+/// Checkout is gated by an active seeded `zainboxCode` (no browser API key).
 async fn require_checkout_zainbox(
     pool: &sqlx::PgPool,
     body: &Value,
@@ -69,10 +69,9 @@ pub async fn initialize_payment(
     .map_err(map_proxy_error)
 }
 
-/// InlineJS / bank-transfer checkout — publishable key + zainboxCode.
+/// InlineJS / bank-transfer checkout — active `zainboxCode` only.
 /// Logs payer against `txnRef`.
 pub async fn initialize_payment_inline(
-    _auth: PublicApiKeyAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -120,9 +119,8 @@ pub struct TempVaStatusQuery {
     pub txn_ref: String,
 }
 
-/// Continues a checkout session (`e` from initialize). Publishable key.
+/// Continues a checkout session (`e` from initialize). Open — session key is the gate.
 pub async fn generate_temporary_virtual_account(
-    _auth: PublicApiKeyAuth,
     State(state): State<AppState>,
     Query(q): Query<TempVaQuery>,
 ) -> JsonResult {
@@ -137,9 +135,8 @@ pub async fn generate_temporary_virtual_account(
         .map_err(map_upstream)
 }
 
-/// Status poll for checkout (`txnRef`). Publishable key.
+/// Status poll for checkout (`txnRef`). Open — txnRef is the gate.
 pub async fn temporary_virtual_account_payment_status(
-    _auth: PublicApiKeyAuth,
     State(state): State<AppState>,
     Query(q): Query<TempVaStatusQuery>,
 ) -> JsonResult {

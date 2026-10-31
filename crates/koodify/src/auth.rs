@@ -34,30 +34,3 @@ impl FromRequestParts<AppState> for ApiKeyAuth {
         Ok(ApiKeyAuth)
     }
 }
-
-/// Publishable key auth for browser checkout (`GATEWAY_PUBLIC_KEY`).
-/// Also accepts the secret key so server-side tools keep working.
-pub struct PublicApiKeyAuth;
-
-impl FromRequestParts<AppState> for PublicApiKeyAuth {
-    type Rejection = (StatusCode, String);
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &AppState,
-    ) -> Result<Self, Self::Rejection> {
-        let provided = header_api_key(parts);
-        let ok = !provided.is_empty()
-            && (provided == state.config.gateway_public_key
-                || provided == state.config.gateway_api_key);
-
-        if !ok {
-            return Err((
-                StatusCode::UNAUTHORIZED,
-                "invalid or missing X-Api-Key (public key)".into(),
-            ));
-        }
-
-        Ok(PublicApiKeyAuth)
-    }
-}

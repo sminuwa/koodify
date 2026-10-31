@@ -133,9 +133,8 @@ npm run build
   function (response) {
     console.log(response);
     // { status, reference, description, payer?, customParam? }
-  },
-  "YOUR_GATEWAY_PUBLIC_KEY", // publishable X-Api-Key
-  "live"
+  }
+  // no public key — gated by zainboxCode
 );</code></pre>
           <p class="mt-6 text-base leading-7 text-ink-700">
             The function also returns a
@@ -214,7 +213,7 @@ npm run build
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">auth</td>
                   <td class="px-4 py-3">no</td>
-                  <td class="px-4 py-3"><code class="font-mono text-xs">"gateway"</code> / <code class="font-mono text-xs">"koodify"</code> → send publishable <code class="font-mono text-xs">X-Api-Key</code>.</td>
+                  <td class="px-4 py-3"><code class="font-mono text-xs">"gateway"</code> / <code class="font-mono text-xs">"koodify"</code> → talk to koodify (zainboxCode only).</td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">baseUrl</td>
@@ -324,9 +323,8 @@ npm run build
             <li>GET /zainbox/card/temporary-virtual-account-payment-status?txnRef=</li>
           </ul>
           <p class="mt-6 text-base leading-7 text-ink-700">
-            Checkout auth:
-            <code class="font-mono text-sm">X-Api-Key: $GATEWAY_PUBLIC_KEY</code>
-            plus an active seeded <code class="font-mono text-sm">zainboxCode</code>.
+            Checkout auth: active seeded
+            <code class="font-mono text-sm">zainboxCode</code> only.
             Admin routes use secret <code class="font-mono text-sm">GATEWAY_API_KEY</code>.
             Full catalogue:
             <a class="text-accent underline" href="api.html">docs/api.html</a>.
@@ -346,9 +344,7 @@ npm run demo
           <p class="mt-6 text-sm text-ink-500">
             Package source:
             <code class="font-mono text-xs">packages/koodify-inline</code>.
-            Demo proxy injects the publishable key from
-            <code class="font-mono text-xs">GATEWAY_PUBLIC_KEY</code>
-            (or <code class="font-mono text-xs">GATEWAY_API_KEY</code>).
+            Checkout needs a seeded active zainbox code only.
           </p>
         </section>
       </main>

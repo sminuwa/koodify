@@ -136,16 +136,13 @@
       <span class="badge">Live · pure HTML/JS</span>
       <h1>Checkout test</h1>
       <p class="lede">
-        Publishable gateway key + <code>zainboxCode</code>.
+        Active <code>zainboxCode</code> only — no public key.
       </p>
 
       <fieldset>
-        <legend>Keys</legend>
+        <legend>Checkout</legend>
         <label for="baseUrl">Base URL</label>
         <input id="baseUrl" value="https://api.koodify.ng" />
-
-        <label for="publicKey">Public key (GATEWAY_PUBLIC_KEY)</label>
-        <input id="publicKey" placeholder="publishable key" autocomplete="off" />
 
         <label for="zainboxCode">Zainbox code</label>
         <input id="zainboxCode" placeholder="STORE_…" />
@@ -166,7 +163,7 @@
       <button type="button" id="pay">Pay with bank transfer</button>
       <button type="button" class="secondary" id="ping">Ping /health</button>
 
-      <p class="meta" id="meta">Enter public key + zainbox, then pay.</p>
+      <p class="meta" id="meta">Enter zainbox code, then pay.</p>
       <pre id="log">Waiting…</pre>
     </main>
 
@@ -178,7 +175,6 @@
         var metaEl = document.getElementById("meta");
         var fields = [
           "baseUrl",
-          "publicKey",
           "zainboxCode",
           "amount",
           "name",
@@ -219,9 +215,6 @@
                 document.getElementById(id).value = data[id];
               }
             });
-            if (!val("publicKey") && data.apiKey) {
-              document.getElementById("publicKey").value = data.apiKey;
-            }
           } catch (_) {}
         }
 
@@ -234,10 +227,6 @@
           metaEl.textContent =
             "baseUrl: " +
             val("baseUrl") +
-            " · publicKey: " +
-            (val("publicKey")
-              ? "set (" + val("publicKey").slice(0, 4) + "…)"
-              : "not set") +
             " · zainbox: " +
             (val("zainboxCode") || "not set");
           return true;
@@ -270,13 +259,8 @@
 
         document.getElementById("pay").onclick = function () {
           if (!readyCheck()) return;
-          var publicKey = val("publicKey");
           var zainboxCode = val("zainboxCode");
           var baseUrl = val("baseUrl").replace(/\/$/, "");
-          if (!publicKey) {
-            log({ error: "public key is required" });
-            return;
-          }
           if (!zainboxCode) {
             log({ error: "zainboxCode is required" });
             return;
@@ -311,7 +295,7 @@
 
           koodifyInitPayment(config, function (response) {
             log({ callback: response, config: config });
-          }, publicKey).catch(function (err) {
+          }).catch(function (err) {
             log({ rejected: err, config: config });
           });
         };

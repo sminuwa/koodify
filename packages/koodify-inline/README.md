@@ -45,9 +45,8 @@ koodifyInitPayment(
     // { status, reference, description, payer?, customParam? }
     // payer: { email, phone, name? }
     // customParam: { matric, session, paymentType, studentId, … }
-  },
-  "YOUR_GATEWAY_PUBLIC_KEY", // publishable X-Api-Key (safe in browser)
-  "live"
+  }
+  // no public key — gateway checkout is gated by zainboxCode
 );
 ```
 
@@ -57,18 +56,14 @@ koodifyInitPayment(
 | `txnRef` | yes | Unique; used as payment log key |
 | `mobileNumber` | yes | → stored `payer.phone` |
 | `emailAddress` | yes | → stored `payer.email` |
-| `zainboxCode` | yes | Merchant box (seeded; treat as the merchant private id) |
+| `zainboxCode` | yes | Merchant box (must be seeded + active) |
 | `callBackUrl` | yes | Merchant webhook / return URL |
 | `name` / `payer.name` | no | Koodify-only; merged into `payer` |
 | `customParam` | no | Arbitrary key/values; stored + returned on callback (`customParams` alias) |
 | `auth` | no | `"gateway"` / `"koodify"` for hosted API |
 | `baseUrl` | no | Koodify origin — production `https://api.koodify.ng` |
 
-Checkout needs **both**:
-- **Public key** — `GATEWAY_PUBLIC_KEY` (falls back to `GATEWAY_API_KEY` if unset); sent as `X-Api-Key`
-- **zainboxCode** — which merchant box (must be seeded + active)
-
-Keep `GATEWAY_API_KEY` secret for admin routes. Zainpay’s private key never leaves the server.
+Checkout through koodify needs only an active **`zainboxCode`**. Keep `GATEWAY_API_KEY` secret for admin routes. Zainpay’s private key never leaves the server.
 
 ## Logging & merge
 
@@ -90,7 +85,7 @@ npm run demo
 ## Live test (hosted API)
 
 Pure HTML/JS harness under `live-test/` against **https://api.koodify.ng**.
-Paste `GATEWAY_API_KEY` and zainbox code in the form (values stick in `localStorage`).
+Paste a seeded zainbox code in the form (values stick in `localStorage`).
 
 ```bash
 cd packages/koodify-inline

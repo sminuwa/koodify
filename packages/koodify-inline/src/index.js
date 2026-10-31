@@ -48,9 +48,12 @@ function normalizeCustomParam(config) {
 /**
  * Open Koodify bank-transfer checkout.
  *
+ * Gateway mode (`auth: "gateway"` / koodify `baseUrl`) needs only `zainboxCode`.
+ * Direct Zainpay mode still needs a Bearer key as the 3rd argument.
+ *
  * @param {object} paymentConfig
  * @param {function} callback - ({ status, reference, description, payer?, customParam? }) => void
- * @param {string} apiKey - Koodify publishable key (`GATEWAY_PUBLIC_KEY`) when using the gateway; else Zainpay key
+ * @param {string} [apiKey] - optional; ignored for koodify gateway checkout
  * @param {"sandbox"|"live"} [mode="sandbox"]
  * @returns {Promise<object>}
  */
@@ -71,14 +74,17 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
     const currency = paymentConfig.currencyCode || "NGN";
     const resolvedMode = mode === "live" ? "live" : "sandbox";
     const baseUrl = resolveBaseUrl(resolvedMode, paymentConfig.baseUrl);
-    const viaDemoProxy = /\/proxy\/koodify/i.test(baseUrl);
-    // Checkout needs publishable key + zainboxCode (proxy injects the key).
-    if (!viaDemoProxy && (!apiKey || String(apiKey).trim() === "")) {
+    const auth = String(paymentConfig.auth || "").toLowerCase();
+    const useGateway =
+      auth === "gateway" ||
+      auth === "koodify" ||
+      /koodify|localhost:8080|127\.0\.0\.1:8080|\/proxy\/koodify/i.test(baseUrl);
+    // Direct Zainpay still needs a Bearer key; gateway checkout uses zainboxCode only.
+    if (!useGateway && (!apiKey || String(apiKey).trim() === "")) {
       const payload = {
         status: "failed",
         reference: paymentConfig.txnRef,
-        description:
-          "Missing public key (GATEWAY_PUBLIC_KEY / X-Api-Key) — use with zainboxCode",
+        description: "Missing API key for direct Zainpay calls",
       };
       emit(callback, payload);
       reject(payload);
