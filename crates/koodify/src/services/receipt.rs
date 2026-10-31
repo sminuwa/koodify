@@ -1,4 +1,6 @@
-//! Fire-and-forget payer receipt on successful checkout / deposit.
+//! Fire-and-forget payment emails on successful checkout / deposit:
+//! 1. payer receipt → checkout email
+//! 2. merchant notice → zainbox `email_notification`
 
 use serde_json::Value;
 use tracing::warn;
@@ -260,15 +262,38 @@ fn merge_data_overlay(response: &Value, overlay: &Value) -> Value {
     Value::Object(serde_json::Map::from_iter([("data".into(), Value::Object(data))]))
 }
 
-async fn resolve_business_name(
+fn first_notification_email(raw: Option<&str>) -> Option<String> {
+    let raw = raw?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    raw.split([',', ';'])
+        .map(str::trim)
+        .find(|s| !s.is_empty() && s.contains('@'))
+        .map(str::to_string)
+}
+
+struct PaymentMailContext {
+    payer_email: Option<String>,
+    payer_name: Option<String>,
+    merchant_email: Option<String>,
+    business_name: Option<String>,
+    amount_label: String,
+    currency: String,
+    paid_at: Option<String>,
+    narration: Option<String>,
+    sender_bank: Option<String>,
+    sender_account: Option<String>,
+    sender_name: Option<String>,
+    custom_params: Vec<(String, String)>,
+}
+
+async fn resolve_zainbox(
     state: &AppState,
     response: &Value,
     init_req: Option<&Value>,
     zainbox_code: Option<&str>,
-) -> Option<String> {
-    if let Some(name) = first_data_str(response, &["zainboxName", "businessName"]) {
-        return Some(name);
-    }
+) -> Option<db::zainboxes::Zainbox> {
     let code = zainbox_code
         .map(str::to_string)
         .or_else(|| first_req_str(init_req, &["zainboxCode", "zainbox_code"]))
@@ -277,64 +302,34 @@ async fn resolve_business_name(
         return None;
     };
     match db::zainboxes::get_by_code(&state.pool, &code).await {
-        Ok(Some(zb)) => {
-            let name = zb.name.trim();
-            if name.is_empty() {
-                None
-            } else {
-                Some(name.to_string())
-            }
-        }
-        Ok(None) => None,
+        Ok(zb) => zb,
         Err(err) => {
-            warn!(error = %err, %code, "failed to load zainbox for receipt business name");
+            warn!(error = %err, %code, "failed to load zainbox for payment emails");
             None
         }
     }
 }
 
-/// Send receipt once when a payment is confirmed successful.
-pub async fn maybe_send_on_success(state: &AppState, txn_ref: &str, response: &Value) {
-    if !payment_status_success(response) {
-        return;
-    }
-    if state.config.resend_api_key.is_none() {
-        return;
-    }
-
-    let claimed = match db::transactions::claim_receipt_email(&state.pool, txn_ref).await {
-        Ok(c) => c,
-        Err(err) => {
-            warn!(error = %err, txn_ref, "failed to claim receipt email send");
-            return;
-        }
-    };
-    if !claimed {
-        return;
-    }
-
-    let Some(payer_val) = payer::load_payer(&state.pool, txn_ref).await else {
-        warn!(txn_ref, "no stored payer — cannot send receipt");
-        return;
-    };
-
-    let email = payer_val
-        .get("email")
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or("");
-    if email.is_empty() {
-        warn!(txn_ref, "payer has no email — skipping receipt");
-        return;
-    }
-
-    let name = payer_val
-        .get("name")
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
+async fn build_context(
+    state: &AppState,
+    txn_ref: &str,
+    response: &Value,
+) -> PaymentMailContext {
+    let payer_val = payer::load_payer(&state.pool, txn_ref).await;
+    let payer_email = payer_val.as_ref().and_then(|p| {
+        p.get("email")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    });
+    let payer_name = payer_val.as_ref().and_then(|p| {
+        p.get("name")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    });
 
     let records = db::transactions::find_by_resource_key(&state.pool, txn_ref)
         .await
@@ -357,36 +352,109 @@ pub async fn maybe_send_on_success(state: &AppState, txn_ref: &str, response: &V
     ];
 
     let zainbox_code = records.iter().find_map(|r| r.zainbox_code.as_deref());
-    let business_name =
-        resolve_business_name(state, &enriched, init_req.as_ref(), zainbox_code).await;
+    let zainbox = resolve_zainbox(state, &enriched, init_req.as_ref(), zainbox_code).await;
 
-    let sender_account = first_data_str(&enriched, &["sender", "senderAccount", "sourceAccount"]);
-    let sender_bank = first_data_str(&enriched, &["bankName", "senderBank", "sourceBank"]);
-    let sender_name = first_data_str(&enriched, &["senderName"]);
-    let paid_at = first_data_str(&enriched, &["paymentDate", "txnDate", "transactionDate"]);
+    let business_name = first_data_str(&enriched, &["zainboxName", "businessName"]).or_else(|| {
+        zainbox.as_ref().and_then(|zb| {
+            let name = zb.name.trim();
+            if name.is_empty() {
+                None
+            } else {
+                Some(name.to_string())
+            }
+        })
+    });
+
+    let merchant_email =
+        first_notification_email(zainbox.as_ref().and_then(|z| z.email_notification.as_deref()));
 
     let mut custom_rows = custom_param_rows(custom.as_ref(), &skip);
     if let Some(ref n) = narration {
         custom_rows.retain(|(_, v)| v != n);
     }
 
-    let receipt = mail::ReceiptEmail {
-        to: email.to_string(),
-        payer_name: name,
+    PaymentMailContext {
+        payer_email,
+        payer_name,
+        merchant_email,
+        business_name,
         amount_label: amount_label_from(&enriched, init_req.as_ref()),
         currency: currency_from(&enriched, init_req.as_ref()),
-        reference: txn_ref.to_string(),
-        paid_at,
-        business_name,
+        paid_at: first_data_str(&enriched, &["paymentDate", "txnDate", "transactionDate"]),
         narration,
-        sender_bank,
-        sender_account,
-        sender_name,
+        sender_bank: first_data_str(&enriched, &["bankName", "senderBank", "sourceBank"]),
+        sender_account: first_data_str(&enriched, &["sender", "senderAccount", "sourceAccount"]),
+        sender_name: first_data_str(&enriched, &["senderName"]),
         custom_params: custom_rows,
-    };
+    }
+}
 
-    if let Err(err) = mail::send_payment_receipt(&state.config, receipt).await {
-        warn!(error = %err, txn_ref, "payer receipt email failed");
+fn to_mail(ctx: &PaymentMailContext, to: String, txn_ref: &str) -> mail::ReceiptEmail {
+    mail::ReceiptEmail {
+        to,
+        payer_name: ctx.payer_name.clone(),
+        payer_email: ctx.payer_email.clone(),
+        amount_label: ctx.amount_label.clone(),
+        currency: ctx.currency.clone(),
+        reference: txn_ref.to_string(),
+        paid_at: ctx.paid_at.clone(),
+        business_name: ctx.business_name.clone(),
+        narration: ctx.narration.clone(),
+        sender_bank: ctx.sender_bank.clone(),
+        sender_account: ctx.sender_account.clone(),
+        sender_name: ctx.sender_name.clone(),
+        custom_params: ctx.custom_params.clone(),
+    }
+}
+
+/// Send payer receipt + merchant notice once each when payment is confirmed.
+pub async fn maybe_send_on_success(state: &AppState, txn_ref: &str, response: &Value) {
+    if !payment_status_success(response) {
+        return;
+    }
+    if state.config.resend_api_key.is_none() {
+        return;
+    }
+
+    let ctx = build_context(state, txn_ref, response).await;
+
+    // --- payer receipt ---
+    match db::transactions::claim_receipt_email(&state.pool, txn_ref).await {
+        Ok(true) => {
+            if let Some(email) = ctx.payer_email.clone() {
+                let receipt = to_mail(&ctx, email, txn_ref);
+                if let Err(err) = mail::send_payment_receipt(&state.config, receipt).await {
+                    warn!(error = %err, txn_ref, "payer receipt email failed");
+                }
+            } else {
+                warn!(txn_ref, "no payer email — skipping receipt");
+            }
+        }
+        Ok(false) => {}
+        Err(err) => {
+            warn!(error = %err, txn_ref, "failed to claim receipt email send");
+        }
+    }
+
+    // --- merchant / zainbox notice ---
+    match db::transactions::claim_merchant_notice(&state.pool, txn_ref).await {
+        Ok(true) => {
+            if let Some(email) = ctx.merchant_email.clone() {
+                let notice = to_mail(&ctx, email, txn_ref);
+                if let Err(err) = mail::send_merchant_notice(&state.config, notice).await {
+                    warn!(error = %err, txn_ref, "merchant notice email failed");
+                }
+            } else {
+                warn!(
+                    txn_ref,
+                    "zainbox has no email_notification — skipping merchant notice"
+                );
+            }
+        }
+        Ok(false) => {}
+        Err(err) => {
+            warn!(error = %err, txn_ref, "failed to claim merchant notice send");
+        }
     }
 }
 

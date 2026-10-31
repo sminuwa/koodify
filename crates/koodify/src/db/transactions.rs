@@ -98,15 +98,20 @@ pub async fn find_by_zainbox_and_resource(
     .await
 }
 
-/// Atomically mark a txn as receipt-emailed. Returns `true` if this caller
-/// won the claim (should send). Prevents duplicate Resend calls on poll.
-pub async fn claim_receipt_email(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
+/// Atomically set a boolean metadata flag on the oldest matching txn.
+/// Returns `true` if this caller won the claim (should send).
+/// `flag` must be an internal constant (never user input).
+async fn claim_metadata_flag(
+    pool: &PgPool,
+    resource_key: &str,
+    flag: &str,
+) -> Result<bool, sqlx::Error> {
     let result = sqlx::query(
         r#"
         UPDATE transactions
         SET metadata = jsonb_set(
             COALESCE(metadata, '{}'::jsonb),
-            '{receiptEmailSent}',
+            $2::text[],
             'true'::jsonb,
             true
         )
@@ -114,14 +119,26 @@ pub async fn claim_receipt_email(pool: &PgPool, resource_key: &str) -> Result<bo
             SELECT id
             FROM transactions
             WHERE resource_key = $1
-              AND COALESCE(metadata->>'receiptEmailSent', 'false') <> 'true'
+              AND COALESCE(metadata->>$3, 'false') <> 'true'
             ORDER BY created_at ASC
             LIMIT 1
         )
         "#,
     )
     .bind(resource_key)
+    .bind(vec![flag.to_string()])
+    .bind(flag)
     .execute(pool)
     .await?;
     Ok(result.rows_affected() > 0)
+}
+
+/// Payer receipt — once per txn.
+pub async fn claim_receipt_email(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
+    claim_metadata_flag(pool, resource_key, "receiptEmailSent").await
+}
+
+/// Merchant / zainbox notification — once per txn.
+pub async fn claim_merchant_notice(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
+    claim_metadata_flag(pool, resource_key, "merchantNoticeSent").await
 }

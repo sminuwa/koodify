@@ -1,4 +1,4 @@
-//! Resend-backed payer receipt emails.
+//! Resend-backed payment emails (payer receipt + merchant notice).
 //!
 //! HTML / CSS live under `crates/koodify/templates/emails/` and are loaded at
 //! compile time via `include_str!` — keep presentation out of this module.
@@ -10,9 +10,10 @@ use tracing::{info, warn};
 use crate::config::Config;
 
 const RECEIPT_HTML: &str = include_str!("../../templates/emails/receipt.html");
+const MERCHANT_HTML: &str = include_str!("../../templates/emails/merchant-notice.html");
 const RECEIPT_CSS: &str = include_str!("../../templates/emails/receipt.css");
 const LOGO_PNG: &[u8] = include_bytes!("../../templates/emails/koodify-logo.png");
-/// Inline CID referenced by `receipt.html` (`src="cid:koodify-logo"`).
+/// Inline CID referenced by templates (`src="cid:koodify-logo"`).
 const LOGO_CID: &str = "koodify-logo";
 
 #[derive(Debug, Clone)]
@@ -24,8 +25,11 @@ pub struct ReceiptDetail {
 
 #[derive(Debug, Clone)]
 pub struct ReceiptEmail {
+    /// Recipient address (payer or merchant).
     pub to: String,
     pub payer_name: Option<String>,
+    /// Displayed under the amount; for payer receipts usually equals `to`.
+    pub payer_email: Option<String>,
     pub amount_label: String,
     pub currency: String,
     pub reference: String,
@@ -39,31 +43,63 @@ pub struct ReceiptEmail {
     pub custom_params: Vec<(String, String)>,
 }
 
-/// Send a branded payment receipt. No-op when `RESEND_API_KEY` is unset.
+/// Send a branded payer receipt. No-op when `RESEND_API_KEY` is unset.
 pub async fn send_payment_receipt(config: &Config, receipt: ReceiptEmail) -> anyhow::Result<()> {
+    send_templated(
+        config,
+        &receipt,
+        &format!(
+            "Payment received · {} {}",
+            receipt.currency, receipt.amount_label
+        ),
+        render_receipt_html(&receipt),
+        "payer receipt",
+    )
+    .await
+}
+
+/// Send a merchant / zainbox settlement alert. No-op when Resend is unset.
+pub async fn send_merchant_notice(config: &Config, notice: ReceiptEmail) -> anyhow::Result<()> {
+    send_templated(
+        config,
+        &notice,
+        &format!(
+            "Payment delivered · {} {} · {}",
+            notice.currency, notice.amount_label, notice.reference
+        ),
+        render_merchant_notice_html(&notice),
+        "merchant notice",
+    )
+    .await
+}
+
+async fn send_templated(
+    config: &Config,
+    mail: &ReceiptEmail,
+    subject: &str,
+    html: String,
+    kind: &str,
+) -> anyhow::Result<()> {
     let Some(api_key) = config.resend_api_key.as_deref() else {
         warn!(
-            reference = %receipt.reference,
-            "RESEND_API_KEY unset — skipping payer receipt email"
+            reference = %mail.reference,
+            kind,
+            "RESEND_API_KEY unset — skipping email"
         );
         return Ok(());
     };
 
-    let to = receipt.to.trim();
+    let to = mail.to.trim();
     if to.is_empty() || !to.contains('@') {
         warn!(
-            reference = %receipt.reference,
-            "payer email missing/invalid — skipping receipt"
+            reference = %mail.reference,
+            kind,
+            "recipient email missing/invalid — skipping"
         );
         return Ok(());
     }
 
     let resend = Resend::new(api_key);
-    let subject = format!(
-        "Payment received · {} {}",
-        receipt.currency, receipt.amount_label
-    );
-    let html = render_receipt_html(&receipt);
     let logo = CreateAttachment::from_content(LOGO_PNG.to_vec())
         .with_filename("koodify-logo.png")
         .with_content_type("image/png")
@@ -73,14 +109,15 @@ pub async fn send_payment_receipt(config: &Config, receipt: ReceiptEmail) -> any
         .with_attachment(logo);
 
     let sent = resend.emails.send(email).await.map_err(|err| {
-        anyhow::anyhow!("resend send failed for {}: {err}", receipt.reference)
+        anyhow::anyhow!("resend {kind} failed for {}: {err}", mail.reference)
     })?;
 
     info!(
-        reference = %receipt.reference,
+        reference = %mail.reference,
         to,
+        kind,
         email_id = ?sent.id,
-        "payer receipt email sent"
+        "payment email sent"
     );
     Ok(())
 }
@@ -98,7 +135,9 @@ fn opt_trim(s: Option<&String>) -> Option<&str> {
 
 fn icon_for_label(label: &str) -> &'static str {
     match label {
-        "Business Name" | "Merchant" => "▱",
+        "Business Name" | "Merchant" | "Zainbox" => "▱",
+        "Payer" | "Customer" => "◇",
+        "Payer Email" | "Customer Email" => "@",
         "Reference" | "Receipt ID" => "#",
         "Narration" | "Description" | "Purpose" => "✎",
         "Date" | "Paid at" => "▦",
@@ -108,7 +147,7 @@ fn icon_for_label(label: &str) -> &'static str {
     }
 }
 
-fn detail_rows(receipt: &ReceiptEmail) -> Vec<ReceiptDetail> {
+fn payer_detail_rows(receipt: &ReceiptEmail) -> Vec<ReceiptDetail> {
     let mut rows = Vec::new();
 
     if let Some(name) = opt_trim(receipt.business_name.as_ref()) {
@@ -140,31 +179,7 @@ fn detail_rows(receipt: &ReceiptEmail) -> Vec<ReceiptDetail> {
         mono: false,
     });
 
-    if let Some(bank) = opt_trim(receipt.sender_bank.as_ref()) {
-        rows.push(ReceiptDetail {
-            label: "Sender's Bank".into(),
-            value: bank.into(),
-            mono: false,
-        });
-    }
-
-    if let Some(acct) = opt_trim(receipt.sender_account.as_ref()) {
-        let value = match opt_trim(receipt.sender_name.as_ref()) {
-            Some(n) => format!("{n} · {acct}"),
-            None => acct.into(),
-        };
-        rows.push(ReceiptDetail {
-            label: "Sender's Account".into(),
-            value,
-            mono: true,
-        });
-    } else if let Some(n) = opt_trim(receipt.sender_name.as_ref()) {
-        rows.push(ReceiptDetail {
-            label: "Sender".into(),
-            value: n.into(),
-            mono: false,
-        });
-    }
+    append_sender_rows(&mut rows, receipt);
 
     for (label, value) in &receipt.custom_params {
         let l = label.trim();
@@ -180,6 +195,100 @@ fn detail_rows(receipt: &ReceiptEmail) -> Vec<ReceiptDetail> {
     }
 
     rows
+}
+
+fn merchant_detail_rows(notice: &ReceiptEmail) -> Vec<ReceiptDetail> {
+    let mut rows = Vec::new();
+
+    if let Some(name) = opt_trim(notice.payer_name.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Payer".into(),
+            value: name.into(),
+            mono: false,
+        });
+    }
+
+    if let Some(email) = opt_trim(notice.payer_email.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Payer Email".into(),
+            value: email.into(),
+            mono: true,
+        });
+    }
+
+    rows.push(ReceiptDetail {
+        label: "Reference".into(),
+        value: notice.reference.clone(),
+        mono: true,
+    });
+
+    if let Some(n) = opt_trim(notice.narration.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Narration".into(),
+            value: n.into(),
+            mono: false,
+        });
+    }
+
+    let paid_at = opt_trim(notice.paid_at.as_ref()).unwrap_or("Just now");
+    rows.push(ReceiptDetail {
+        label: "Date".into(),
+        value: paid_at.into(),
+        mono: false,
+    });
+
+    append_sender_rows(&mut rows, notice);
+
+    if let Some(name) = opt_trim(notice.business_name.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Zainbox".into(),
+            value: name.into(),
+            mono: false,
+        });
+    }
+
+    for (label, value) in &notice.custom_params {
+        let l = label.trim();
+        let v = value.trim();
+        if l.is_empty() || v.is_empty() {
+            continue;
+        }
+        rows.push(ReceiptDetail {
+            label: l.into(),
+            value: v.into(),
+            mono: false,
+        });
+    }
+
+    rows
+}
+
+fn append_sender_rows(rows: &mut Vec<ReceiptDetail>, mail: &ReceiptEmail) {
+    if let Some(bank) = opt_trim(mail.sender_bank.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Sender's Bank".into(),
+            value: bank.into(),
+            mono: false,
+        });
+    }
+
+    if let Some(acct) = opt_trim(mail.sender_account.as_ref()) {
+        let value = match opt_trim(mail.sender_name.as_ref()) {
+            Some(n) => format!("{n} · {acct}"),
+            None => acct.into(),
+        };
+        rows.push(ReceiptDetail {
+            label: "Sender's Account".into(),
+            value,
+            mono: true,
+        });
+    } else if let Some(n) = opt_trim(mail.sender_name.as_ref()) {
+        rows.push(ReceiptDetail {
+            label: "Sender".into(),
+            value: n.into(),
+            mono: false,
+        });
+    }
 }
 
 fn render_detail_rows_html(rows: &[ReceiptDetail]) -> String {
@@ -214,13 +323,19 @@ fn render_detail_rows_html(rows: &[ReceiptDetail]) -> String {
     out
 }
 
+fn display_payer_email(mail: &ReceiptEmail) -> String {
+    opt_trim(mail.payer_email.as_ref())
+        .unwrap_or_else(|| mail.to.trim())
+        .to_string()
+}
+
 pub fn render_receipt_html(receipt: &ReceiptEmail) -> String {
     let name = opt_trim(receipt.payer_name.as_ref()).unwrap_or("there");
     let amount = escape(&receipt.amount_label);
     let currency = escape(&receipt.currency);
-    let payer_email = escape(receipt.to.trim());
+    let payer_email = escape(&display_payer_email(receipt));
     let greeting = escape(name);
-    let rows_html = render_detail_rows_html(&detail_rows(receipt));
+    let rows_html = render_detail_rows_html(&payer_detail_rows(receipt));
 
     RECEIPT_HTML
         .replace("{{styles}}", RECEIPT_CSS)
@@ -232,15 +347,35 @@ pub fn render_receipt_html(receipt: &ReceiptEmail) -> String {
         .replace("{{detail_rows}}", &rows_html)
 }
 
+pub fn render_merchant_notice_html(notice: &ReceiptEmail) -> String {
+    let name = opt_trim(notice.business_name.as_ref()).unwrap_or("there");
+    let amount = escape(&notice.amount_label);
+    let currency = escape(&notice.currency);
+    let payer_email = escape(&display_payer_email(notice));
+    let greeting = escape(name);
+    let reference = escape(&notice.reference);
+    let rows_html = render_detail_rows_html(&merchant_detail_rows(notice));
+
+    MERCHANT_HTML
+        .replace("{{styles}}", RECEIPT_CSS)
+        .replace("{{logo_src}}", &format!("cid:{LOGO_CID}"))
+        .replace("{{currency}}", &currency)
+        .replace("{{amount}}", &amount)
+        .replace("{{payer_email}}", &payer_email)
+        .replace("{{greeting}}", &greeting)
+        .replace("{{reference}}", &reference)
+        .replace("{{detail_rows}}", &rows_html)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn receipt_html_includes_brand_and_rich_fields() {
-        let html = render_receipt_html(&ReceiptEmail {
+    fn sample_mail() -> ReceiptEmail {
+        ReceiptEmail {
             to: "payer@example.com".into(),
             payer_name: Some("Ada".into()),
+            payer_email: Some("payer@example.com".into()),
             amount_label: "500".into(),
             currency: "NGN".into(),
             reference: "ORDER_123".into(),
@@ -251,7 +386,12 @@ mod tests {
             sender_account: Some("0123456789".into()),
             sender_name: Some("Ada Lovelace".into()),
             custom_params: vec![("Student Id".into(), "STU001".into())],
-        });
+        }
+    }
+
+    #[test]
+    fn receipt_html_includes_brand_and_rich_fields() {
+        let html = render_receipt_html(&sample_mail());
         assert!(html.contains("Koodify"));
         assert!(html.contains(r#"src="cid:koodify-logo""#));
         assert!(html.contains("ORDER_123"));
@@ -273,6 +413,25 @@ mod tests {
         assert!(html.contains("notif-text"));
         assert!(!html.contains("{{"));
         assert!(!LOGO_PNG.is_empty());
+    }
+
+    #[test]
+    fn merchant_notice_html_is_ops_facing() {
+        let mut notice = sample_mail();
+        notice.to = "merchant@acme.test".into();
+        let html = render_merchant_notice_html(&notice);
+        assert!(html.contains("Payment Delivered"));
+        assert!(html.contains("Amount Received"));
+        assert!(html.contains("Merchant Alert"));
+        assert!(html.contains("Hi Acme Stores"));
+        assert!(html.contains("Payer"));
+        assert!(html.contains("Ada"));
+        assert!(html.contains("Payer Email"));
+        assert!(html.contains("payer@example.com"));
+        assert!(html.contains("ORDER_123"));
+        assert!(html.contains("zainbox notification"));
+        assert!(!html.contains("{{"));
+        assert!(!html.contains("merchant@acme.test")); // recipient not echoed in body
     }
 
     /// Live sample send: `SAMPLE_RECEIPT_TO=you@example.com cargo test -p koodify --lib send_sample_receipt -- --ignored --nocapture`
@@ -302,6 +461,7 @@ mod tests {
         let receipt = ReceiptEmail {
             to: to.clone(),
             payer_name: Some("Sunusi".into()),
+            payer_email: Some(to.clone()),
             amount_label: "500".into(),
             currency: "NGN".into(),
             reference: "SAMPLE_gtj26mi1_1793451647335".into(),
@@ -317,9 +477,16 @@ mod tests {
             ],
         };
 
-        send_payment_receipt(&config, receipt)
+        send_payment_receipt(&config, receipt.clone())
             .await
             .expect("sample receipt send failed");
-        eprintln!("sample receipt sent to {to}");
+        eprintln!("sample payer receipt sent to {to}");
+
+        let mut merchant = receipt;
+        merchant.to = to.clone();
+        send_merchant_notice(&config, merchant)
+            .await
+            .expect("sample merchant notice send failed");
+        eprintln!("sample merchant notice sent to {to}");
     }
 }
