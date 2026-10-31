@@ -373,7 +373,7 @@ Automated checks for the Rust client and gateway logic.
 
 **What it is:** After a customer pays the full amount into one **primary** zainbox, Koodify automatically redistributes value to **secondary** zainboxes by share (percent and/or fixed amount). Developers declare *shares and zainbox codes* — not external bank accounts. Moves are **internal** (zainbox/VA → zainbox/VA), not NIP payouts to third-party banks.
 
-**Example:** A school collects ₦10,000 into the main fees box. Plan: 70% stays on primary, ₦2,000 to tutor box, ₦1,000 to agent box. Parent pays once; Koodify settles the boxes after success.
+**Example:** A school collects ₦10,000. Plan: ₦2,000 to tutor, ₦1,000 to agent, **percent: 100** on primary (= ₦7,000 remainder). Parent pays once; Koodify settles the boxes after success.
 
 **Why this shape:**
 - Checkout stays simple: one deposit, one DVA, Adaptive Bank/DVA Routing unchanged.
@@ -409,9 +409,9 @@ koodifyInitPayment({
     // Optional; default = zainbox resolved from publicKey
     primaryZainbox: "school_main_box",
     shares: [
-      { zainboxCode: "school_main_box", percent: 70 },
       { zainboxCode: "tutor_box", amount: "2000" },
       { zainboxCode: "agent_box", amount: "1000" },
+      { zainboxCode: "school_main_box", percent: 100 }, // 100% of remainder
     ],
   },
 });
@@ -421,8 +421,8 @@ Share fields (per leg):
 | Field | Meaning |
 |-------|---------|
 | `zainboxCode` | Destination (or primary keep) box |
-| `percent` | Share of **gross paid amount** (integer or decimal; exact rounding rules below) |
-| `amount` | Fixed Naira amount as string (same style as checkout `amount`) |
+| `amount` | Fixed Naira amount (taken first from the deposit) |
+| `percent` | Share of **whatever remains after all fixed `amount` legs** (must total **100%** of that remainder). Use `percent: 100` on primary to keep the rest. |
 
 A leg uses **either** `percent` **or** `amount`, not both.
 
@@ -431,8 +431,8 @@ A leg uses **either** `percent` **or** `amount`, not both.
 1. At least one share; max N legs (suggested cap: **10**).
 2. Every `zainboxCode` exists in Koodify’s zainboxes cache and is **active** (v1 ACL).
 3. `primaryZainbox` (if set) must match the publicKey’s box; that box must appear in the plan as collector; customer VA is always on **primary only**.
-4. Mixed percent + fixed amounts allowed; leftover kobo from percent flooring goes to the primary keep leg.
-5. Legs must cover the full checkout amount in kobo. Over-allocate → reject.
+4. Fixed `amount` legs are allocated first; `percent` legs split the **remainder** and must sum to 100%.
+5. Flooring leftover kobo in the remainder pool goes to the primary percent leg (or first percent leg). Over-allocate fixed amounts → reject.
 6. No zero/negative shares; no duplicate destination boxes in one plan (or merge duplicates — prefer **reject duplicates** for clarity).
 7. Inline `paymentSplit` is stored on the txn like `customParam` (Koodify-only; not sent to Zainpay create-VA).
 
@@ -445,8 +445,8 @@ A leg uses **either** `percent` **or** `amount`, not both.
 #### Rounding
 
 - Work in **kobo** (integer).
-- Percent legs: floor each percent share to kobo; assign any leftover kobo to the **primary** keep leg so the sum always matches paid amount.
-- Fixed `amount` legs must already be whole Naira/kobo-safe strings; reject fractions that don’t map cleanly.
+- Fixed amounts first; then `percent` of the remainder (floor); leftover kobo → primary percent leg.
+- Fixed `amount` legs must be whole Naira/kobo-safe strings; reject fractions that don’t map cleanly.
 
 #### Runtime process flow
 

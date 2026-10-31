@@ -173,9 +173,14 @@ pub fn resolve_plan(
         return Err(SplitValidateError::msg("checkout amount must be > 0"));
     }
 
+    // Pass 1: validate shape + allocate fixed amounts.
+    // Pass 2: percent legs take a share of whatever **remains** after fixed amounts
+    // (e.g. ₦200 + ₦50 + percent:100 → remainder ₦750). Percents must sum to 100
+    // of that remainder pool.
     let mut seen = std::collections::HashSet::new();
-    let mut computed: Vec<ResolvedLeg> = Vec::with_capacity(input.shares.len());
-    let mut allocated: i64 = 0;
+    let mut fixed_legs: Vec<ResolvedLeg> = Vec::new();
+    let mut percent_shares: Vec<(String, f64)> = Vec::new();
+    let mut fixed_sum: i64 = 0;
 
     for share in &input.shares {
         let code = share.zainbox_code.trim();
@@ -202,22 +207,13 @@ pub fn resolve_plan(
             )));
         }
 
-        let (amount_kobo, share_percent, share_amount) = if has_pct {
-            let pct = share.percent.unwrap();
-            if !pct.is_finite() || pct <= 0.0 || pct > 100.0 {
-                return Err(SplitValidateError::msg(format!(
-                    "percent for `{code}` must be in (0, 100]"
-                )));
-            }
-            let raw = (pct / 100.0) * (total_kobo as f64);
-            let kobo = raw.floor() as i64;
-            if kobo <= 0 {
-                return Err(SplitValidateError::msg(format!(
-                    "percent for `{code}` rounds to zero kobo"
-                )));
-            }
-            (kobo, Some(pct), None)
+        let role = if code == primary_zainbox {
+            "keep"
         } else {
+            "transfer"
+        };
+
+        if has_amt {
             let amt = share.amount.as_ref().unwrap().trim();
             let kobo = naira_to_kobo(amt)?;
             if kobo <= 0 {
@@ -225,44 +221,108 @@ pub fn resolve_plan(
                     "amount for `{code}` must be > 0"
                 )));
             }
-            (kobo, None, Some(amt.to_string()))
-        };
+            fixed_sum = fixed_sum
+                .checked_add(kobo)
+                .ok_or_else(|| SplitValidateError::msg("share amounts overflow"))?;
+            fixed_legs.push(ResolvedLeg {
+                zainbox_code: code.to_string(),
+                role,
+                amount_kobo: kobo,
+                share_percent: None,
+                share_amount: Some(amt.to_string()),
+            });
+        } else {
+            let pct = share.percent.unwrap();
+            if !pct.is_finite() || pct <= 0.0 || pct > 100.0 {
+                return Err(SplitValidateError::msg(format!(
+                    "percent for `{code}` must be in (0, 100]"
+                )));
+            }
+            percent_shares.push((code.to_string(), pct));
+        }
+    }
 
-        allocated = allocated
-            .checked_add(amount_kobo)
+    if fixed_sum > total_kobo {
+        return Err(SplitValidateError::msg(format!(
+            "fixed share total {fixed_sum} kobo exceeds checkout {total_kobo} kobo"
+        )));
+    }
+
+    let remainder = total_kobo - fixed_sum;
+    if percent_shares.is_empty() {
+        if remainder != 0 {
+            return Err(SplitValidateError::msg(format!(
+                "fixed shares leave {remainder} kobo unallocated — add a percent:100 remainder leg (usually primary)"
+            )));
+        }
+    } else {
+        let pct_sum: f64 = percent_shares.iter().map(|(_, p)| *p).sum();
+        if (pct_sum - 100.0).abs() > 0.001 {
+            return Err(SplitValidateError::msg(format!(
+                "percent shares must total 100% of the remaining amount after fixed shares (got {pct_sum}%)"
+            )));
+        }
+        if remainder <= 0 {
+            return Err(SplitValidateError::msg(
+                "nothing left for percent shares after fixed amounts — reduce fixed shares or drop percent legs",
+            ));
+        }
+    }
+
+    let mut percent_legs: Vec<ResolvedLeg> = Vec::with_capacity(percent_shares.len());
+    let mut percent_allocated: i64 = 0;
+    for (code, pct) in &percent_shares {
+        let raw = (*pct / 100.0) * (remainder as f64);
+        let kobo = raw.floor() as i64;
+        if kobo <= 0 && *pct < 100.0 {
+            return Err(SplitValidateError::msg(format!(
+                "percent for `{code}` rounds to zero kobo of the remaining {remainder}"
+            )));
+        }
+        percent_allocated = percent_allocated
+            .checked_add(kobo)
             .ok_or_else(|| SplitValidateError::msg("share amounts overflow"))?;
-
         let role = if code == primary_zainbox {
             "keep"
         } else {
             "transfer"
         };
-        computed.push(ResolvedLeg {
-            zainbox_code: code.to_string(),
+        percent_legs.push(ResolvedLeg {
+            zainbox_code: code.clone(),
             role,
-            amount_kobo,
-            share_percent,
-            share_amount,
+            amount_kobo: kobo,
+            share_percent: Some(*pct),
+            share_amount: None,
         });
     }
 
-    if allocated > total_kobo {
-        return Err(SplitValidateError::msg(format!(
-            "share total {allocated} kobo exceeds checkout {total_kobo} kobo"
-        )));
+    // Flooring leftover within the remainder pool → primary percent leg if present,
+    // else the first percent leg.
+    let pct_leftover = remainder - percent_allocated;
+    if pct_leftover > 0 && !percent_legs.is_empty() {
+        let idx = percent_legs
+            .iter()
+            .position(|l| l.zainbox_code == primary_zainbox)
+            .unwrap_or(0);
+        percent_legs[idx].amount_kobo += pct_leftover;
     }
 
-    let leftover = total_kobo - allocated;
-    if leftover > 0 {
-        if let Some(keep) = computed
-            .iter_mut()
-            .find(|l| l.zainbox_code == primary_zainbox)
-        {
-            keep.amount_kobo += leftover;
+    // Preserve input order: interleave by walking shares again.
+    let mut computed: Vec<ResolvedLeg> = Vec::with_capacity(input.shares.len());
+    let mut fi = 0usize;
+    let mut pi = 0usize;
+    for share in &input.shares {
+        let has_amt = share
+            .amount
+            .as_ref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+        if has_amt {
+            computed.push(fixed_legs[fi].clone());
+            fi += 1;
         } else {
-            return Err(SplitValidateError::msg(
-                "shares under-allocate the checkout amount and primary zainbox is not in the plan to receive leftover kobo",
-            ));
+            computed.push(percent_legs[pi].clone());
+            pi += 1;
         }
     }
 
@@ -1016,7 +1076,7 @@ mod tests {
                 share_pct("agent", 10.0),
             ],
         };
-        // 10001 naira → odd kobo leftovers from flooring go to primary.
+        // No fixed amounts → remainder = full checkout; flooring leftover → primary.
         let plan = resolve_plan("primary", "100.01", &input).unwrap();
         assert_eq!(plan.total_kobo, 10001);
         let sum: i64 = plan.legs.iter().map(|l| l.amount_kobo).sum();
@@ -1027,13 +1087,39 @@ mod tests {
     }
 
     #[test]
-    fn resolve_mixed_example() {
+    fn resolve_fixed_then_remainder_percent() {
+        // ₦1000 deposit: ₦200 + ₦50 + 100% of remainder (₦750) on primary.
         let input = PaymentSplitInput {
             primary_zainbox: None,
             shares: vec![
-                share_pct("school_main_box", 70.0),
+                share_amt("tutor_box", "200"),
+                share_amt("agent_box", "50"),
+                share_pct("school_main_box", 100.0),
+            ],
+        };
+        let plan = resolve_plan("school_main_box", "1000", &input).unwrap();
+        assert_eq!(plan.total_kobo, 100_000);
+        let by = |c: &str| {
+            plan.legs
+                .iter()
+                .find(|l| l.zainbox_code == c)
+                .unwrap()
+                .amount_kobo
+        };
+        assert_eq!(by("tutor_box"), 20_000);
+        assert_eq!(by("agent_box"), 5_000);
+        assert_eq!(by("school_main_box"), 75_000);
+    }
+
+    #[test]
+    fn resolve_mixed_example() {
+        // Fixed secondaries, primary keeps 100% of whatever remains.
+        let input = PaymentSplitInput {
+            primary_zainbox: None,
+            shares: vec![
                 share_amt("tutor_box", "2000"),
                 share_amt("agent_box", "1000"),
+                share_pct("school_main_box", 100.0),
             ],
         };
         let plan = resolve_plan("school_main_box", "10000", &input).unwrap();
