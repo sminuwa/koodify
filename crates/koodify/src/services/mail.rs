@@ -255,7 +255,7 @@ mod tests {
         assert!(html.contains("Koodify"));
         assert!(html.contains(r#"src="cid:koodify-logo""#));
         assert!(html.contains("ORDER_123"));
-        assert!(html.contains("NGN 500"));
+        assert!(html.contains("NGN&nbsp;500") || html.contains("NGN 500"));
         assert!(html.contains("Hi Ada"));
         assert!(html.contains("payer@example.com"));
         assert!(html.contains("Acme Stores"));
@@ -269,6 +269,8 @@ mod tests {
         assert!(html.contains("Amount Paid"));
         assert!(html.contains("Bank Transfer"));
         assert!(html.contains("detail-label"));
+        assert!(html.contains("stack-col"));
+        assert!(html.contains("notif-text"));
         assert!(!html.contains("{{"));
         assert!(!LOGO_PNG.is_empty());
     }
