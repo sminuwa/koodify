@@ -96,6 +96,18 @@ fn opt_trim(s: Option<&String>) -> Option<&str> {
     s.map(|v| v.as_str().trim()).filter(|v| !v.is_empty())
 }
 
+fn icon_for_label(label: &str) -> &'static str {
+    match label {
+        "Business Name" | "Merchant" => "▱",
+        "Reference" | "Receipt ID" => "#",
+        "Narration" | "Description" | "Purpose" => "✎",
+        "Date" | "Paid at" => "▦",
+        "Sender's Bank" => "▤",
+        "Sender's Account" | "Sender" => "◇",
+        _ => "•",
+    }
+}
+
 fn detail_rows(receipt: &ReceiptEmail) -> Vec<ReceiptDetail> {
     let mut rows = Vec::new();
 
@@ -175,22 +187,25 @@ fn render_detail_rows_html(rows: &[ReceiptDetail]) -> String {
     let last = rows.len().saturating_sub(1);
     for (i, row) in rows.iter().enumerate() {
         let border = if i == last {
-            ""
+            "border-bottom:0;"
         } else {
-            "border-bottom:1px solid #d5deea;"
+            "border-bottom:1px solid #e3ebf8;"
         };
         let mono = if row.mono {
             "font-family:ui-monospace,Menlo,Consolas,monospace;"
         } else {
             ""
         };
+        let icon = icon_for_label(&row.label);
         out.push_str(&format!(
-            r#"                <tr>
-                  <td class="kd-row-label" style="padding:10px 0;{border}font-size:13px;color:#334e6d;">{label}</td>
-                  <td class="kd-row-value" align="right" style="padding:10px 0;{border}font-size:13px;font-weight:700;color:#061526;{mono}">{value}</td>
-                </tr>
+            r#"                      <tr>
+                        <td class="detail-icon" style="padding:12px 5px;{border}width:36px;color:#334e6d;font-size:18px;font-weight:700;">{icon}</td>
+                        <td class="detail-label" style="padding:12px 5px;{border}width:27%;color:#2a4066;font-size:14px;">{label}</td>
+                        <td class="detail-value" style="padding:12px 5px;{border}color:#12213e;text-align:right;font-weight:700;font-size:14px;{mono}">{value}</td>
+                      </tr>
 "#,
             border = border,
+            icon = icon,
             label = escape(&row.label),
             value = escape(&row.value),
             mono = mono,
@@ -250,7 +265,59 @@ mod tests {
         assert!(html.contains("Student Id"));
         assert!(html.contains("STU001"));
         assert!(html.contains("Secure bank-transfer checkout"));
+        assert!(html.contains("Payment Notification"));
+        assert!(html.contains("Amount Paid"));
+        assert!(html.contains("Bank Transfer"));
+        assert!(html.contains("detail-label"));
         assert!(!html.contains("{{"));
         assert!(!LOGO_PNG.is_empty());
+    }
+
+    /// Live sample send: `SAMPLE_RECEIPT_TO=you@example.com cargo test -p koodify --lib send_sample_receipt -- --ignored --nocapture`
+    #[tokio::test]
+    #[ignore = "live Resend send — set SAMPLE_RECEIPT_TO"]
+    async fn send_sample_receipt() {
+        let _ = dotenvy::from_filename(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.env"),
+        );
+        let to = std::env::var("SAMPLE_RECEIPT_TO").expect("SAMPLE_RECEIPT_TO required");
+        let api_key = std::env::var("RESEND_API_KEY").expect("RESEND_API_KEY required");
+        let from = std::env::var("RESEND_FROM")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "Koodify <onboarding@resend.dev>".into());
+
+        let mut config = crate::config::Config::new(
+            "127.0.0.1:0",
+            "postgres://unused",
+            "https://api.zainpay.ng",
+            "unused",
+            "unused",
+        );
+        config.resend_api_key = Some(api_key);
+        config.resend_from = from;
+
+        let receipt = ReceiptEmail {
+            to: to.clone(),
+            payer_name: Some("Sunusi".into()),
+            amount_label: "500".into(),
+            currency: "NGN".into(),
+            reference: "SAMPLE_gtj26mi1_1793451647335".into(),
+            paid_at: Some("31 Oct 2026 · 14:14".into()),
+            business_name: Some("Acme Stores".into()),
+            narration: Some("School fees".into()),
+            sender_bank: Some("GTBank".into()),
+            sender_account: Some("0123456789".into()),
+            sender_name: Some("Ada Lovelace".into()),
+            custom_params: vec![
+                ("Student Id".into(), "STU001".into()),
+                ("Payment Type".into(), "School Fees".into()),
+            ],
+        };
+
+        send_payment_receipt(&config, receipt)
+            .await
+            .expect("sample receipt send failed");
+        eprintln!("sample receipt sent to {to}");
     }
 }

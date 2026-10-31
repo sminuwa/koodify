@@ -56,6 +56,39 @@
         ],
         "createdAt": "2026-10-31T04:53:19.387Z",
         "reason": "Internal live-test harness; not a production UI surface"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-10-31T13:28:06.146Z",
+        "reason": "HTML email templates require web-safe Arial/Helvetica stacks for client compatibility"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "crates/koodify/templates/emails/*"
+        ],
+        "createdAt": "2026-10-31T13:28:31.438Z",
+        "reason": "Email brand kit uses soft blue elevation on light receipt hero from approved Desktop template"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "crates/koodify/templates/emails/*"
+        ],
+        "createdAt": "2026-10-31T13:28:31.452Z",
+        "reason": "Payment email uses approved Koodify Desktop brand palette; critical copy already darkened for AA"
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "crates/koodify/templates/emails/*"
+        ],
+        "createdAt": "2026-10-31T13:28:31.477Z",
+        "reason": "Email clients commonly use 12-13px meta/footer type"
       }
     ]
   }

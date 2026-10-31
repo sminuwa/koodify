@@ -1,46 +1,45 @@
-/* Koodify payment receipt — injected into <style> for clients that support it.
-   Critical layout also uses inline styles in receipt.html for Outlook/Gmail. */
-
-:root {
-  --kd-ink: #061526;
-  --kd-muted: #1a2f45;
-  --kd-soft: #334e6d;
-  --kd-line: #b7c7db;
-  --kd-blue: #0f57d9;
-  --kd-blue-deep: #0a3a9a;
-  --kd-paper: #e8eef6;
-  --kd-card: #f4f8ff;
+/* Koodify payment receipt email — visual companion stylesheet.
+   Injected into <style> for clients that support it; critical rules are also
+   inlined in receipt.html for Outlook/Gmail. */
+* { box-sizing: border-box; }
+body, table, td, p, h1, h2 { margin: 0; padding: 0; }
+body, .email-body {
+  width: 100% !important;
+  background: #edf3ff;
+  color: #10203e;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
 }
-
-body {
-  margin: 0;
-  padding: 0;
-  background: var(--kd-paper);
-  font-family: "DM Sans", Helvetica, Arial, sans-serif;
-  color: var(--kd-ink);
-}
-
-.kd-wrap {
-  width: 100%;
-  background: var(--kd-paper);
-  padding: 32px 16px;
-}
-
-.kd-card {
-  max-width: 560px;
-  background: #ffffff;
-  border-radius: 16px;
+.page-table { width: 100%; background: #edf3ff; }
+.outer-pad { padding: 28px 16px; }
+.email-shell { width: 700px; max-width: 700px; }
+.email-card {
   overflow: hidden;
-  border: 1px solid var(--kd-line);
+  background: #fff;
+  border: 1px solid #d9e5fb;
+  border-radius: 22px;
+  box-shadow: 0 18px 48px rgba(31, 73, 139, .12);
 }
-
-.kd-logo-bar {
-  background: #ffffff;
-  padding: 22px 32px 18px;
-  border-bottom: 1px solid #d5deea;
+.preheader {
+  display: none !important;
+  visibility: hidden;
+  opacity: 0;
+  color: transparent;
+  height: 0;
+  width: 0;
+  overflow: hidden;
 }
-
-.kd-logo {
+.hero {
+  padding: 34px 42px 36px;
+  text-align: center;
+  color: #10234a;
+  background:
+    radial-gradient(ellipse at 88% 8%, rgba(104, 190, 255, .48), transparent 35%),
+    linear-gradient(145deg, #ffffff 0%, #f1f7ff 58%, #e5f2ff 100%);
+  border-bottom: 1px solid #e2ebfb;
+}
+.brand-logo {
   display: block;
   border: 0;
   outline: none;
@@ -49,55 +48,177 @@ body {
   width: auto;
   max-width: 168px;
 }
-
-.kd-hero {
-  background: linear-gradient(135deg, var(--kd-blue), var(--kd-blue-deep));
-  padding: 28px 32px;
-}
-
-.kd-title {
-  margin: 0;
-  font-size: 26px;
-  line-height: 1.2;
+.brand-mark, .footer-brand-mark {
+  display: inline-block;
+  width: 35px;
+  height: 38px;
+  line-height: 38px;
+  text-align: center;
+  color: #fff;
+  font-size: 31px;
   font-weight: 800;
-  color: #ffffff;
-  letter-spacing: -0.02em;
+  font-style: italic;
+  border-radius: 9px;
+  background: linear-gradient(145deg, #12d5e9, #0872f9 68%, #1554d8);
 }
-
-.kd-amount-box {
-  background: var(--kd-card);
-  border-radius: 12px;
-  border: 1px solid #b9cef0;
+.brand-name {
+  padding-left: 9px;
+  color: #101c36;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -.8px;
 }
-
-.kd-amount {
-  margin: 0;
+.notification-label {
+  color: #12356f;
+  font-size: 13px;
+  font-weight: 600;
+}
+.bell { color: #155ed7; font-size: 18px; }
+.receipt-icon-wrap { height: 135px; padding-top: 31px; }
+.receipt-icon {
+  position: relative;
+  display: inline-block;
+  width: 94px;
+  height: 92px;
+  border: 2px solid #d4e5ff;
+  border-radius: 20px 20px 25px 25px;
+  background: linear-gradient(145deg, #fff, #dceaff);
+  box-shadow: 0 12px 22px rgba(16, 32, 62, .12);
+  transform: rotate(-5deg);
+}
+.receipt-check {
+  position: absolute;
+  top: 9px;
+  left: 25px;
+  width: 43px;
+  height: 43px;
+  line-height: 43px;
+  border-radius: 50%;
+  color: #fff;
+  background: #20c65a;
   font-size: 28px;
   font-weight: 800;
-  color: var(--kd-blue-deep);
-  letter-spacing: -0.02em;
+  box-shadow: 0 4px 10px rgba(16, 32, 62, .18);
 }
-
-.kd-row-label {
-  font-size: 13px;
-  color: var(--kd-soft);
+.receipt-line {
+  position: absolute;
+  left: 20px;
+  height: 5px;
+  border-radius: 5px;
+  background: #7daeff;
 }
-
-.kd-row-value {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--kd-ink);
+.line-one { top: 63px; width: 54px; }
+.line-two { top: 75px; width: 37px; }
+.hero-title {
+  margin-top: 12px;
+  color: #101b35;
+  font-size: 34px;
+  line-height: 42px;
+  font-weight: 800;
+  letter-spacing: -1.1px;
 }
-
-.kd-mono {
-  font-family: ui-monospace, Menlo, Consolas, monospace;
+.hero-subtitle {
+  margin-top: 8px;
+  color: #2a4066;
+  font-size: 16px;
+  line-height: 24px;
 }
-
-.kd-footer {
+.content-pad { padding: 30px 42px 26px; }
+.amount-panel {
+  margin-bottom: 28px;
+  padding: 22px 28px;
+  border: 1px solid #bcd4ff;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(112deg, #2879f6 0%, #0750c9 58%, #073c9e 100%);
+}
+.amount-left { border-right: 1px solid rgba(255,255,255,.38); }
+.amount-label { margin-bottom: 5px; color: #ffffff; font-size: 14px; font-weight: 600; }
+.amount-value { color: #fff; font-size: 39px; line-height: 46px; font-weight: 800; letter-spacing: -1px; }
+.amount-email { margin-top: 6px; color: #ffffff; font-size: 13px; }
+.payment-method { padding-left: 24px; white-space: nowrap; }
+.bank-icon {
+  display: inline-block;
+  width: 54px;
+  height: 54px;
+  line-height: 54px;
+  margin-right: 10px;
+  text-align: center;
+  vertical-align: middle;
+  color: #fff;
+  font-size: 29px;
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 15px;
+  background: rgba(255,255,255,.16);
+}
+.method-copy { display: inline-block; vertical-align: middle; color: #fff; font-size: 14px; line-height: 23px; }
+.method-copy strong { font-size: 15px; }
+.received-pill {
+  display: inline-block;
+  padding: 1px 10px;
+  border-radius: 18px;
+  color: #087d31;
+  background: #dcffe8;
   font-size: 12px;
-  color: var(--kd-soft);
+  font-weight: 700;
 }
+.greeting { margin: 0 0 8px; color: #101d39; font-size: 21px; line-height: 28px; font-weight: 800; }
+.intro-copy { margin-bottom: 22px; color: #2a4066; font-size: 15px; line-height: 24px; }
+.details-table {
+  width: 100%;
+  margin-bottom: 22px;
+  padding: 8px 14px;
+  border: 1px solid #d4e1f7;
+  border-radius: 15px;
+  background: #f8fbff;
+}
+.details-table td { padding: 12px 5px; border-bottom: 1px solid #e3ebf8; font-size: 14px; }
+.details-table tr:last-child td { border-bottom: 0; }
+.detail-icon { width: 36px; color: #334e6d; font-size: 18px !important; font-weight: 700; }
+.detail-label { width: 27%; color: #2a4066; }
+.detail-value { color: #12213e; text-align: right; font-weight: 700; }
+.detail-mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.security-note {
+  margin-bottom: 25px;
+  padding: 17px 20px;
+  border-radius: 15px;
+  background: #eaf8ef;
+}
+.info-icon {
+  width: 43px;
+  height: 43px;
+  line-height: 41px;
+  text-align: center;
+  color: #139747;
+  font-size: 24px;
+  font-weight: 700;
+  border: 2px solid #25b65d;
+  border-radius: 50%;
+}
+.security-copy { padding-left: 14px; color: #1f3a52; font-size: 14px; line-height: 22px; }
+.footer-table { padding-top: 20px; border-top: 1px solid #e1e9f5; }
+.footer-cell { color: #334e6d; font-size: 13px; }
+.footer-brand-mark {
+  width: 26px; height: 28px; line-height: 28px;
+  font-size: 22px; border-radius: 6px; vertical-align: middle;
+}
+.footer-brand { margin-left: 7px; color: #111e39; font-size: 17px; vertical-align: middle; }
+.footer-divider { display: inline-block; height: 25px; margin: 0 13px; border-left: 1px solid #c8d5e9; vertical-align: middle; }
+.footer-tagline { color: #334e6d; vertical-align: middle; }
+.footer-trust { color: #334e6d; font-weight: 600; white-space: nowrap; }
+.outside-footer { padding: 16px 20px 0; color: #334e6d; text-align: center; font-size: 13px; line-height: 18px; }
 
-.kd-footer strong {
-  color: var(--kd-blue-deep);
+@media only screen and (max-width: 640px) {
+  .email-shell { width: 100% !important; }
+  .outer-pad { padding: 12px !important; }
+  .hero { padding: 24px 20px 30px !important; }
+  .hero-title { font-size: 30px !important; line-height: 36px !important; }
+  .content-pad { padding: 26px 20px !important; }
+  .amount-panel { padding: 18px 15px !important; }
+  .amount-value { font-size: 30px !important; }
+  .payment-method { padding-left: 12px !important; }
+  .bank-icon { width: 40px; height: 40px; line-height: 40px; margin-right: 5px; }
+  .detail-value { word-break: break-word !important; font-size: 12px !important; }
+  .footer-cell { display: block !important; text-align: left !important; padding: 8px 0 !important; }
+  .notification-label { font-size: 11px; }
 }

@@ -1,72 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Payment receipt · Koodify</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Payment received | Koodify</title>
   <style>
 {{styles}}
+    @media only screen and (max-width: 640px) {
+      .email-shell { width: 100% !important; }
+      .outer-pad { padding: 12px !important; }
+      .hero { padding: 24px 20px 30px !important; }
+      .hero-title { font-size: 30px !important; line-height: 36px !important; }
+      .amount-panel { padding: 20px !important; }
+      .amount-value { font-size: 38px !important; }
+      .content-pad { padding: 26px 20px !important; }
+      .detail-value { word-break: break-word !important; }
+      .footer-cell { display: block !important; text-align: left !important; padding: 8px 0 !important; }
+    }
   </style>
 </head>
-<body style="margin:0;padding:0;background:#e8eef6;font-family:'DM Sans',Helvetica,Arial,sans-serif;color:#061526;">
-  <table role="presentation" class="kd-wrap" width="100%" cellspacing="0" cellpadding="0" style="background:#e8eef6;padding:32px 16px;">
+<body class="email-body" style="margin:0;padding:0;width:100%;background:#edf3ff;color:#10203e;font-family:Arial,Helvetica,sans-serif;">
+  <div class="preheader" style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">Your bank transfer has been confirmed successfully.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="page-table" style="width:100%;background:#edf3ff;">
     <tr>
-      <td align="center">
-        <table role="presentation" class="kd-card" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #b7c7db;">
+      <td align="center" class="outer-pad" style="padding:28px 16px;">
+        <table role="presentation" width="700" cellspacing="0" cellpadding="0" border="0" class="email-shell" style="width:700px;max-width:700px;">
           <tr>
-            <td class="kd-logo-bar" style="background:#ffffff;padding:22px 32px 18px;border-bottom:1px solid #d5deea;">
-              <img
-                class="kd-logo"
-                src="{{logo_src}}"
-                alt="Koodify"
-                width="148"
-                height="40"
-                style="display:block;border:0;outline:none;text-decoration:none;height:40px;width:auto;max-width:168px;"
-              />
-            </td>
-          </tr>
-          <tr>
-            <td class="kd-hero" style="background:linear-gradient(135deg,#0f57d9,#0a3a9a);padding:28px 32px;">
-              <h1 class="kd-title" style="margin:0;font-size:26px;line-height:1.2;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Payment received</h1>
-              <p style="margin:14px 0 0;font-size:18px;font-weight:700;color:#ffffff;">{{currency}} {{amount}}</p>
-              <p style="margin:6px 0 0;font-size:14px;color:#e8f0ff;">{{payer_email}}</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:28px 32px 8px;">
-              <p style="margin:0 0 16px;font-size:16px;line-height:1.55;color:#1a2f45;">
-                Hi {{greeting}},
-              </p>
-              <p style="margin:0 0 24px;font-size:16px;line-height:1.55;color:#1a2f45;">
-                We’ve confirmed your bank transfer. Here’s your receipt.
-              </p>
-
-              <table role="presentation" class="kd-amount-box" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f8ff;border-radius:12px;border:1px solid #b9cef0;">
+            <td class="email-card" style="overflow:hidden;background:#ffffff;border:1px solid #d9e5fb;border-radius:22px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="padding:20px 22px;">
-                    <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#334e6d;">Amount paid</p>
-                    <p class="kd-amount" style="margin:0;font-size:28px;font-weight:800;color:#0a3a9a;letter-spacing:-0.02em;">{{currency}} {{amount}}</p>
+                  <td class="hero" style="padding:34px 42px 36px;text-align:center;color:#10234a;background:radial-gradient(ellipse at 88% 8%,rgba(104,190,255,.48),transparent 35%),linear-gradient(145deg,#ffffff 0%,#f1f7ff 58%,#e5f2ff 100%);border-bottom:1px solid #e2ebfb;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td align="left" valign="middle">
+                          <img
+                            class="brand-logo"
+                            src="{{logo_src}}"
+                            alt="Koodify"
+                            width="148"
+                            height="40"
+                            style="display:block;border:0;outline:none;text-decoration:none;height:40px;width:auto;max-width:168px;"
+                          />
+                        </td>
+                        <td align="right" valign="middle" class="notification-label" style="color:#12356f;font-size:13px;font-weight:600;">
+                          <span class="bell" style="color:#155ed7;font-size:18px;">♧</span> Payment Notification
+                        </td>
+                      </tr>
+                    </table>
+
+                    <div class="receipt-icon-wrap" style="height:135px;padding-top:31px;">
+                      <div class="receipt-icon" style="position:relative;display:inline-block;width:94px;height:92px;border:2px solid #d4e5ff;border-radius:20px 20px 25px 25px;background:linear-gradient(145deg,#fff,#dceaff);box-shadow:0 12px 22px rgba(16,32,62,.12);transform:rotate(-5deg);">
+                        <span class="receipt-check" style="position:absolute;top:9px;left:25px;width:43px;height:43px;line-height:43px;border-radius:50%;color:#fff;background:#20c65a;font-size:28px;font-weight:800;box-shadow:0 4px 10px rgba(16,32,62,.18);">✓</span>
+                        <span class="receipt-line line-one" style="position:absolute;left:20px;top:63px;width:54px;height:5px;border-radius:5px;background:#7daeff;"></span>
+                        <span class="receipt-line line-two" style="position:absolute;left:20px;top:75px;width:37px;height:5px;border-radius:5px;background:#7daeff;"></span>
+                      </div>
+                    </div>
+                    <h1 class="hero-title" style="margin:12px 0 0;color:#101b35;font-size:34px;line-height:42px;font-weight:800;letter-spacing:-1.1px;">Payment Received</h1>
+                    <p class="hero-subtitle" style="margin:8px 0 0;color:#2a4066;font-size:16px;line-height:24px;">Your bank transfer has been confirmed successfully.</p>
                   </td>
                 </tr>
               </table>
 
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;">
-{{detail_rows}}
-              </table>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td class="content-pad" style="padding:30px 42px 26px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="amount-panel" style="margin-bottom:28px;padding:22px 28px;border:1px solid #bcd4ff;border-radius:18px;color:#fff;background:linear-gradient(112deg,#2879f6 0%,#0750c9 58%,#073c9e 100%);">
+                      <tr>
+                        <td width="52%" valign="middle" class="amount-left" style="border-right:1px solid rgba(255,255,255,.38);">
+                          <div class="amount-label" style="margin-bottom:5px;color:#ffffff;font-size:14px;font-weight:600;">Amount Paid</div>
+                          <div class="amount-value" style="color:#fff;font-size:39px;line-height:46px;font-weight:800;letter-spacing:-1px;">{{currency}} {{amount}}</div>
+                          <div class="amount-email" style="margin-top:6px;color:#ffffff;font-size:13px;">{{payer_email}}</div>
+                        </td>
+                        <td width="48%" valign="middle" class="payment-method" style="padding-left:24px;white-space:nowrap;">
+                          <span class="bank-icon" style="display:inline-block;width:54px;height:54px;line-height:54px;margin-right:10px;text-align:center;vertical-align:middle;color:#fff;font-size:29px;border:1px solid rgba(255,255,255,.25);border-radius:15px;background:rgba(255,255,255,.16);">▤</span>
+                          <span class="method-copy" style="display:inline-block;vertical-align:middle;color:#fff;font-size:14px;line-height:23px;">
+                            <strong style="font-size:15px;">Bank Transfer</strong><br>
+                            <span class="received-pill" style="display:inline-block;padding:1px 10px;border-radius:18px;color:#087d31;background:#dcffe8;font-size:12px;font-weight:700;">✓ &nbsp;Received</span>
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
 
-              <p style="margin:24px 0 0;font-size:14px;line-height:1.55;color:#334e6d;">
-                If you didn’t make this payment, reply to this email or contact the merchant who sent you the checkout link.
-              </p>
+                    <h2 class="greeting" style="margin:0 0 8px;color:#101d39;font-size:21px;line-height:28px;font-weight:800;">Hi {{greeting}},</h2>
+                    <p class="intro-copy" style="margin:0 0 22px;color:#2a4066;font-size:15px;line-height:24px;">We’ve confirmed your bank transfer. Here’s a quick receipt for your records.</p>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="details-table" style="width:100%;margin-bottom:22px;padding:8px 14px;border:1px solid #d4e1f7;border-radius:15px;background:#f8fbff;">
+{{detail_rows}}
+                    </table>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="security-note" style="margin-bottom:25px;padding:17px 20px;border-radius:15px;background:#eaf8ef;">
+                      <tr>
+                        <td class="info-icon" style="width:43px;height:43px;line-height:41px;text-align:center;color:#139747;font-size:24px;font-weight:700;border:2px solid #25b65d;border-radius:50%;">i</td>
+                        <td class="security-copy" style="padding-left:14px;color:#1f3a52;font-size:14px;line-height:22px;">If you didn’t make this payment, reply to this email or contact the merchant who sent you the checkout link.</td>
+                      </tr>
+                    </table>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="footer-table" style="padding-top:20px;border-top:1px solid #e1e9f5;">
+                      <tr>
+                        <td align="left" valign="middle" class="footer-cell" style="color:#334e6d;font-size:13px;">
+                          <span class="footer-brand-mark" style="display:inline-block;width:26px;height:28px;line-height:28px;text-align:center;color:#fff;font-size:22px;font-weight:800;font-style:italic;border-radius:6px;background:linear-gradient(145deg,#12d5e9,#0872f9 68%,#1554d8);vertical-align:middle;">K</span>
+                          <strong class="footer-brand" style="margin-left:7px;color:#111e39;font-size:17px;vertical-align:middle;">Koodify</strong>
+                          <span class="footer-divider" style="display:inline-block;height:25px;margin:0 13px;border-left:1px solid #c8d5e9;vertical-align:middle;"></span>
+                          <span class="footer-tagline" style="color:#334e6d;vertical-align:middle;">Secure bank-transfer checkout</span>
+                        </td>
+                        <td align="right" valign="middle" class="footer-cell footer-trust" style="color:#334e6d;font-size:13px;font-weight:600;white-space:nowrap;">♙ &nbsp;Secure &amp; Trusted</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
-            <td style="padding:20px 32px 28px;border-top:1px solid #d5deea;">
-              <p class="kd-footer" style="margin:0;font-size:12px;color:#334e6d;line-height:1.55;">
-                <strong style="color:#0a3a9a;">Koodify</strong><br />
-                Secure bank-transfer checkout for modern businesses.<br />
-                This receipt was generated automatically — please keep it for your records.
-              </p>
-            </td>
+            <td class="outside-footer" style="padding:16px 20px 0;color:#334e6d;text-align:center;font-size:13px;line-height:18px;">This is an automated payment notification from Koodify. Please keep it for your records.</td>
           </tr>
         </table>
       </td>
