@@ -39,15 +39,15 @@ koodifyInitPayment(
 
     // talk to koodify (not Zainpay directly)
     auth: "gateway",
-    baseUrl: "http://localhost:8080", // or "/proxy/koodify" in the demo
+    baseUrl: "https://api.koodify.ng", // local: "http://localhost:8080" or "/proxy/koodify"
   },
   function (response) {
     // { status, reference, description, payer?, customParam? }
     // payer: { email, phone, name? }
     // customParam: { matric, session, paymentType, studentId, … }
   },
-  "YOUR_GATEWAY_API_KEY", // X-Api-Key — same as GATEWAY_API_KEY
-  "sandbox"               // ignored when baseUrl overrides host
+  "YOUR_GATEWAY_PUBLIC_KEY", // publishable X-Api-Key (safe in browser)
+  "live"
 );
 ```
 
@@ -57,16 +57,22 @@ koodifyInitPayment(
 | `txnRef` | yes | Unique; used as payment log key |
 | `mobileNumber` | yes | → stored `payer.phone` |
 | `emailAddress` | yes | → stored `payer.email` |
-| `zainboxCode` | yes | Merchant zainbox |
+| `zainboxCode` | yes | Merchant box (seeded; treat as the merchant private id) |
 | `callBackUrl` | yes | Merchant webhook / return URL |
 | `name` / `payer.name` | no | Koodify-only; merged into `payer` |
 | `customParam` | no | Arbitrary key/values; stored + returned on callback (`customParams` alias) |
-| `auth` | no | `"gateway"` → send `X-Api-Key` |
-| `baseUrl` | no | Koodify origin (enables payer logging) |
+| `auth` | no | `"gateway"` / `"koodify"` for hosted API |
+| `baseUrl` | no | Koodify origin — production `https://api.koodify.ng` |
+
+Checkout needs **both**:
+- **Public key** — `GATEWAY_PUBLIC_KEY` (falls back to `GATEWAY_API_KEY` if unset); sent as `X-Api-Key`
+- **zainboxCode** — which merchant box (must be seeded + active)
+
+Keep `GATEWAY_API_KEY` secret for admin routes. Zainpay’s private key never leaves the server.
 
 ## Logging & merge
 
-Yes — every successful **init** through koodify writes an `operation_records` row keyed by `txnRef` (including `metadata.payer` and `metadata.customParam`). Status polls then reload that row and attach `data.payer` / `data.customParam`. The inline callback always echoes `customParam` from the checkout config as well.
+Yes — every successful **init** through koodify writes a `transactions` row keyed by `txnRef` + `zainbox_code` (including `metadata.payer` and `metadata.customParam`). Status polls then reload that row and attach `data.payer` / `data.customParam`. The inline callback always echoes `customParam` from the checkout config as well.
 
 ## Build / demo
 
@@ -74,9 +80,22 @@ Yes — every successful **init** through koodify writes an `operation_records` 
 # terminal 1 — gateway
 cargo run -p koodify
 
-# terminal 2 — checkout demo
+# terminal 2 — local checkout demo (proxies to local gateway)
 cd packages/koodify-inline
 npm install
 npm run demo
 # http://localhost:5179  →  /proxy/koodify  →  :8080
+```
+
+## Live test (hosted API)
+
+Pure HTML/JS harness under `live-test/` against **https://api.koodify.ng**.
+Paste `GATEWAY_API_KEY` and zainbox code in the form (values stick in `localStorage`).
+
+```bash
+cd packages/koodify-inline
+npm run build          # copies dist → live-test/koodify-inline.js
+npm run test:live      # optional static server
+# open http://localhost:5180
+# or open live-test/index.html after build
 ```

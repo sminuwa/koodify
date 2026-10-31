@@ -17,11 +17,15 @@ pub struct VirtualAccountRecord {
     pub created_at: DateTime<Utc>,
 }
 
+/// Persisted gateway operation / payment log (`transactions` table).
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct OperationRecord {
+#[serde(rename_all = "camelCase")]
+pub struct TransactionRecord {
     pub id: Uuid,
     pub operation: String,
     pub resource_key: Option<String>,
+    /// Business key: Zainpay zainbox `codeName` when known.
+    pub zainbox_code: Option<String>,
     pub metadata: Value,
     pub request_body: Option<Value>,
     pub response_body: Value,

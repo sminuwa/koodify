@@ -75,3 +75,16 @@ pub async fn list(pool: &PgPool) -> Result<Vec<Zainbox>, sqlx::Error> {
     .fetch_all(pool)
     .await
 }
+
+pub async fn get_by_code(pool: &PgPool, code_name: &str) -> Result<Option<Zainbox>, sqlx::Error> {
+    sqlx::query_as::<_, Zainbox>(&format!(
+        r#"
+        SELECT {COLUMNS}
+        FROM zainboxes
+        WHERE code_name = $1
+        "#
+    ))
+    .bind(code_name)
+    .fetch_optional(pool)
+    .await
+}

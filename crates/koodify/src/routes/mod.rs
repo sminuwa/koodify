@@ -78,6 +78,14 @@ pub fn router() -> Router<AppState> {
             "/operations/{resource_key}",
             get(operations::by_resource_key),
         )
+        .route(
+            "/transactions/{resource_key}",
+            get(operations::by_resource_key),
+        )
+        .route(
+            "/transactions/by-zainbox/{zainbox_code}",
+            get(operations::by_zainbox_code),
+        )
         // Customers (`uuid` + integer `id` = 1, 2, 3, …)
         .route("/customers", post(customers::create).get(customers::list))
         .route(

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Koodify live checkout test</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #061526;
+        --muted: #2a405c;
+        --line: #c5d3e6;
+        --blue: #0f57d9;
+        --paper: #eef3f9;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "DM Sans", system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(80% 50% at 10% 0%, rgba(15, 87, 217, 0.14), transparent 55%),
+          linear-gradient(180deg, #e4ecf8, var(--paper) 40%, #dde6f2);
+      }
+      main {
+        width: min(480px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 48px 0 64px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #d9e6ff;
+        color: #0a3a9a;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      h1 {
+        margin: 12px 0 8px;
+        font-size: clamp(1.75rem, 5vw, 2.25rem);
+        letter-spacing: -0.03em;
+      }
+      .lede {
+        margin: 0 0 24px;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin: 0 0 6px;
+        color: var(--muted);
+      }
+      input {
+        width: 100%;
+        margin-bottom: 12px;
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 10px;
+        padding: 11px 12px;
+        font: inherit;
+        color: var(--ink);
+      }
+      button {
+        appearance: none;
+        border: 0;
+        width: 100%;
+        margin-top: 8px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: var(--blue);
+        color: #fff;
+        font: inherit;
+        font-weight: 750;
+        cursor: pointer;
+      }
+      button.secondary {
+        margin-top: 8px;
+        background: #fff;
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+      pre {
+        margin-top: 16px;
+        padding: 14px;
+        border-radius: 12px;
+        background: #061526;
+        color: #eef3f9;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.45;
+        min-height: 120px;
+      }
+      .meta {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        word-break: break-all;
+      }
+      .err {
+        color: #9f1d1d;
+        font-weight: 700;
+      }
+      fieldset {
+        margin: 0 0 16px;
+        padding: 14px 14px 2px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.55);
+      }
+      legend {
+        padding: 0 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="badge">Live · pure HTML/JS</span>
+      <h1>Checkout test</h1>
+      <p class="lede">
+        Publishable gateway key + <code>zainboxCode</code>.
+      </p>
+
+      <fieldset>
+        <legend>Keys</legend>
+        <label for="baseUrl">Base URL</label>
+        <input id="baseUrl" value="https://api.koodify.ng" />
+
+        <label for="publicKey">Public key (GATEWAY_PUBLIC_KEY)</label>
+        <input id="publicKey" placeholder="publishable key" autocomplete="off" />
+
+        <label for="zainboxCode">Zainbox code</label>
+        <input id="zainboxCode" placeholder="STORE_…" />
+      </fieldset>
+
+      <label for="amount">Amount (NGN)</label>
+      <input id="amount" value="500" />
+
+      <label for="name">Payer name</label>
+      <input id="name" value="Ada Lovelace" />
+
+      <label for="email">Email</label>
+      <input id="email" type="email" value="payer@example.com" />
+
+      <label for="mobile">Mobile</label>
+      <input id="mobile" value="08012345678" />
+
+      <button type="button" id="pay">Pay with bank transfer</button>
+      <button type="button" class="secondary" id="ping">Ping /health</button>
+
+      <p class="meta" id="meta">Enter public key + zainbox, then pay.</p>
+      <pre id="log">Waiting…</pre>
+    </main>
+
+    <script src="./koodify-inline.js"></script>
+    <script>
+      (function () {
+        var STORAGE_KEY = "koodify-live-test";
+        var logEl = document.getElementById("log");
+        var metaEl = document.getElementById("meta");
+        var fields = [
+          "baseUrl",
+          "publicKey",
+          "zainboxCode",
+          "amount",
+          "name",
+          "email",
+          "mobile",
+        ];
+
+        function log(obj) {
+          logEl.textContent =
+            typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+        }
+
+        function val(id) {
+          return document.getElementById(id).value.trim();
+        }
+
+        function ref() {
+          return "LIVE_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now();
+        }
+
+        function save() {
+          var data = {};
+          fields.forEach(function (id) {
+            data[id] = document.getElementById(id).value;
+          });
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          } catch (_) {}
+        }
+
+        function restore() {
+          try {
+            var raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return;
+            var data = JSON.parse(raw);
+            fields.forEach(function (id) {
+              if (data[id] != null && data[id] !== "") {
+                document.getElementById(id).value = data[id];
+              }
+            });
+            if (!val("publicKey") && data.apiKey) {
+              document.getElementById("publicKey").value = data.apiKey;
+            }
+          } catch (_) {}
+        }
+
+        function readyCheck() {
+          if (typeof koodifyInitPayment !== "function") {
+            metaEl.innerHTML =
+              '<span class="err">Missing koodify-inline.js — run npm run build</span>';
+            return false;
+          }
+          metaEl.textContent =
+            "baseUrl: " +
+            val("baseUrl") +
+            " · publicKey: " +
+            (val("publicKey")
+              ? "set (" + val("publicKey").slice(0, 4) + "…)"
+              : "not set") +
+            " · zainbox: " +
+            (val("zainboxCode") || "not set");
+          return true;
+        }
+
+        restore();
+        readyCheck();
+        fields.forEach(function (id) {
+          document.getElementById(id).addEventListener("change", function () {
+            save();
+            readyCheck();
+          });
+          document.getElementById(id).addEventListener("input", save);
+        });
+
+        document.getElementById("ping").onclick = async function () {
+          var base = val("baseUrl").replace(/\/$/, "");
+          if (!base) {
+            log({ error: "baseUrl is required" });
+            return;
+          }
+          try {
+            var res = await fetch(base + "/health");
+            var text = await res.text();
+            log({ health: res.status, body: text });
+          } catch (err) {
+            log({ error: String(err.message || err) });
+          }
+        };
+
+        document.getElementById("pay").onclick = function () {
+          if (!readyCheck()) return;
+          var publicKey = val("publicKey");
+          var zainboxCode = val("zainboxCode");
+          var baseUrl = val("baseUrl").replace(/\/$/, "");
+          if (!publicKey) {
+            log({ error: "public key is required" });
+            return;
+          }
+          if (!zainboxCode) {
+            log({ error: "zainboxCode is required" });
+            return;
+          }
+          if (!baseUrl) {
+            log({ error: "baseUrl is required" });
+            return;
+          }
+
+          var config = {
+            amount: val("amount"),
+            txnRef: ref(),
+            mobileNumber: val("mobile"),
+            zainboxCode: zainboxCode,
+            emailAddress: val("email"),
+            name: val("name"),
+            callBackUrl: "https://example.com/webhook/koodify",
+            currencyCode: "NGN",
+            auth: "gateway",
+            baseUrl: baseUrl,
+            customParam: {
+              source: "live-test",
+              matric: "ND/12/2211",
+              session: "2026",
+              paymentType: "School Fees",
+              studentId: "STU001",
+            },
+          };
+
+          save();
+          log({ opening: true, config: config });
+
+          koodifyInitPayment(config, function (response) {
+            log({ callback: response, config: config });
+          }, publicKey).catch(function (err) {
+            log({ rejected: err, config: config });
+          });
+        };
+      })();
+    </script>
+  </body>
+</html>

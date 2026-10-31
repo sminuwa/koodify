@@ -47,6 +47,15 @@
         ],
         "createdAt": "2026-10-30T23:40:40.742Z",
         "reason": "HTML API docs match existing docs/composite-endpoints.html and docs/api.html type scale; not a product UI surface"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "packages/koodify-inline/live-test/index.html"
+        ],
+        "createdAt": "2026-10-31T04:53:19.387Z",
+        "reason": "Internal live-test harness; not a production UI surface"
       }
     ]
   }

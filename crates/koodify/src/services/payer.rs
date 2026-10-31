@@ -2,10 +2,11 @@
 //! does not echo.
 //!
 //! On payment init, koodify stores `{ email, phone, name? }` under
-//! `operation_records.metadata.payer` (keyed by `txnRef`) and returns it as
-//! `data.payer`. Optional merchant `customParam` / `customParams` objects are
-//! stored as `metadata.customParam` and returned as `data.customParam`.
-//! Status lookups by `txnRef` reload and merge the same objects.
+//! `transactions.metadata.payer` (keyed by `txnRef` + `zainbox_code`) and
+//! returns it as `data.payer`. Optional merchant `customParam` / `customParams`
+//! objects are stored as `metadata.customParam` and returned as
+//! `data.customParam`. Status lookups by `txnRef` reload and merge the same
+//! objects.
 
 use serde_json::{json, Map, Value};
 use sqlx::PgPool;
@@ -237,7 +238,7 @@ fn insert_data_field(response: &mut Value, key: &str, value: Value) {
 
 /// Load the most recent stored payer for a txnRef / resource key.
 pub async fn load_payer(pool: &PgPool, resource_key: &str) -> Option<Value> {
-    let records = match db::operations::find_by_resource_key(pool, resource_key).await {
+    let records = match db::transactions::find_by_resource_key(pool, resource_key).await {
         Ok(r) => r,
         Err(err) => {
             warn!(error = %err, resource_key, "failed to load payer for resource");
@@ -263,7 +264,7 @@ pub async fn load_payer(pool: &PgPool, resource_key: &str) -> Option<Value> {
 
 /// Load the most recent stored `customParam` for a txnRef / resource key.
 pub async fn load_custom_param(pool: &PgPool, resource_key: &str) -> Option<Value> {
-    let records = match db::operations::find_by_resource_key(pool, resource_key).await {
+    let records = match db::transactions::find_by_resource_key(pool, resource_key).await {
         Ok(r) => r,
         Err(err) => {
             warn!(error = %err, resource_key, "failed to load customParam for resource");

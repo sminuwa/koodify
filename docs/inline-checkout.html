@@ -82,7 +82,7 @@
             <li>Creates a temporary virtual account for the exact amount.</li>
             <li>Listens for settlement automatically; merchant can also tap <em>Check Payment Status</em>.</li>
             <li>Success screen stays open ~10 seconds (or until Done / close).</li>
-            <li>Works best with koodify <code class="font-mono text-sm">X-Api-Key</code>, not the browser talking to Zainpay directly (CORS).</li>
+            <li>Point <code class="font-mono text-sm">baseUrl</code> at koodify. Checkout uses the <strong>publishable</strong> gateway key plus <code class="font-mono text-sm">zainboxCode</code>.</li>
           </ul>
         </section>
 
@@ -122,7 +122,7 @@ npm run build
     currencyCode: "NGN",
     bankType: "gtBank",
     auth: "gateway",
-    baseUrl: "https://your-koodify-host", // or http://localhost:8080
+    baseUrl: "https://api.koodify.ng",
     customParam: {
       matric: "ND/12/2211",
       session: "2026",
@@ -134,8 +134,8 @@ npm run build
     console.log(response);
     // { status, reference, description, payer?, customParam? }
   },
-  "YOUR_GATEWAY_API_KEY", // X-Api-Key
-  "sandbox"               // ignored when baseUrl is set
+  "YOUR_GATEWAY_PUBLIC_KEY", // publishable X-Api-Key
+  "live"
 );</code></pre>
           <p class="mt-6 text-base leading-7 text-ink-700">
             The function also returns a
@@ -214,12 +214,12 @@ npm run build
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">auth</td>
                   <td class="px-4 py-3">no</td>
-                  <td class="px-4 py-3"><code class="font-mono text-xs">"gateway"</code> / <code class="font-mono text-xs">"koodify"</code> → send <code class="font-mono text-xs">X-Api-Key</code>.</td>
+                  <td class="px-4 py-3"><code class="font-mono text-xs">"gateway"</code> / <code class="font-mono text-xs">"koodify"</code> → send publishable <code class="font-mono text-xs">X-Api-Key</code>.</td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">baseUrl</td>
                   <td class="px-4 py-3">no</td>
-                  <td class="px-4 py-3">Koodify origin, e.g. <code class="font-mono text-xs">http://localhost:8080</code>.</td>
+                  <td class="px-4 py-3">Koodify origin. Production: <code class="font-mono text-xs">https://api.koodify.ng</code>.</td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">allowRecurringPayment</td>
@@ -235,7 +235,7 @@ npm run build
           <h2 class="text-4xl font-semibold tracking-tight text-ink-950">customParam</h2>
           <p class="mt-4 text-base leading-7 text-ink-700">
             Pass any merchant key/value map alongside the payment. Koodify peels it off before calling Zainpay,
-            stores it under <code class="font-mono text-sm">operation_records.metadata.customParam</code>,
+            stores it under <code class="font-mono text-sm">transactions.metadata.customParam</code>,
             and returns it as <code class="font-mono text-sm">data.customParam</code> on init / status —
             and on the browser callback.
           </p>
@@ -324,9 +324,10 @@ npm run build
             <li>GET /zainbox/card/temporary-virtual-account-payment-status?txnRef=</li>
           </ul>
           <p class="mt-6 text-base leading-7 text-ink-700">
-            Auth header:
-            <code class="font-mono text-sm">X-Api-Key: $GATEWAY_API_KEY</code>
-            when <code class="font-mono text-sm">auth: "gateway"</code>.
+            Checkout auth:
+            <code class="font-mono text-sm">X-Api-Key: $GATEWAY_PUBLIC_KEY</code>
+            plus an active seeded <code class="font-mono text-sm">zainboxCode</code>.
+            Admin routes use secret <code class="font-mono text-sm">GATEWAY_API_KEY</code>.
             Full catalogue:
             <a class="text-accent underline" href="api.html">docs/api.html</a>.
           </p>
@@ -345,8 +346,9 @@ npm run demo
           <p class="mt-6 text-sm text-ink-500">
             Package source:
             <code class="font-mono text-xs">packages/koodify-inline</code>.
-            Ensure <code class="font-mono text-xs">GATEWAY_API_KEY</code> is set in the repo
-            <code class="font-mono text-xs">.env</code> for the demo proxy.
+            Demo proxy injects the publishable key from
+            <code class="font-mono text-xs">GATEWAY_PUBLIC_KEY</code>
+            (or <code class="font-mono text-xs">GATEWAY_API_KEY</code>).
           </p>
         </section>
       </main>

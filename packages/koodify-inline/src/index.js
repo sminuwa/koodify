@@ -50,7 +50,7 @@ function normalizeCustomParam(config) {
  *
  * @param {object} paymentConfig
  * @param {function} callback - ({ status, reference, description, payer?, customParam? }) => void
- * @param {string} apiKey - GATEWAY_API_KEY when auth=gateway / koodify baseUrl; else Zainpay public key
+ * @param {string} apiKey - Koodify publishable key (`GATEWAY_PUBLIC_KEY`) when using the gateway; else Zainpay key
  * @param {"sandbox"|"live"} [mode="sandbox"]
  * @returns {Promise<object>}
  */
@@ -72,11 +72,13 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
     const resolvedMode = mode === "live" ? "live" : "sandbox";
     const baseUrl = resolveBaseUrl(resolvedMode, paymentConfig.baseUrl);
     const viaDemoProxy = /\/proxy\/koodify/i.test(baseUrl);
+    // Checkout needs publishable key + zainboxCode (proxy injects the key).
     if (!viaDemoProxy && (!apiKey || String(apiKey).trim() === "")) {
       const payload = {
         status: "failed",
         reference: paymentConfig.txnRef,
-        description: "Missing apiKey (gateway X-Api-Key or Zainpay public key)",
+        description:
+          "Missing public key (GATEWAY_PUBLIC_KEY / X-Api-Key) — use with zainboxCode",
       };
       emit(callback, payload);
       reject(payload);

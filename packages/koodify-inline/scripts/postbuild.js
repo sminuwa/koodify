@@ -1,12 +1,13 @@
 /**
  * Attach window.koodifyInitPayment from the IIFE export,
- * and copy the bundle into demo/ (serve only hosts that folder).
+ * and copy the bundle into demo/ + live-test/.
  */
 const fs = require("fs");
 const path = require("path");
 
 const out = path.join(__dirname, "..", "dist", "koodify-inline.js");
 const demoOut = path.join(__dirname, "..", "demo", "koodify-inline.js");
+const liveOut = path.join(__dirname, "..", "live-test", "koodify-inline.js");
 let code = fs.readFileSync(out, "utf8");
 
 const bridge = `
@@ -26,5 +27,8 @@ if (!code.includes("koodifyInitPayment = api.koodifyInitPayment")) {
 }
 
 fs.copyFileSync(out, demoOut);
+fs.mkdirSync(path.dirname(liveOut), { recursive: true });
+fs.copyFileSync(out, liveOut);
 console.log("built", out, "(" + code.length + " bytes)");
 console.log("copied", demoOut);
+console.log("copied", liveOut);

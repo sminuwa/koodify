@@ -55,21 +55,47 @@ fn extract_resource_key(request: &Value, response: &Value) -> Option<String> {
     let candidates = [
         "txnRef",
         "accountNumber",
-        "zainboxCode",
-        "codeName",
         "paymentRef",
+        "codeName",
     ];
     for key in candidates {
         if let Some(v) = request.get(key).and_then(|x| x.as_str()) {
-            return Some(v.to_string());
+            let t = v.trim();
+            if !t.is_empty() {
+                return Some(t.to_string());
+            }
         }
         if let Some(v) = response
             .pointer(&format!("/data/{key}"))
             .and_then(|x| x.as_str())
         {
-            return Some(v.to_string());
+            let t = v.trim();
+            if !t.is_empty() {
+                return Some(t.to_string());
+            }
         }
-        // data may be a bare URL string for card init — skip
+    }
+    None
+}
+
+/// Business key: zainbox `codeName` from request / response / metadata.
+pub fn extract_zainbox_code(request: &Value, response: &Value, metadata: &Value) -> Option<String> {
+    let candidates = [
+        request.get("zainboxCode").and_then(|v| v.as_str()),
+        request.get("codeName").and_then(|v| v.as_str()),
+        response
+            .pointer("/data/zainboxCode")
+            .and_then(|v| v.as_str()),
+        response
+            .pointer("/data/codeName")
+            .and_then(|v| v.as_str()),
+        metadata.get("zainboxCode").and_then(|v| v.as_str()),
+    ];
+    for c in candidates.into_iter().flatten() {
+        let t = c.trim();
+        if !t.is_empty() {
+            return Some(t.to_string());
+        }
     }
     None
 }
@@ -93,10 +119,12 @@ where
 
     if response.is_success() {
         let resource_key = extract_resource_key(&request_json, &response_json);
-        if let Err(err) = db::operations::insert(
+        let zainbox_code = extract_zainbox_code(&request_json, &response_json, &metadata);
+        if let Err(err) = db::transactions::insert(
             &state.pool,
             operation,
             resource_key.as_deref(),
+            zainbox_code.as_deref(),
             &metadata,
             Some(&request_json),
             &response_json,
@@ -104,7 +132,7 @@ where
         )
         .await
         {
-            warn!(error = %err, operation, "failed to persist operation metadata");
+            warn!(error = %err, operation, "failed to persist transaction");
         }
         let custom_param = metadata.get("customParam").cloned();
         response_json = merge_metadata_into_response(response_json, metadata);
@@ -158,10 +186,12 @@ where
 
     if response.is_success() {
         let resource_key = extract_resource_key(&request_json, &response_json);
-        if let Err(err) = db::operations::insert(
+        let zainbox_code = extract_zainbox_code(&request_json, &response_json, &metadata);
+        if let Err(err) = db::transactions::insert(
             &state.pool,
             operation,
             resource_key.as_deref(),
+            zainbox_code.as_deref(),
             &metadata,
             Some(&request_json),
             &response_json,
@@ -169,7 +199,7 @@ where
         )
         .await
         {
-            warn!(error = %err, operation, "failed to persist operation metadata");
+            warn!(error = %err, operation, "failed to persist transaction");
         }
         let custom_param = metadata.get("customParam").cloned();
         response_json = merge_metadata_into_response(response_json, metadata);

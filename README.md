@@ -19,9 +19,11 @@ Reusable Rust integration for [Zainpay](https://docs.zainpay.ng/):
 - `webhooks` — repush deposit / card-payment
 - `composite` — convenience helpers that call **two** Zainpay endpoints as one response (exposed on koodify as plain `/api/v1/…` routes)
 
+**Live API:** [https://api.koodify.ng](https://api.koodify.ng)
+
 **API docs (HTML + Tailwind):** [docs/api.html](docs/api.html) — full gateway reference. Composite deep-dive: [docs/composite-endpoints.html](docs/composite-endpoints.html). Inline checkout: [docs/inline-checkout.html](docs/inline-checkout.html).
 
-**Browser checkout (bank transfer):** [packages/koodify-inline](packages/koodify-inline) — `koodifyInitPayment` InlineJS-style widget (no cards). Docs: [docs/inline-checkout.html](docs/inline-checkout.html).
+**Browser checkout (bank transfer):** [packages/koodify-inline](packages/koodify-inline) — `koodifyInitPayment` InlineJS-style widget (no cards). Docs: [docs/inline-checkout.html](docs/inline-checkout.html). Point `baseUrl` at `https://api.koodify.ng`.
 
 ## Quick start
 
@@ -40,7 +42,7 @@ Zainpay does not echo payer contact on status. On payment init (card / transfers
 { "email": "…", "phone": "…", "name": "…" }
 ```
 
-under `operation_records` for that `txnRef`, and returns it as `data.payer` on the init response and on later status lookups (`reconcile` card payment, deposit verify, dynamic deposit status, transfer verify, `GET /api/v1/deposit/{txnRef}`).
+under `transactions` for that `txnRef` (with `zainbox_code` as business key when present), and returns it as `data.payer` on the init response and on later status lookups (`reconcile` card payment, deposit verify, dynamic deposit status, transfer verify, `GET /api/v1/deposit/{txnRef}`).
 
 `email` / `phone` come from `emailAddress` / `mobileNumber`. Optional `name` (or `payer.name`) is koodify-only and is stripped before calling Zainpay.
 
@@ -62,7 +64,8 @@ Static VA create also accepts **flat** unknown keys (e.g. `customerId` at the to
 ### Local extras
 
 - `GET /virtual-accounts/{accountNumber}` — DB lookup with metadata
-- `GET /operations/{resourceKey}` — operation history by txnRef / accountNumber / zainboxCode
+- `GET /operations/{resourceKey}` / `GET /transactions/{resourceKey}` — transaction history by txnRef / accountNumber (`?zainboxCode=` optional)
+- `GET /transactions/by-zainbox/{zainboxCode}` — transactions for a zainbox business key
 - `POST /customers` / `GET /customers` — customer registry (`uuid` + integer `id` 1, 2, 3, …; optional `zainboxCode`)
 - Seed (`cargo run -p koodify --example seed`) syncs live Zainpay zainboxes into `zainboxes`, creates one customer per box, and sets credential `privateKey` = zainbox `codeName`
 - `PUT /kyc` — upsert KYC linked by integer `customerId` → `customers.id`

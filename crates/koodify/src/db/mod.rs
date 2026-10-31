@@ -2,8 +2,8 @@ pub mod credentials;
 pub mod customers;
 pub mod kyc;
 pub mod models;
-pub mod operations;
 pub mod seed;
+pub mod transactions;
 pub mod virtual_accounts;
 pub mod zainboxes;
 

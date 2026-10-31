@@ -64,10 +64,11 @@ pub async fn create(
             .data
             .as_ref()
             .map(|d| d.account_number.clone());
-        if let Err(err) = db::operations::insert(
+        if let Err(err) = db::transactions::insert(
             &state.pool,
             "virtual_account.create",
             resource_key.as_deref(),
+            Some(zainbox_code.as_str()),
             &metadata,
             Some(&request_json),
             &response_json,
@@ -75,7 +76,7 @@ pub async fn create(
         )
         .await
         {
-            warn!(error = %err, "failed to persist operation metadata");
+            warn!(error = %err, "failed to persist transaction");
         }
 
         response_json = merge_metadata_into_response(response_json, metadata);

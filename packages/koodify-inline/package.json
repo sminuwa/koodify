@@ -10,7 +10,8 @@
   "scripts": {
     "build": "esbuild src/index.js --bundle --minify --format=iife --global-name=KoodifyInline --loader:.css=text --loader:.png=dataurl --outfile=dist/koodify-inline.js && node scripts/postbuild.js",
     "build:dev": "esbuild src/index.js --bundle --format=iife --global-name=KoodifyInline --loader:.css=text --loader:.png=dataurl --outfile=dist/koodify-inline.js && node scripts/postbuild.js",
-    "demo": "npm run build:dev && node scripts/demo-server.mjs"
+    "demo": "npm run build:dev && node scripts/demo-server.mjs",
+    "test:live": "npm run build && node scripts/live-test-server.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"

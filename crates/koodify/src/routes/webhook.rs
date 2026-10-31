@@ -41,7 +41,7 @@ pub async fn repush_card_payment(
 ///
 /// Verifies `Zainpay-Signature` (HMAC-SHA256 hex of the raw body) when
 /// `ZAINPAY_WEBHOOK_SECRET` is configured, persists the event to
-/// `operation_records`, and acknowledges with HTTP 200.
+/// `transactions`, and acknowledges with HTTP 200.
 pub async fn inbound(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -72,12 +72,14 @@ pub async fn inbound(
     })?;
 
     let resource_key = event.data.idempotency_key().map(str::to_string);
+    let zainbox_code = event.data.zainbox_code.clone();
     let payload = serde_json::to_value(&event).unwrap_or(Value::Null);
 
-    if let Err(err) = db::operations::insert(
+    if let Err(err) = db::transactions::insert(
         &state.pool,
         &format!("webhook.{}", event.event.as_str()),
         resource_key.as_deref(),
+        zainbox_code.as_deref(),
         &Value::Object(Default::default()),
         Some(&payload),
         &payload,
