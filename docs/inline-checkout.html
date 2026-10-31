@@ -323,7 +323,8 @@ npm run build
               <code class="font-mono text-sm">…/temporary-virtual-account-payment-status</code>
               every <strong>3 seconds</strong> (see below).
             </li>
-            <li>On success: confirmation UI (~10s), then callback with status / payer / customParam.</li>
+            <li>On success: confirmation UI (~10s), then callback with status / payer / customParam.
+              Koodify also emails a branded receipt to the payer (Resend) once per txn.</li>
           </ol>
         </section>
 

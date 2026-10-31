@@ -9,7 +9,7 @@ use tracing::warn;
 use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
-use crate::services::{payer, proxy};
+use crate::services::{payer, proxy, receipt};
 use crate::state::AppState;
 
 fn take_str_field(body: &mut Value, keys: &[&str]) -> Option<String> {
@@ -195,7 +195,7 @@ pub async fn temporary_virtual_account_payment_status(
         .await
         .map(|r| serde_json::to_value(r).unwrap_or(Value::Null))
         .map_err(map_upstream)?;
-    Ok(Json(
-        payer::enrich_response_from_db(&state.pool, &q.txn_ref, response).await,
-    ))
+    let enriched = payer::enrich_response_from_db(&state.pool, &q.txn_ref, response).await;
+    receipt::maybe_send_on_success(&state, &q.txn_ref, &enriched).await;
+    Ok(Json(enriched))
 }

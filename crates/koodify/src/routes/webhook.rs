@@ -4,9 +4,12 @@ use axum::Json;
 use serde_json::Value;
 use client::{verify_webhook_signature, WebhookEvent};
 
+use client::WebhookEventType;
+
 use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_upstream, JsonResult};
+use crate::services::receipt;
 use crate::state::AppState;
 
 pub async fn repush_deposit(
@@ -88,6 +91,22 @@ pub async fn inbound(
     .await
     {
         tracing::error!(error = %err, "failed to persist inbound webhook");
+    }
+
+    if event.event == WebhookEventType::DepositSuccess {
+        if let Some(txn_ref) = resource_key.as_deref() {
+            let amount = event
+                .data
+                .deposited_amount
+                .as_deref()
+                .or(event.data.amount_after_charges.as_deref());
+            let paid_at = event
+                .data
+                .payment_date
+                .as_deref()
+                .or(event.data.txn_date.as_deref());
+            receipt::maybe_send_on_deposit_webhook(&state, txn_ref, amount, paid_at).await;
+        }
     }
 
     Ok("OK")

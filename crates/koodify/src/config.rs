@@ -13,6 +13,11 @@ pub struct Config {
     /// HMAC secret for inbound `Zainpay-Signature` verification.
     /// Docs refer to this as the dashboard secret key (`ZAINPAY_WEBHOOK_SECRET`).
     pub zainpay_webhook_secret: Option<String>,
+    /// Resend API key for payer receipt emails (`RESEND_API_KEY`). Optional —
+    /// when unset, receipt emails are skipped.
+    pub resend_api_key: Option<String>,
+    /// From header for receipts, e.g. `Koodify <payments@koodify.ng>`.
+    pub resend_from: String,
 }
 
 impl Config {
@@ -25,6 +30,11 @@ impl Config {
             zainpay_api_key: env::var("ZAINPAY_API_KEY").context("ZAINPAY_API_KEY is required")?,
             gateway_api_key: env::var("GATEWAY_API_KEY").context("GATEWAY_API_KEY is required")?,
             zainpay_webhook_secret: env::var("ZAINPAY_WEBHOOK_SECRET").ok().filter(|s| !s.is_empty()),
+            resend_api_key: env::var("RESEND_API_KEY").ok().filter(|s| !s.trim().is_empty()),
+            resend_from: env::var("RESEND_FROM")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| "Koodify <onboarding@resend.dev>".into()),
         })
     }
 
@@ -43,6 +53,8 @@ impl Config {
             zainpay_api_key: zainpay_api_key.into(),
             gateway_api_key: gateway_api_key.into(),
             zainpay_webhook_secret: None,
+            resend_api_key: None,
+            resend_from: "Koodify <onboarding@resend.dev>".into(),
         }
     }
 

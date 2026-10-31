@@ -97,3 +97,31 @@ pub async fn find_by_zainbox_and_resource(
     .fetch_all(pool)
     .await
 }
+
+/// Atomically mark a txn as receipt-emailed. Returns `true` if this caller
+/// won the claim (should send). Prevents duplicate Resend calls on poll.
+pub async fn claim_receipt_email(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query(
+        r#"
+        UPDATE transactions
+        SET metadata = jsonb_set(
+            COALESCE(metadata, '{}'::jsonb),
+            '{receiptEmailSent}',
+            'true'::jsonb,
+            true
+        )
+        WHERE id = (
+            SELECT id
+            FROM transactions
+            WHERE resource_key = $1
+              AND COALESCE(metadata->>'receiptEmailSent', 'false') <> 'true'
+            ORDER BY created_at ASC
+            LIMIT 1
+        )
+        "#,
+    )
+    .bind(resource_key)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected() > 0)
+}
