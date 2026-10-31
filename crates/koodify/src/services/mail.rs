@@ -133,20 +133,6 @@ fn opt_trim(s: Option<&String>) -> Option<&str> {
     s.map(|v| v.as_str().trim()).filter(|v| !v.is_empty())
 }
 
-fn icon_for_label(label: &str) -> &'static str {
-    match label {
-        "Business Name" | "Merchant" | "Zainbox" => "▱",
-        "Payer" | "Customer" => "◇",
-        "Payer Email" | "Customer Email" => "@",
-        "Reference" | "Receipt ID" => "#",
-        "Narration" | "Description" | "Purpose" => "✎",
-        "Date" | "Paid at" => "▦",
-        "Sender's Bank" => "▤",
-        "Sender's Account" | "Sender" => "◇",
-        _ => "•",
-    }
-}
-
 fn payer_detail_rows(receipt: &ReceiptEmail) -> Vec<ReceiptDetail> {
     let mut rows = Vec::new();
 
@@ -305,16 +291,13 @@ fn render_detail_rows_html(rows: &[ReceiptDetail]) -> String {
         } else {
             ""
         };
-        let icon = icon_for_label(&row.label);
         out.push_str(&format!(
             r#"                      <tr>
-                        <td class="detail-icon" style="padding:12px 5px;{border}width:36px;color:#334e6d;font-size:18px;font-weight:700;">{icon}</td>
-                        <td class="detail-label" style="padding:12px 5px;{border}width:27%;color:#2a4066;font-size:14px;">{label}</td>
-                        <td class="detail-value" style="padding:12px 5px;{border}color:#12213e;text-align:right;font-weight:700;font-size:14px;{mono}">{value}</td>
+                        <td class="detail-label" style="padding:8px 4px;{border}width:36%;color:#2a4066;font-size:13px;">{label}</td>
+                        <td class="detail-value" style="padding:8px 4px;{border}color:#12213e;text-align:right;font-weight:700;font-size:13px;{mono}">{value}</td>
                       </tr>
 "#,
             border = border,
-            icon = icon,
             label = escape(&row.label),
             value = escape(&row.value),
             mono = mono,
