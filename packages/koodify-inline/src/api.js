@@ -1,17 +1,38 @@
 const HOSTS = {
-  sandbox: "https://sandbox.zainpay.ng",
-  live: "https://api.zainpay.ng",
+  koodify: "https://api.koodify.ng",
+  zainpaySandbox: "https://sandbox.zainpay.ng",
+  zainpayLive: "https://api.zainpay.ng",
 };
 
 /**
+ * Resolve API origin.
+ * Hosted CDN checkout defaults to api.koodify.ng — merchants need not pass baseUrl.
+ * Override for local/demo (`http://localhost:8080`, `/proxy/koodify`) or direct Zainpay.
+ *
  * @param {"sandbox"|"live"} mode
- * @param {string} [override] absolute API base, or relative proxy e.g. /proxy/koodify
+ * @param {string} [override]
+ * @param {boolean} [useGateway=true]
  */
-export function resolveBaseUrl(mode, override) {
+export function resolveBaseUrl(mode, override, useGateway = true) {
   if (override && String(override).trim()) {
     return String(override).replace(/\/$/, "");
   }
-  return HOSTS[mode === "live" ? "live" : "sandbox"];
+  if (useGateway) {
+    return HOSTS.koodify;
+  }
+  return mode === "live" ? HOSTS.zainpayLive : HOSTS.zainpaySandbox;
+}
+
+/**
+ * Gateway is the default. Pass auth: "zainpay" | "direct" for raw Zainpay.
+ * @param {{ auth?: string, baseUrl?: string }} config
+ */
+export function isGatewayCheckout(config) {
+  const auth = String(config?.auth ?? "gateway").toLowerCase();
+  if (auth === "zainpay" || auth === "direct") return false;
+  if (auth === "gateway" || auth === "koodify" || auth === "") return true;
+  const base = String(config?.baseUrl || "");
+  return /koodify|localhost:8080|127\.0\.0\.1:8080|\/proxy\/koodify/i.test(base);
 }
 
 /**
@@ -26,14 +47,7 @@ export function buildAuthHeaders(config, apiKey) {
   const key = String(apiKey || "").trim();
   if (!key) return headers;
 
-  const auth = String(config?.auth || "").toLowerCase();
-  const base = String(config?.baseUrl || "");
-  const useGateway =
-    auth === "gateway" ||
-    auth === "koodify" ||
-    /koodify|localhost:8080|127\.0\.0\.1:8080|\/proxy\/koodify/i.test(base);
-
-  if (useGateway) {
+  if (isGatewayCheckout(config)) {
     headers["X-Api-Key"] = key;
   } else {
     headers.Authorization = `Bearer ${key}`;
@@ -41,13 +55,10 @@ export function buildAuthHeaders(config, apiKey) {
   return headers;
 }
 
-export function explainNetworkError(err, mode) {
+export function explainNetworkError(err, _mode) {
   const msg = err?.message || String(err);
   if (/failed to fetch|networkerror|load failed/i.test(msg)) {
-    if (mode === "live") {
-      return "Browser blocked the API call (CORS). Point baseUrl at koodify or /proxy/koodify.";
-    }
-    return "Network error. Check connectivity, baseUrl, and API key.";
+    return "Browser blocked the API call (CORS). Check api.koodify.ng CORS, or set baseUrl for local/proxy.";
   }
   return msg;
 }

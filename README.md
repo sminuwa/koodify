@@ -23,7 +23,7 @@ Reusable Rust integration for [Zainpay](https://docs.zainpay.ng/):
 
 **API docs (HTML + Tailwind):** [docs/api.html](docs/api.html) — full gateway reference. Composite deep-dive: [docs/composite-endpoints.html](docs/composite-endpoints.html). Inline checkout: [docs/inline-checkout.html](docs/inline-checkout.html).
 
-**Browser checkout (bank transfer):** [packages/koodify-inline](packages/koodify-inline) — `koodifyInitPayment` InlineJS-style widget (no cards). Docs: [docs/inline-checkout.html](docs/inline-checkout.html). Point `baseUrl` at `https://api.koodify.ng`.
+**Browser checkout (bank transfer):** [packages/koodify-inline](packages/koodify-inline) — `koodifyInitPayment` InlineJS-style widget (no cards). Hosted script: `https://js.koodify.ng/v1/koodify-inline.js` (defaults to `https://api.koodify.ng`). Merchants pass a publishable `publicKey` (`pk_live_…`); Koodify maps it to the zainbox. Docs: [docs/inline-checkout.html](docs/inline-checkout.html).
 
 ## Quick start
 

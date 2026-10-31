@@ -105,8 +105,8 @@
         from the repo <code>.env</code>.
       </p>
 
-      <label for="zainboxCode">Zainbox code</label>
-      <input id="zainboxCode" placeholder="STORE_…" />
+      <label for="publicKey">Public key</label>
+      <input id="publicKey" placeholder="pk_live_…" autocomplete="off" />
 
       <label for="amount">Amount (NGN)</label>
       <input id="amount" value="500" />
@@ -121,8 +121,8 @@
       <input id="mobile" value="08012345678" />
 
       <p class="lede" style="margin-top:4px;margin-bottom:12px">
-        Uses <code>baseUrl: "/proxy/koodify"</code> → local gateway. Checkout
-        is gated by <code>zainboxCode</code> only (no public key).
+        Paste <code>publicKey</code> from <code>cargo run -p koodify --example seed</code>.
+        Local demo uses <code>baseUrl: "/proxy/koodify"</code> → :8080.
       </p>
 
       <button type="button" id="pay">Pay with bank transfer</button>
@@ -141,12 +141,11 @@
           amount: document.getElementById("amount").value,
           txnRef: ref(),
           mobileNumber: document.getElementById("mobile").value,
-          zainboxCode: document.getElementById("zainboxCode").value,
+          publicKey: document.getElementById("publicKey").value,
           emailAddress: document.getElementById("email").value,
           name: document.getElementById("name").value,
           callBackUrl: "https://example.com/webhook/koodify",
           currencyCode: "NGN",
-          auth: "gateway",
           baseUrl: "/proxy/koodify",
           customParam: {
             matric: "ND/12/2211",
@@ -157,14 +156,13 @@
         };
         log.textContent = "Opening checkout…\n" + JSON.stringify(config, null, 2);
 
-        // Demo proxy injects GATEWAY_API_KEY — no browser secret needed
         koodifyInitPayment(config, function (response) {
           log.textContent =
             "Callback:\n" +
             JSON.stringify(response, null, 2) +
             "\n\nConfig:\n" +
             JSON.stringify(config, null, 2);
-        }, "").catch(function (err) {
+        }).catch(function (err) {
           log.textContent =
             "Rejected:\n" +
             JSON.stringify(err, null, 2) +

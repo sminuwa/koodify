@@ -133,19 +133,20 @@
   </head>
   <body>
     <main>
-      <span class="badge">Live · pure HTML/JS</span>
+      <span class="badge">Live · CDN</span>
       <h1>Checkout test</h1>
       <p class="lede">
-        Active <code>zainboxCode</code> only — no public key.
+        Pass your publishable <code>publicKey</code> (<code>pk_live_…</code>).
+        Koodify maps it to your zainbox server-side.
       </p>
 
       <fieldset>
         <legend>Checkout</legend>
-        <label for="baseUrl">Base URL</label>
-        <input id="baseUrl" value="https://api.koodify.ng" />
+        <label for="publicKey">Public key</label>
+        <input id="publicKey" placeholder="pk_live_…" autocomplete="off" />
 
-        <label for="zainboxCode">Zainbox code</label>
-        <input id="zainboxCode" placeholder="STORE_…" />
+        <label for="baseUrl">Base URL override (optional)</label>
+        <input id="baseUrl" placeholder="leave blank for api.koodify.ng" />
       </fieldset>
 
       <label for="amount">Amount (NGN)</label>
@@ -163,19 +164,20 @@
       <button type="button" id="pay">Pay with bank transfer</button>
       <button type="button" class="secondary" id="ping">Ping /health</button>
 
-      <p class="meta" id="meta">Enter zainbox code, then pay.</p>
+      <p class="meta" id="meta">Enter public key, then pay.</p>
       <pre id="log">Waiting…</pre>
     </main>
 
-    <script src="./koodify-inline.js"></script>
+    <script src="https://js.koodify.ng/v1/koodify-inline.js"></script>
     <script>
       (function () {
         var STORAGE_KEY = "koodify-live-test";
+        var DEFAULT_API = "https://api.koodify.ng";
         var logEl = document.getElementById("log");
         var metaEl = document.getElementById("meta");
         var fields = [
+          "publicKey",
           "baseUrl",
-          "zainboxCode",
           "amount",
           "name",
           "email",
@@ -215,20 +217,25 @@
                 document.getElementById(id).value = data[id];
               }
             });
+            if (!val("publicKey") && data.zainboxCode) {
+              document.getElementById("publicKey").value = data.zainboxCode;
+            }
           } catch (_) {}
         }
 
         function readyCheck() {
           if (typeof koodifyInitPayment !== "function") {
             metaEl.innerHTML =
-              '<span class="err">Missing koodify-inline.js — run npm run build</span>';
+              '<span class="err">CDN script failed to load — check js.koodify.ng</span>';
             return false;
           }
           metaEl.textContent =
-            "baseUrl: " +
-            val("baseUrl") +
-            " · zainbox: " +
-            (val("zainboxCode") || "not set");
+            "api: " +
+            (val("baseUrl") || DEFAULT_API + " (default)") +
+            " · publicKey: " +
+            (val("publicKey")
+              ? "set (" + val("publicKey").slice(0, 10) + "…)"
+              : "not set");
           return true;
         }
 
@@ -243,15 +250,11 @@
         });
 
         document.getElementById("ping").onclick = async function () {
-          var base = val("baseUrl").replace(/\/$/, "");
-          if (!base) {
-            log({ error: "baseUrl is required" });
-            return;
-          }
+          var base = (val("baseUrl") || DEFAULT_API).replace(/\/$/, "");
           try {
             var res = await fetch(base + "/health");
             var text = await res.text();
-            log({ health: res.status, body: text });
+            log({ health: res.status, body: text, base: base });
           } catch (err) {
             log({ error: String(err.message || err) });
           }
@@ -259,14 +262,9 @@
 
         document.getElementById("pay").onclick = function () {
           if (!readyCheck()) return;
-          var zainboxCode = val("zainboxCode");
-          var baseUrl = val("baseUrl").replace(/\/$/, "");
-          if (!zainboxCode) {
-            log({ error: "zainboxCode is required" });
-            return;
-          }
-          if (!baseUrl) {
-            log({ error: "baseUrl is required" });
+          var publicKey = val("publicKey");
+          if (!publicKey) {
+            log({ error: "publicKey is required" });
             return;
           }
 
@@ -274,13 +272,11 @@
             amount: val("amount"),
             txnRef: ref(),
             mobileNumber: val("mobile"),
-            zainboxCode: zainboxCode,
+            publicKey: publicKey,
             emailAddress: val("email"),
             name: val("name"),
             callBackUrl: "https://example.com/webhook/koodify",
             currencyCode: "NGN",
-            auth: "gateway",
-            baseUrl: baseUrl,
             customParam: {
               source: "live-test",
               matric: "ND/12/2211",
@@ -289,6 +285,9 @@
               studentId: "STU001",
             },
           };
+          if (val("baseUrl")) {
+            config.baseUrl = val("baseUrl").replace(/\/$/, "");
+          }
 
           save();
           log({ opening: true, config: config });

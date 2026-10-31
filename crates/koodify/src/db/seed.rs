@@ -28,7 +28,10 @@ fn default_active() -> bool {
 }
 
 /// Sync Zainpay zainboxes into local DB, then create one customer per box.
-/// Each customer's credential `private_key` is the Zainpay zainbox `codeName`.
+///
+/// Each zainbox gets a browser-safe `public_key` (`pk_live_…`) stored on
+/// `zainboxes` (and mirrored on credentials). Credential `private_key` remains
+/// the Zainpay zainbox `codeName` — never sent to the browser.
 pub async fn run(pool: &PgPool) -> Result<()> {
     let api_key = std::env::var("ZAINPAY_API_KEY")
         .context("ZAINPAY_API_KEY is required to seed from live zainboxes")?;
@@ -110,6 +113,10 @@ pub async fn run(pool: &PgPool) -> Result<()> {
     println!("creating {} customer(s) from local zainboxes…", boxes.len());
 
     for zb in &boxes {
+        let public_key = zainboxes::ensure_public_key(pool, &zb.code_name)
+            .await
+            .with_context(|| format!("assign public_key for {}", zb.code_name))?;
+
         let status = if zb.is_active { "active" } else { "inactive" };
         let metadata = json!({
             "source": "zainbox-sync",
@@ -134,14 +141,14 @@ pub async fn run(pool: &PgPool) -> Result<()> {
 
         let cred_meta = json!({ "zainboxCode": zb.code_name });
 
-        // private_key = Zainpay zainbox id (codeName) for every environment.
+        // public_key = Koodify publishable token; private_key = Zainpay zainbox id.
         for environment in ["test", "live"] {
             credentials::upsert(
                 pool,
                 UpsertCredential {
                     customer_id: customer.id,
                     environment,
-                    public_key: &api_key,
+                    public_key: &public_key,
                     private_key: &zb.code_name,
                     metadata: &cred_meta,
                     status: "active",
@@ -157,8 +164,8 @@ pub async fn run(pool: &PgPool) -> Result<()> {
         }
 
         println!(
-            "  id={} uuid={} zainbox={} — {}",
-            customer.id, customer.uuid, zb.code_name, zb.name
+            "  id={} uuid={} publicKey={} zainbox={} — {}",
+            customer.id, customer.uuid, public_key, zb.code_name, zb.name
         );
     }
 

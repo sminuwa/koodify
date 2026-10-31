@@ -2,7 +2,7 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use client::{InitializeCardPaymentRequest, RecurringCardPurchaseRequest};
 use tracing::warn;
 
@@ -12,44 +12,92 @@ use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::{payer, proxy};
 use crate::state::AppState;
 
-/// Checkout is gated by an active seeded `zainboxCode` (no browser API key).
-async fn require_checkout_zainbox(
+fn take_str_field(body: &mut Value, keys: &[&str]) -> Option<String> {
+    let obj = body.as_object_mut()?;
+    for key in keys {
+        if let Some(v) = obj.remove(*key) {
+            if let Some(s) = v.as_str().map(str::trim).filter(|s| !s.is_empty()) {
+                return Some(s.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Resolve merchant from publishable `publicKey` → active zainbox.
+/// Injects `zainboxCode` for Zainpay and strips browser-only fields.
+/// Legacy: bare `zainboxCode` still accepted during migration.
+async fn resolve_checkout_merchant(
     pool: &sqlx::PgPool,
-    body: &Value,
+    body: &mut Value,
 ) -> Result<String, (StatusCode, String)> {
-    let code = body
+    let public_key = take_str_field(body, &["publicKey", "public_key"]);
+    let legacy_code = body
         .get("zainboxCode")
         .or_else(|| body.get("zainbox_code"))
         .and_then(|v| v.as_str())
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                "zainboxCode is required for checkout".into(),
-            )
-        })?;
+        .map(str::to_string);
 
-    match db::zainboxes::get_by_code(pool, code).await {
-        Ok(Some(z)) if z.is_active => Ok(code.to_string()),
-        Ok(Some(_)) => Err((
-            StatusCode::FORBIDDEN,
-            format!("zainboxCode `{code}` is inactive"),
-        )),
-        Ok(None) => Err((
-            StatusCode::NOT_FOUND,
-            format!(
-                "unknown zainboxCode `{code}` — run the seeder so checkout can resolve it"
-            ),
-        )),
-        Err(err) => {
-            warn!(error = %err, "zainbox lookup failed");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "failed to verify zainboxCode".into(),
-            ))
+    let zainbox = if let Some(pk) = public_key {
+        match db::zainboxes::get_by_public_key(pool, &pk).await {
+            Ok(Some(z)) => z,
+            Ok(None) => {
+                return Err((
+                    StatusCode::UNAUTHORIZED,
+                    "invalid or unknown publicKey".into(),
+                ));
+            }
+            Err(err) => {
+                warn!(error = %err, "publicKey lookup failed");
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "failed to verify publicKey".into(),
+                ));
+            }
         }
+    } else if let Some(code) = legacy_code {
+        match db::zainboxes::get_by_code(pool, &code).await {
+            Ok(Some(z)) => z,
+            Ok(None) => {
+                return Err((
+                    StatusCode::NOT_FOUND,
+                    format!(
+                        "unknown zainboxCode `{code}` — prefer publicKey from the seeder"
+                    ),
+                ));
+            }
+            Err(err) => {
+                warn!(error = %err, "zainbox lookup failed");
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "failed to verify zainboxCode".into(),
+                ));
+            }
+        }
+    } else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "publicKey is required for checkout".into(),
+        ));
+    };
+
+    if !zainbox.is_active {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "merchant publicKey is inactive".into(),
+        ));
     }
+
+    if let Some(obj) = body.as_object_mut() {
+        obj.insert("zainboxCode".into(), json!(zainbox.code_name));
+        obj.remove("zainbox_code");
+        obj.remove("publicKey");
+        obj.remove("public_key");
+    }
+
+    Ok(zainbox.code_name)
 }
 
 pub async fn initialize_payment(
@@ -69,13 +117,13 @@ pub async fn initialize_payment(
     .map_err(map_proxy_error)
 }
 
-/// InlineJS / bank-transfer checkout — active `zainboxCode` only.
+/// InlineJS / bank-transfer checkout — publishable `publicKey` → zainbox.
 /// Logs payer against `txnRef`.
 pub async fn initialize_payment_inline(
     State(state): State<AppState>,
-    Json(body): Json<Value>,
+    Json(mut body): Json<Value>,
 ) -> JsonResult {
-    let _zainbox = require_checkout_zainbox(&state.pool, &body).await?;
+    let _zainbox = resolve_checkout_merchant(&state.pool, &mut body).await?;
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<InitializeCardPaymentRequest, _>(
         &state,

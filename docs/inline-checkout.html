@@ -45,6 +45,7 @@
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#custom-param">customParam</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#callback">Callback response</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#flow">Payment flow</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#listening">Listening &amp; capacity</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#gateway">Gateway routes</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#demo">Local demo</a>
         <a data-nav class="mt-4 block rounded-md px-3 py-2 text-sm text-ink-500 hover:bg-white hover:text-accent" href="api.html">← API reference</a>
@@ -62,14 +63,14 @@
             <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">koodifyInitPayment</code>
             to open a modal, show a one-time virtual account, auto-poll for payment, then return
             <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">payer</code>
-            and optional
+            and (if you passed one) optional
             <code class="rounded bg-white px-1.5 py-0.5 font-mono text-[0.9em] shadow-sm">customParam</code>
             on the callback.
           </p>
           <p class="mt-4 text-sm text-ink-500">
             Prefer routing through the <strong>koodify gateway</strong>
             <code class="font-mono text-xs">auth: "gateway"</code>
-            so payer + custom params are stored and re-attached on status.
+            so payer (and optional custom params) are stored and re-attached on status.
           </p>
         </div>
       </header>
@@ -82,25 +83,27 @@
             <li>Creates a temporary virtual account for the exact amount.</li>
             <li>Listens for settlement automatically; merchant can also tap <em>Check Payment Status</em>.</li>
             <li>Success screen stays open ~10 seconds (or until Done / close).</li>
-            <li>Point <code class="font-mono text-sm">baseUrl</code> at koodify. Checkout uses the <strong>publishable</strong> gateway key plus <code class="font-mono text-sm">zainboxCode</code>.</li>
+            <li>CDN script defaults to <code class="font-mono text-sm">https://api.koodify.ng</code>. Checkout uses a publishable <code class="font-mono text-sm">publicKey</code> that Koodify maps to the merchant zainbox (Zainpay id stays server-side).</li>
           </ul>
         </section>
 
         <section id="install" class="scroll-mt-24 border-b border-slate-200 py-12">
           <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Install</h2>
           <p class="mt-4 text-base leading-7 text-ink-700">
-            Build the IIFE from
-            <code class="font-mono text-sm">packages/koodify-inline</code>
-            and serve
-            <code class="font-mono text-sm">dist/koodify-inline.js</code>
-            (or the demo copy).
+            Prefer the hosted CDN (production):
           </p>
-          <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>cd packages/koodify-inline
+          <pre class="mt-4 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>&lt;script src="https://js.koodify.ng/v1/koodify-inline.js"&gt;&lt;/script&gt;</code></pre>
+          <p class="mt-6 text-base leading-7 text-ink-700">
+            For local builds, compile the IIFE from
+            <code class="font-mono text-sm">packages/koodify-inline</code>
+            and deploy
+            <code class="font-mono text-sm">dist/koodify-inline.js</code>
+            to that CDN path on release.
+          </p>
+          <pre class="mt-4 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>cd packages/koodify-inline
 npm install
 npm run build
-# → dist/koodify-inline.js</code></pre>
-          <p class="mt-6 text-base leading-7 text-ink-700">Include on your page:</p>
-          <pre class="mt-4 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>&lt;script src="/path/to/koodify-inline.js"&gt;&lt;/script&gt;</code></pre>
+# → dist/koodify-inline.js  (upload to js.koodify.ng/v1/)</code></pre>
           <p class="mt-4 text-sm text-ink-500">
             Exposes global
             <code class="font-mono text-xs">koodifyInitPayment</code>
@@ -115,14 +118,11 @@ npm run build
     amount: "500",
     txnRef: "ORDER_" + Date.now(),
     mobileNumber: "08012345678",
-    zainboxCode: "YOUR_ZAINBOX_CODE",
+    publicKey: "pk_live_…", // from Koodify seed / dashboard — safe in browser
     emailAddress: "customer@example.com",
     callBackUrl: "https://example.com/webhook",
     name: "Ada Lovelace",
-    currencyCode: "NGN",
-    bankType: "gtBank",
-    auth: "gateway",
-    baseUrl: "https://api.koodify.ng",
+    // optional — omit if you don't need merchant fields
     customParam: {
       matric: "ND/12/2211",
       session: "2026",
@@ -134,8 +134,9 @@ npm run build
     console.log(response);
     // { status, reference, description, payer?, customParam? }
   }
-  // no public key — gated by zainboxCode
-);</code></pre>
+);
+// Script defaults: baseUrl → https://api.koodify.ng
+// publicKey is resolved server-side to the merchant zainbox (never expose zainbox)</code></pre>
           <p class="mt-6 text-base leading-7 text-ink-700">
             The function also returns a
             <code class="font-mono text-sm">Promise</code>
@@ -176,9 +177,9 @@ npm run build
                   <td class="px-4 py-3">Stored as <code class="font-mono text-xs">payer.email</code>.</td>
                 </tr>
                 <tr>
-                  <td class="px-4 py-3 font-mono text-xs">zainboxCode</td>
+                  <td class="px-4 py-3 font-mono text-xs">publicKey</td>
                   <td class="px-4 py-3">yes</td>
-                  <td class="px-4 py-3">Merchant zainbox code.</td>
+                  <td class="px-4 py-3">Publishable <code class="font-mono text-xs">pk_live_…</code>. Bound to a zainbox in Koodify; safe in the browser.</td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">callBackUrl</td>
@@ -193,7 +194,7 @@ npm run build
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">customParam</td>
                   <td class="px-4 py-3">no</td>
-                  <td class="px-4 py-3">Arbitrary object. Stored + returned. Alias: <code class="font-mono text-xs">customParams</code>.</td>
+                  <td class="px-4 py-3">Optional value-add. Any key/values you want; omit entirely if unused. Alias: <code class="font-mono text-xs">customParams</code>.</td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">currencyCode</td>
@@ -213,12 +214,12 @@ npm run build
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">auth</td>
                   <td class="px-4 py-3">no</td>
-                  <td class="px-4 py-3"><code class="font-mono text-xs">"gateway"</code> / <code class="font-mono text-xs">"koodify"</code> → talk to koodify (zainboxCode only).</td>
+                  <td class="px-4 py-3">Defaults to <code class="font-mono text-xs">"gateway"</code>. Use <code class="font-mono text-xs">"zainpay"</code> only for direct Zainpay.</td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">baseUrl</td>
                   <td class="px-4 py-3">no</td>
-                  <td class="px-4 py-3">Koodify origin. Production: <code class="font-mono text-xs">https://api.koodify.ng</code>.</td>
+                  <td class="px-4 py-3">Defaults to <code class="font-mono text-xs">https://api.koodify.ng</code>. Override for local (<code class="font-mono text-xs">http://localhost:8080</code>) or demo proxy.</td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">allowRecurringPayment</td>
@@ -232,19 +233,30 @@ npm run build
 
         <section id="custom-param" class="scroll-mt-24 border-b border-slate-200 py-12">
           <h2 class="text-4xl font-semibold tracking-tight text-ink-950">customParam</h2>
+          <p class="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Optional</p>
           <p class="mt-4 text-base leading-7 text-ink-700">
-            Pass any merchant key/value map alongside the payment. Koodify peels it off before calling Zainpay,
-            stores it under <code class="font-mono text-sm">transactions.metadata.customParam</code>,
-            and returns it as <code class="font-mono text-sm">data.customParam</code> on init / status —
-            and on the browser callback.
+            <strong>Not required.</strong> Checkout works with or without
+            <code class="font-mono text-sm">customParam</code>.
+            Use it only when you want to attach merchant-defined fields (matric, order line, campus, etc.)
+            to the payment for your own reconciliation — any keys and values you choose.
           </p>
-          <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>"customParam": {
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            When present, Koodify peels it off before calling Zainpay,
+            stores it under <code class="font-mono text-sm">transactions.metadata.customParam</code>,
+            and returns it as <code class="font-mono text-sm">data.customParam</code> on init / status
+            and on the browser callback. When omitted, those fields are simply absent.
+          </p>
+          <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>// with custom fields
+"customParam": {
   "matric": "ND/12/2211",
   "session": "2026",
   "paymentType": "School Fees",
   "studentId": "STU001"
-}</code></pre>
+}
+
+// or omit customParam entirely — payment still succeeds</code></pre>
           <p class="mt-6 text-sm text-ink-500">
+            Alias: <code class="font-mono text-xs">customParams</code>.
             You can also nest under <code class="font-mono text-xs">metadata.customParam</code> on raw gateway POSTs;
             the inline widget sends top-level <code class="font-mono text-xs">customParam</code>.
           </p>
@@ -307,12 +319,96 @@ npm run build
               — one-time account for the amount.
             </li>
             <li>
-              Modal shows bank details; auto-polls
+              Modal shows bank details; UI shows <strong>Listening…</strong> and auto-polls
               <code class="font-mono text-sm">…/temporary-virtual-account-payment-status</code>
-              every ~3s.
+              every <strong>3 seconds</strong> (see below).
             </li>
             <li>On success: confirmation UI (~10s), then callback with status / payer / customParam.</li>
           </ol>
+        </section>
+
+        <section id="listening" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Listening &amp; capacity</h2>
+          <p class="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Internal · ops</p>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            <strong>Listening…</strong> is short-lived HTTP polling, not a WebSocket or held connection.
+            While the transfer screen is open, the browser calls the status endpoint on a fixed interval until
+            success, cancel/close, or account expiry.
+          </p>
+
+          <h3 class="mt-8 text-xl font-semibold text-ink-950">What each poll does</h3>
+          <ol class="mt-4 list-decimal space-y-2 pl-5 text-base leading-7 text-ink-700">
+            <li>
+              Browser
+              <code class="font-mono text-sm">GET {baseUrl}/zainbox/card/temporary-virtual-account-payment-status?txnRef=…</code>
+            </li>
+            <li>Koodify proxies the same check to Zainpay.</li>
+            <li>Koodify enriches the response from Postgres (<code class="font-mono text-sm">payer</code> / <code class="font-mono text-sm">customParam</code>).</li>
+          </ol>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            Interval is hard-coded in
+            <code class="font-mono text-sm">packages/koodify-inline/src/index.js</code>
+            as <code class="font-mono text-sm">POLL_MS = 3000</code>.
+            Manual <em>Check Payment Status</em> hits the same route once.
+          </p>
+
+          <h3 class="mt-8 text-xl font-semibold text-ink-950">Load estimate</h3>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            Cost scales with <strong>concurrent open checkouts</strong> (people sitting on the VA screen),
+            not with total payments completed per day. Rough steady-state:
+          </p>
+          <div class="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table class="min-w-full text-left text-sm">
+              <thead class="bg-slate-50 text-ink-500">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">Open checkouts</th>
+                  <th class="px-4 py-3 font-semibold">≈ req/s to koodify</th>
+                  <th class="px-4 py-3 font-semibold">≈ req/min</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-ink-700">
+                <tr>
+                  <td class="px-4 py-3">1</td>
+                  <td class="px-4 py-3 font-mono text-xs">0.33</td>
+                  <td class="px-4 py-3 font-mono text-xs">20</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3">10</td>
+                  <td class="px-4 py-3 font-mono text-xs">3.3</td>
+                  <td class="px-4 py-3 font-mono text-xs">200</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3">100</td>
+                  <td class="px-4 py-3 font-mono text-xs">33</td>
+                  <td class="px-4 py-3 font-mono text-xs">2,000</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3">1,000</td>
+                  <td class="px-4 py-3 font-mono text-xs">333</td>
+                  <td class="px-4 py-3 font-mono text-xs">20,000</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            Each poll also hits Zainpay, so upstream volume tracks the same table.
+            An abandoned modal left open for ~15 minutes is ~300 status calls.
+            Polling stops on success, cancel/close, or when the temporary account expires.
+          </p>
+
+          <h3 class="mt-8 text-xl font-semibold text-ink-950">When this becomes a problem</h3>
+          <ul class="mt-4 space-y-2 text-base leading-7 text-ink-700">
+            <li>Many concurrent open modals (campaigns, school fees windows).</li>
+            <li>Zainpay latency or rate limits (often the bottleneck before Axum/Postgres).</li>
+            <li>Not “held TCP connections” — each poll is a normal request/response.</li>
+          </ul>
+
+          <h3 class="mt-8 text-xl font-semibold text-ink-950">Later levers (if needed)</h3>
+          <ul class="mt-4 space-y-2 text-base leading-7 text-ink-700">
+            <li>Increase <code class="font-mono text-sm">POLL_MS</code> (e.g. 5–10s).</li>
+            <li>Backoff after the first few minutes of listening.</li>
+            <li>Prefer inbound Zainpay webhooks / SSE so the browser does less polling.</li>
+          </ul>
         </section>
 
         <section id="gateway" class="scroll-mt-24 border-b border-slate-200 py-12">
@@ -323,11 +419,19 @@ npm run build
             <li>GET /zainbox/card/temporary-virtual-account-payment-status?txnRef=</li>
           </ul>
           <p class="mt-6 text-base leading-7 text-ink-700">
-            Checkout auth: active seeded
-            <code class="font-mono text-sm">zainboxCode</code> only.
+            Checkout auth: publishable
+            <code class="font-mono text-sm">publicKey</code>
+            must match an <strong>active</strong>
+            <code class="font-mono text-sm">zainboxes.public_key</code>;
+            Koodify injects the linked zainbox for Zainpay and never returns that code to the browser.
             Admin routes use secret <code class="font-mono text-sm">GATEWAY_API_KEY</code>.
             Full catalogue:
             <a class="text-accent underline" href="api.html">docs/api.html</a>.
+          </p>
+          <p class="mt-4 text-sm text-ink-500">
+            Seed assigns keys:
+            <code class="font-mono text-xs">cargo run -p koodify --example seed</code>
+            (prints <code class="font-mono text-xs">publicKey=pk_live_…</code> per merchant).
           </p>
         </section>
 

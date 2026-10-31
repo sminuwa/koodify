@@ -1,5 +1,6 @@
 import {
   resolveBaseUrl,
+  isGatewayCheckout,
   explainNetworkError,
   initializeInlinePayment,
   generateTemporaryVa,
@@ -11,10 +12,22 @@ const REQUIRED = [
   "amount",
   "txnRef",
   "mobileNumber",
-  "zainboxCode",
   "emailAddress",
   "callBackUrl",
 ];
+
+/** Publishable key (preferred) or legacy zainboxCode during migration. */
+function resolvePublicKey(config) {
+  const pk =
+    config?.publicKey ??
+    config?.public_key ??
+    config?.koodifyKey ??
+    "";
+  if (pk != null && String(pk).trim() !== "") return String(pk).trim();
+  const legacy = config?.zainboxCode ?? config?.zainbox_code ?? "";
+  if (legacy != null && String(legacy).trim() !== "") return String(legacy).trim();
+  return "";
+}
 
 function missingFields(config) {
   if (!config || typeof config !== "object") return REQUIRED.slice();
@@ -48,13 +61,14 @@ function normalizeCustomParam(config) {
 /**
  * Open Koodify bank-transfer checkout.
  *
- * Gateway mode (`auth: "gateway"` / koodify `baseUrl`) needs only `zainboxCode`.
- * Direct Zainpay mode still needs a Bearer key as the 3rd argument.
+ * Defaults (CDN build): talks to https://api.koodify.ng —
+ * merchants pass a publishable `publicKey` (`pk_live_…`) tied to their zainbox
+ * in Koodify. Optional `baseUrl` for local/proxy; `auth: "zainpay"` for direct Zainpay.
  *
  * @param {object} paymentConfig
  * @param {function} callback - ({ status, reference, description, payer?, customParam? }) => void
  * @param {string} [apiKey] - optional; ignored for koodify gateway checkout
- * @param {"sandbox"|"live"} [mode="sandbox"]
+ * @param {"sandbox"|"live"} [mode="sandbox"] - only used for direct Zainpay hosts
  * @returns {Promise<object>}
  */
 export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
@@ -70,16 +84,27 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
       reject(payload);
       return;
     }
+    const publicKey = resolvePublicKey(paymentConfig);
+    if (!publicKey) {
+      const payload = {
+        status: "failed",
+        reference: paymentConfig?.txnRef || "",
+        description: "Missing publicKey (publishable pk_live_… from Koodify)",
+      };
+      emit(callback, payload);
+      reject(payload);
+      return;
+    }
     let customParam = normalizeCustomParam(paymentConfig);
     const currency = paymentConfig.currencyCode || "NGN";
     const resolvedMode = mode === "live" ? "live" : "sandbox";
-    const baseUrl = resolveBaseUrl(resolvedMode, paymentConfig.baseUrl);
-    const auth = String(paymentConfig.auth || "").toLowerCase();
-    const useGateway =
-      auth === "gateway" ||
-      auth === "koodify" ||
-      /koodify|localhost:8080|127\.0\.0\.1:8080|\/proxy\/koodify/i.test(baseUrl);
-    // Direct Zainpay still needs a Bearer key; gateway checkout uses zainboxCode only.
+    const useGateway = isGatewayCheckout(paymentConfig);
+    const baseUrl = resolveBaseUrl(
+      resolvedMode,
+      paymentConfig.baseUrl,
+      useGateway
+    );
+    // Direct Zainpay still needs a Bearer key; gateway uses publicKey → zainbox.
     if (!useGateway && (!apiKey || String(apiKey).trim() === "")) {
       const payload = {
         status: "failed",
@@ -161,7 +186,6 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
           amount: formatAmount(paymentConfig.amount),
           txnRef: paymentConfig.txnRef,
           mobileNumber: paymentConfig.mobileNumber,
-          zainboxCode: paymentConfig.zainboxCode,
           emailAddress: paymentConfig.emailAddress,
           callBackUrl: paymentConfig.callBackUrl,
           currencyCode: currency,
@@ -169,6 +193,17 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
           paymentChannels: ["bank_transfer"],
           allowRecurringPayment: !!paymentConfig.allowRecurringPayment,
         };
+        if (useGateway) {
+          // Koodify resolves publicKey → zainbox server-side.
+          payload.publicKey = publicKey;
+          if (paymentConfig.zainboxCode) {
+            payload.zainboxCode = paymentConfig.zainboxCode;
+          }
+        } else {
+          // Direct Zainpay still needs the real zainbox code.
+          payload.zainboxCode =
+            paymentConfig.zainboxCode || publicKey;
+        }
         if (paymentConfig.name) payload.name = paymentConfig.name;
         if (paymentConfig.payer) payload.payer = paymentConfig.payer;
         if (customParam) payload.customParam = customParam;

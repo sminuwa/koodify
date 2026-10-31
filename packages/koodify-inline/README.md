@@ -2,7 +2,13 @@
 
 Bank-transfer-only checkout widget. Opens a Koodify sheet and collects payment via a one-time virtual account.
 
-**HTML docs:** [docs/inline-checkout.html](../../docs/inline-checkout.html)
+**Hosted script (production):**
+
+```html
+<script src="https://js.koodify.ng/v1/koodify-inline.js"></script>
+```
+
+**HTML docs:** [docs/inline-checkout.html](../../docs/inline-checkout.html) — includes internal notes on **Listening…** polling (3s HTTP status checks, capacity table).
 
 Prefer routing through the **koodify gateway** so payer contact is logged on init and returned as `data.payer` / callback `payer` on status.
 
@@ -15,7 +21,7 @@ koodifyInitPayment(
     amount: "500",                 // whole Naira preferred ("500" not "500.00")
     txnRef: "ORDER_" + Date.now(), // unique per attempt
     mobileNumber: "08012345678",
-    zainboxCode: "YOUR_ZAINBOX_CODE",
+    publicKey: "pk_live_…",       // from seed/dashboard — maps to zainbox server-side
     emailAddress: "customer@example.com",
     callBackUrl: "https://example.com/webhook",
 
@@ -23,7 +29,7 @@ koodifyInitPayment(
     name: "Ada Lovelace",
     // or: payer: { name: "Ada Lovelace" },
 
-    // optional merchant key/values — stored by koodify, echoed on callback
+    // optional value-add — omit entirely if unused; any keys/values you want
     customParam: {
       matric: "ND/12/2211",
       session: "2026",
@@ -37,16 +43,14 @@ koodifyInitPayment(
     bankType: "gtBank",
     allowRecurringPayment: false,
 
-    // talk to koodify (not Zainpay directly)
-    auth: "gateway",
-    baseUrl: "https://api.koodify.ng", // local: "http://localhost:8080" or "/proxy/koodify"
+    // baseUrl / auth default from the CDN script — omit in production
+    // baseUrl: "http://localhost:8080", // local override only
   },
   function (response) {
     // { status, reference, description, payer?, customParam? }
     // payer: { email, phone, name? }
-    // customParam: { matric, session, paymentType, studentId, … }
+    // customParam only present when you sent it
   }
-  // no public key — gateway checkout is gated by zainboxCode
 );
 ```
 
@@ -56,18 +60,18 @@ koodifyInitPayment(
 | `txnRef` | yes | Unique; used as payment log key |
 | `mobileNumber` | yes | → stored `payer.phone` |
 | `emailAddress` | yes | → stored `payer.email` |
-| `zainboxCode` | yes | Merchant box (must be seeded + active) |
+| `publicKey` | yes | Publishable `pk_live_…`; tied to zainbox in Koodify DB |
 | `callBackUrl` | yes | Merchant webhook / return URL |
 | `name` / `payer.name` | no | Koodify-only; merged into `payer` |
-| `customParam` | no | Arbitrary key/values; stored + returned on callback (`customParams` alias) |
-| `auth` | no | `"gateway"` / `"koodify"` for hosted API |
-| `baseUrl` | no | Koodify origin — production `https://api.koodify.ng` |
+| `customParam` | **no** | Optional. Arbitrary merchant fields; omit if unused. Alias `customParams` |
+| `auth` | no | Defaults to `"gateway"`. Use `"zainpay"` only for direct Zainpay |
+| `baseUrl` | no | Defaults to `https://api.koodify.ng`. Override for local/proxy only |
 
-Checkout through koodify needs only an active **`zainboxCode`**. Keep `GATEWAY_API_KEY` secret for admin routes. Zainpay’s private key never leaves the server.
+Checkout needs an active **`publicKey`**. Koodify resolves it to the merchant zainbox before calling Zainpay. Keep `GATEWAY_API_KEY` and Zainpay’s private key on the server only.
 
 ## Logging & merge
 
-Yes — every successful **init** through koodify writes a `transactions` row keyed by `txnRef` + `zainbox_code` (including `metadata.payer` and `metadata.customParam`). Status polls then reload that row and attach `data.payer` / `data.customParam`. The inline callback always echoes `customParam` from the checkout config as well.
+Every successful **init** through koodify writes a `transactions` row keyed by `txnRef` + `zainbox_code` (with `metadata.payer`, and `metadata.customParam` when provided). Status polls reload that row and attach `data.payer` / `data.customParam` when stored. The inline callback echoes `customParam` only if it was sent.
 
 ## Build / demo
 
