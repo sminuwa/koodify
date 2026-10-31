@@ -17,6 +17,11 @@ import {
 
 const BANK_LABELS = {
   gtBank: "GTBank",
+  moniepoint: "Moniepoint",
+  wemaBank: "Wema Bank",
+  polaris: "Polaris Bank",
+  fcmb: "FCMB",
+  zainMFB: "Zain MFB",
 };
 
 function formatMoney(currency, amount) {

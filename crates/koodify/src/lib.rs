@@ -44,10 +44,22 @@ pub async fn build_app(config: Config) -> Result<(Router, AppState)> {
         .api_key(config.zainpay_api_key.clone())
         .build()?;
 
+    let bank_router = std::sync::Arc::new(services::bank_router::BankRouter::from_config(
+        &config.va_bank_candidates,
+        config.va_bank_sticky_secs,
+    ));
+    tracing::info!(
+        candidates = ?config.va_bank_candidates,
+        preferred = %bank_router.preferred(),
+        sticky_secs = config.va_bank_sticky_secs,
+        "Adaptive Bank/DVA Routing ready"
+    );
+
     let state = AppState {
         config,
         pool,
         zainpay,
+        bank_router,
     };
 
     let app = routes::router()
@@ -64,10 +76,15 @@ pub fn build_app_with(
     pool: sqlx::PgPool,
     zainpay: ZainpayClient,
 ) -> Router {
+    let bank_router = std::sync::Arc::new(services::bank_router::BankRouter::from_config(
+        &config.va_bank_candidates,
+        config.va_bank_sticky_secs,
+    ));
     let state = AppState {
         config,
         pool,
         zainpay,
+        bank_router,
     };
 
     routes::router()

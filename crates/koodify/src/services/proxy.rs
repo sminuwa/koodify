@@ -160,6 +160,7 @@ where
     let (mut zainpay_body, mut metadata) = split_body(body);
     payer::peel_payer_fields(&mut zainpay_body, &mut metadata);
     payer::peel_custom_param(&mut zainpay_body, &mut metadata);
+    crate::services::payment_split::peel_split_fields(&mut zainpay_body, &mut metadata);
     let request: Req = serde_json::from_value(zainpay_body).map_err(ProxyError::BadRequest)?;
     mutate_with_metadata(state, operation, request, metadata, call)
         .await
@@ -217,6 +218,8 @@ where
 pub enum ProxyError {
     #[error("invalid request body: {0}")]
     BadRequest(#[from] serde_json::Error),
+    #[error("{0}")]
+    Validation(String),
     #[error(transparent)]
     Upstream(#[from] ZainpayError),
 }

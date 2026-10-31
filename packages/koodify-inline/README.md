@@ -37,10 +37,20 @@ koodifyInitPayment(
       studentId: "STU001",
     },
 
+    // optional — Zainbox Payment Split (gateway mode only)
+    // paymentSplit: {
+    //   shares: [
+    //     { zainboxCode: "primary_box", percent: 70 },
+    //     { zainboxCode: "tutor_box", amount: "2000" },
+    //     { zainboxCode: "agent_box", amount: "1000" },
+    //   ],
+    // },
+    // or: splitPlanId: "split_school_fees_v1",
+
     // optional
     currencyCode: "NGN",
     logoUrl: "https://example.com/logo.png",
-    bankType: "gtBank",
+    // bankType: omit on gateway — Koodify auto-picks; override only if needed
     allowRecurringPayment: false,
 
     // baseUrl / auth default from the CDN script — omit in production
@@ -64,6 +74,7 @@ koodifyInitPayment(
 | `callBackUrl` | yes | Merchant webhook / return URL |
 | `name` / `payer.name` | no | Koodify-only; merged into `payer` |
 | `customParam` | **no** | Optional. Arbitrary merchant fields; omit if unused. Alias `customParams` |
+| `paymentSplit` / `splitPlanId` | no | After deposit, Koodify redistributes to secondary zainboxes (gateway only). See `FEATURES.md` |
 | `auth` | no | Defaults to `"gateway"`. Use `"zainpay"` only for direct Zainpay |
 | `baseUrl` | no | Defaults to `https://api.koodify.ng`. Override for local/proxy only |
 

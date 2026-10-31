@@ -174,8 +174,13 @@ export async function generateTemporaryVa({
   sessionKey,
   bankType,
 }) {
-  const encoded = encodeURIComponent(`"${bankType}"`);
-  const url = `${baseUrl}/zainbox/card/generate-temporary-virtual-account?bankType=${encoded}&e=${encodeURIComponent(sessionKey)}`;
+  // Gateway auto-routes when bankType is omitted. Direct Zainpay still needs a bank.
+  const params = new URLSearchParams();
+  params.set("e", sessionKey);
+  if (bankType != null && String(bankType).trim() !== "") {
+    params.set("bankType", `"${String(bankType).trim()}"`);
+  }
+  const url = `${baseUrl}/zainbox/card/generate-temporary-virtual-account?${params.toString()}`;
   const res = await fetch(url, {
     headers: buildAuthHeaders(config, apiKey),
   });
@@ -192,7 +197,7 @@ export async function generateTemporaryVa({
   const kobo = parseFloat(data.amount);
   const naira = Number.isFinite(kobo) ? kobo / 100 : NaN;
   return {
-    bankType: data.bankType || bankType,
+    bankType: data.bankType || bankType || "",
     accountNumber: String(data.accountNumber || ""),
     accountName: String(data.accountName || ""),
     amountNaira: Number.isInteger(naira)

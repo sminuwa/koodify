@@ -18,10 +18,25 @@ pub struct Config {
     pub resend_api_key: Option<String>,
     /// From header for receipts, e.g. `Koodify <payments@koodify.ng>`.
     pub resend_from: String,
+    /// Adaptive Bank/DVA Routing candidates (`VA_BANK_CANDIDATES`).
+    /// Default is `gtBank` only — add others only after confirming Zainpay temp/DVA support.
+    pub va_bank_candidates: Vec<String>,
+    /// How long the preferred DVA bank stays sticky (`VA_BANK_STICKY_SECS`, default 600).
+    pub va_bank_sticky_secs: u64,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self> {
+        let va_bank_candidates = crate::services::bank_router::parse_candidates(
+            env::var("VA_BANK_CANDIDATES").ok().as_deref(),
+        );
+        crate::services::bank_router::warn_if_experimental(&va_bank_candidates);
+        let va_bank_sticky_secs = env::var("VA_BANK_STICKY_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(600)
+            .max(60);
+
         Ok(Self {
             bind: env::var("GATEWAY_BIND").unwrap_or_else(|_| "0.0.0.0:8080".into()),
             database_url: env::var("DATABASE_URL").context("DATABASE_URL is required")?,
@@ -35,6 +50,8 @@ impl Config {
                 .ok()
                 .filter(|s| !s.trim().is_empty())
                 .unwrap_or_else(|| "Koodify <onboarding@resend.dev>".into()),
+            va_bank_candidates,
+            va_bank_sticky_secs,
         })
     }
 
@@ -55,6 +72,8 @@ impl Config {
             zainpay_webhook_secret: None,
             resend_api_key: None,
             resend_from: "Koodify <onboarding@resend.dev>".into(),
+            va_bank_candidates: vec!["gtBank".into()],
+            va_bank_sticky_secs: 600,
         }
     }
 

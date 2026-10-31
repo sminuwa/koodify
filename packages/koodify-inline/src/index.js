@@ -115,7 +115,14 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
       reject(payload);
       return;
     }
-    const bankType = paymentConfig.bankType || "gtBank";
+    // Gateway: omit bankType so Koodify auto-routes. Direct Zainpay still needs a bank key.
+    const explicitBank =
+      paymentConfig.bankType != null && String(paymentConfig.bankType).trim() !== ""
+        ? String(paymentConfig.bankType).trim()
+        : "";
+    const bankType = useGateway
+      ? explicitBank
+      : explicitBank || "gtBank";
     let settled = false;
     let succeeded = false;
     let transferView = null;

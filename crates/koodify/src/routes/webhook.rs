@@ -1,7 +1,7 @@
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
-use serde_json::Value;
+use serde_json::{json, Value};
 use client::{verify_webhook_signature, WebhookEvent};
 
 use client::WebhookEventType;
@@ -9,7 +9,7 @@ use client::WebhookEventType;
 use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_upstream, JsonResult};
-use crate::services::receipt;
+use crate::services::{payment_split, receipt};
 use crate::state::AppState;
 
 pub async fn repush_deposit(
@@ -115,6 +115,36 @@ pub async fn inbound(
                 event.data.sender.as_deref(),
                 event.data.sender_name.as_deref(),
                 event.data.zainbox_name.as_deref(),
+            )
+            .await;
+
+            let deposit_account = event
+                .data
+                .account_number
+                .as_deref()
+                .or(event.data.beneficiary_account_number.as_deref());
+            let deposit_bank = event
+                .data
+                .beneficiary_bank_code
+                .as_deref()
+                .or(event.data.bank_name.as_deref().filter(|s| {
+                    s.chars().all(|c| c.is_ascii_digit())
+                }));
+
+            let synthetic = json!({
+                "data": {
+                    "paymentStatus": "success",
+                    "depositedAmount": amount,
+                    "accountNumber": deposit_account,
+                }
+            });
+
+            payment_split::maybe_run_on_success(
+                &state,
+                txn_ref,
+                &synthetic,
+                deposit_account,
+                deposit_bank,
             )
             .await;
         }

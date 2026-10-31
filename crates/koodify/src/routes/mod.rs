@@ -6,6 +6,7 @@ pub mod customers;
 pub mod helpers;
 pub mod kyc;
 pub mod operations;
+pub mod payment_split;
 pub mod reconciliation;
 pub mod settlement;
 pub mod transfer;
@@ -64,6 +65,16 @@ pub fn router() -> Router<AppState> {
         .route(
             "/api/v1/settlement",
             post(composite::settlement_create_with_history),
+        )
+        // Zainbox Payment Split (admin)
+        .route(
+            "/api/v1/split-plans",
+            put(payment_split::upsert_plan).get(payment_split::list_plans),
+        )
+        .route("/api/v1/split-plans/{id}", get(payment_split::get_plan))
+        .route(
+            "/api/v1/payment-splits/{txn_ref}",
+            get(payment_split::get_payment_split),
         )
         // Local lookups
         .route(

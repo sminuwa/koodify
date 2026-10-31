@@ -70,16 +70,24 @@ export const iconLock = `
 </svg>`;
 
 export function bankMark(bankType, bankName) {
-  if (String(bankType).toLowerCase() === "gtbank" || /gt\s*bank/i.test(bankName)) {
+  const key = String(bankType || "").toLowerCase();
+  if (key === "gtbank" || /gt\s*bank/i.test(bankName)) {
     return `<span class="kd-bank-mark kd-bank-gt" aria-hidden="true">GT</span>`;
+  }
+  if (key === "moniepoint" || /moniepoint/i.test(bankName)) {
+    return `<span class="kd-bank-mark" aria-hidden="true">M</span>`;
   }
   const letter = (bankName || "B").trim().charAt(0).toUpperCase() || "B";
   return `<span class="kd-bank-mark" aria-hidden="true">${letter}</span>`;
 }
 
 export function bankFullName(bankType, bankName) {
-  if (String(bankType).toLowerCase() === "gtbank" || /gt\s*bank/i.test(bankName)) {
+  const key = String(bankType || "").toLowerCase();
+  if (key === "gtbank" || /gt\s*bank/i.test(bankName)) {
     return "Guaranty Trust Bank";
+  }
+  if (key === "moniepoint" || /moniepoint/i.test(bankName)) {
+    return "Moniepoint";
   }
   return bankName || "Bank";
 }

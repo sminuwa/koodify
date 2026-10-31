@@ -305,7 +305,7 @@ fn attach_into_data_metadata(response: &mut Value, key: &str, value: Value) {
     }
 }
 
-/// After a Zainpay status call, attach stored payer + customParam for `txn_ref`.
+/// After a Zainpay status call, attach stored payer + customParam + paymentSplit for `txn_ref`.
 pub async fn enrich_response_from_db(pool: &PgPool, txn_ref: &str, response: Value) -> Value {
     let mut response = response;
 
@@ -319,7 +319,7 @@ pub async fn enrich_response_from_db(pool: &PgPool, txn_ref: &str, response: Val
         attach_into_data_metadata(&mut response, "customParam", custom_param);
     }
 
-    response
+    crate::services::payment_split::enrich_response(pool, txn_ref, response).await
 }
 
 fn first_str(value: &Value, keys: &[&str]) -> Option<String> {
