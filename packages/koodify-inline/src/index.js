@@ -214,6 +214,17 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
         if (paymentConfig.name) payload.name = paymentConfig.name;
         if (paymentConfig.payer) payload.payer = paymentConfig.payer;
         if (customParam) payload.customParam = customParam;
+        // Zainbox Payment Split — gateway-only; stripped server-side before Zainpay.
+        if (useGateway) {
+          if (paymentConfig.paymentSplit && typeof paymentConfig.paymentSplit === "object") {
+            payload.paymentSplit = paymentConfig.paymentSplit;
+          }
+          const planId =
+            paymentConfig.splitPlanId || paymentConfig.split_plan_id;
+          if (planId != null && String(planId).trim() !== "") {
+            payload.splitPlanId = String(planId).trim();
+          }
+        }
 
         const init = await initializeInlinePayment({
           baseUrl,

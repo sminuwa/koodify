@@ -74,7 +74,11 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/split-plans/{id}", get(payment_split::get_plan))
         .route(
             "/api/v1/payment-splits/{txn_ref}",
-            get(payment_split::get_payment_split),
+            get(payment_split::get_payment_split).post(payment_split::run_payment_split),
+        )
+        .route(
+            "/api/v1/payment-splits/{txn_ref}/run",
+            post(payment_split::run_payment_split),
         )
         // Local lookups
         .route(

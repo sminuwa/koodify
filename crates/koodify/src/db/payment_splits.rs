@@ -134,15 +134,30 @@ pub async fn insert_pending(
 
 /// Atomically claim a pending split for execution. Returns the row if this caller won.
 pub async fn claim_pending(pool: &PgPool, txn_ref: &str) -> Result<Option<PaymentSplit>, sqlx::Error> {
-    sqlx::query_as::<_, PaymentSplit>(
+    claim_for_run(pool, txn_ref, false).await
+}
+
+/// Claim for execution. When `allow_retry` is true, also reclaims `failed` / `partial`.
+pub async fn claim_for_run(
+    pool: &PgPool,
+    txn_ref: &str,
+    allow_retry: bool,
+) -> Result<Option<PaymentSplit>, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    let split = sqlx::query_as::<_, PaymentSplit>(
         r#"
         UPDATE payment_splits
         SET status = 'running',
             claimed_at = COALESCE(claimed_at, now()),
+            completed_at = NULL,
             updated_at = now(),
             error = NULL
         WHERE txn_ref = $1
-          AND status = 'pending'
+          AND (
+            status = 'pending'
+            OR ($2 AND status IN ('failed', 'partial'))
+          )
         RETURNING
             txn_ref, primary_zainbox, checkout_amount, total_kobo, plan_snapshot,
             status, source_account, source_bank_code, error,
@@ -150,8 +165,32 @@ pub async fn claim_pending(pool: &PgPool, txn_ref: &str) -> Result<Option<Paymen
         "#,
     )
     .bind(txn_ref)
-    .fetch_optional(pool)
-    .await
+    .bind(allow_retry)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    if split.is_some() && allow_retry {
+        // Re-queue transfer legs that did not succeed; keep successful ones.
+        sqlx::query(
+            r#"
+            UPDATE payment_split_legs
+            SET status = 'pending',
+                error = NULL,
+                transfer_txn_ref = NULL,
+                payment_ref = NULL,
+                updated_at = now()
+            WHERE txn_ref = $1
+              AND role = 'transfer'
+              AND status <> 'success'
+            "#,
+        )
+        .bind(txn_ref)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    Ok(split)
 }
 
 pub async fn get(pool: &PgPool, txn_ref: &str) -> Result<Option<PaymentSplit>, sqlx::Error> {

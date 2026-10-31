@@ -471,6 +471,13 @@ A leg uses **either** `percent` **or** `amount`, not both.
 | Destination zainbox deactivated after init | Fail that leg; do not invent an external bank fallback |
 | Insufficient balance on primary at split time | Fail remaining legs; alert ops (should be rare right after deposit) |
 | Direct Zainpay popup mode (`auth: "zainpay"`) | Split **off** — Koodify must own the post-success path |
+| **Primary zainbox has auto settlement enabled** | Zainpay rejects transfers: `code=04` — *Funds Transfer is Disabled for Auto Settlement Enabled Zainbox* |
+
+**Hard constraint (confirmed live):** the **primary / source** zainbox must have **auto settlement disabled** (`settlement.status = false`, or no active settlement schedule) for Koodify to move funds to secondary boxes. Scheduled settlement on secondaries is fine.
+
+Recommended layout:
+- **Collector box** (checkout `publicKey`) — settlement **off**, used only to receive + split  
+- **Secondary boxes** — receive ISA credits; may use T1/T7 settlement to external banks  
 
 #### Endpoint proof (2026-10-31)
 

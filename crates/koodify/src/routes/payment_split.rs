@@ -166,3 +166,20 @@ pub async fn get_payment_split(
         )),
     }
 }
+
+/// `POST /api/v1/payment-splits/{txnRef}/run` — force execute a pending/failed/partial split.
+pub async fn run_payment_split(
+    _auth: ApiKeyAuth,
+    State(state): State<AppState>,
+    Path(txn_ref): Path<String>,
+) -> JsonResult {
+    match payment_split::force_run(&state, &txn_ref).await {
+        Ok(summary) => Ok(Json(json!({
+            "code": "00",
+            "status": "200 OK",
+            "description": "successful",
+            "data": summary,
+        }))),
+        Err(err) => Err((StatusCode::BAD_REQUEST, err)),
+    }
+}

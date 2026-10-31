@@ -479,16 +479,87 @@ pub async fn maybe_run_on_success(
 }
 
 fn is_payment_success(response: &Value) -> bool {
-    let status = response
-        .pointer("/data/paymentStatus")
-        .or_else(|| response.get("paymentStatus"))
+    let candidates = [
+        response.pointer("/data/paymentStatus"),
+        response.get("paymentStatus"),
+        response.pointer("/data/status"),
+        response.get("status"),
+        response.pointer("/data/txnStatus"),
+        response.pointer("/data/transactionStatus"),
+    ];
+    for c in candidates.into_iter().flatten() {
+        let status = match c {
+            Value::String(s) => s.to_ascii_lowercase(),
+            Value::Bool(true) => "success".into(),
+            _ => continue,
+        };
+        if matches!(
+            status.as_str(),
+            "success" | "successful" | "paid" | "completed" | "00"
+        ) {
+            return true;
+        }
+    }
+    // Some envelopes only set top-level code on verify-style payloads.
+    response
+        .get("code")
         .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    matches!(
-        status.as_str(),
-        "success" | "successful" | "paid" | "completed"
-    )
+        .is_some_and(|c| c == "00")
+        && response
+            .pointer("/data/paymentStatus")
+            .or_else(|| response.pointer("/data/depositedAmount"))
+            .is_some()
+}
+
+/// Admin / recovery: run (or retry) a split without waiting for another status poll.
+pub async fn force_run(
+    state: &AppState,
+    txn_ref: &str,
+) -> Result<Value, String> {
+    let claimed = db::payment_splits::claim_for_run(&state.pool, txn_ref, true)
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(split) = claimed else {
+        let existing = db::payment_splits::get(&state.pool, txn_ref)
+            .await
+            .map_err(|e| e.to_string())?;
+        return match existing {
+            None => Err(format!("no payment split for txnRef `{txn_ref}`")),
+            Some(s) if s.status == "success" => {
+                let summary = db::payment_splits::summary_json(&state.pool, txn_ref)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(json!({
+                    "message": "split already completed",
+                    "summary": summary,
+                }))
+            }
+            Some(s) if s.status == "running" => Err(
+                "split is already running — wait a moment and fetch status".into(),
+            ),
+            Some(s) => Err(format!(
+                "cannot run split in status `{}`",
+                s.status
+            )),
+        };
+    };
+
+    info!(txn_ref, "payment split force-run claimed");
+    if let Err(err) = execute_split(state, &split).await {
+        warn!(error = %err, txn_ref, "payment split force-run failed");
+        let _ = db::payment_splits::mark_finished(
+            &state.pool,
+            txn_ref,
+            "failed",
+            Some(&err),
+        )
+        .await;
+    }
+
+    db::payment_splits::summary_json(&state.pool, txn_ref)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "split disappeared after run".into())
 }
 
 async fn execute_split(state: &AppState, split: &db::payment_splits::PaymentSplit) -> Result<(), String> {
@@ -512,6 +583,13 @@ async fn execute_split(state: &AppState, split: &db::payment_splits::PaymentSpli
     let mut last_err: Option<String> = None;
 
     for leg in &legs {
+        if leg.status == "success" {
+            if leg.role == "transfer" {
+                any_ok_transfer = true;
+            }
+            continue;
+        }
+
         if leg.role == "keep" {
             let _ = db::payment_splits::update_leg_result(
                 &state.pool,
