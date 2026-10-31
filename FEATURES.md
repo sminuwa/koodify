@@ -137,6 +137,66 @@ VA_BANK_STICKY_SECS=600
 3. Enrichment (payer, customParam, email-sent flags) lives in the same log.
 4. Ops queries by reference or zainbox to reconstruct the story.
 
+### Zainbox Payment Split
+**What it is:** After the customer pays the full amount into one **primary** zainbox, Koodify redistributes value to **secondary** zainboxes. Merchants declare *zainbox codes + shares* (not external bank accounts). Moves are **internal** VA/ISA → ISA (typically free on Zainpay).
+
+**Example:** Checkout for ₦1,000 with shares `₦200` + `₦50` + `percent: 100` on primary → primary keeps ₦750; the other boxes receive ₦200 and ₦50 after payment succeeds.
+
+**Process flow:**
+1. Checkout sends `paymentSplit` or `splitPlanId` (gateway mode only).
+2. Koodify validates the plan (active zainboxes, math) and stores a pending run for that `txnRef`.
+3. Customer pays once into the primary box’s temporary account (same as normal checkout).
+4. On success (status poll or deposit webhook) → Koodify claims the run once, then transfers each secondary leg.
+5. Primary keep needs no transfer. Status / admin APIs show `data.paymentSplit` with per-leg results.
+6. Ops can force a pending/failed run: `POST /api/v1/payment-splits/{txnRef}` (secret `X-Api-Key`).
+
+**Share rules:**
+| Field | Meaning |
+|-------|---------|
+| `amount` | Fixed Naira — taken **first** from the deposit |
+| `percent` | Share of **whatever remains** after fixed amounts (must total **100%** of that remainder). Use `percent: 100` on primary to keep the rest |
+| Either `amount` **or** `percent` per leg — not both |
+
+```js
+koodifyInitPayment({
+  publicKey: "pk_live_…",       // primary / collector box
+  amount: "1000",
+  txnRef: "ORDER_889",
+  mobileNumber: "080…",
+  emailAddress: "payer@example.com",
+  callBackUrl: "https://…",
+  paymentSplit: {
+    shares: [
+      { zainboxCode: "tutor_box", amount: "200" },
+      { zainboxCode: "agent_box", amount: "50" },
+      { zainboxCode: "main_box", percent: 100 }, // remainder → ₦750
+    ],
+  },
+  // or: splitPlanId: "split_school_fees_v1",
+});
+```
+
+**Requirements / limits:**
+- Gateway mode only (`auth: "gateway"`). Direct Zainpay popup does not run splits.
+- **Primary (collector) zainbox must have auto settlement OFF.** If settlement is enabled, Zainpay returns `code=04` (*Funds Transfer is Disabled for Auto Settlement Enabled Zainbox*). Disable via `POST /zainbox/settlement` with `"status": false` (boolean). Secondaries may keep T1/T7 settlement.
+- Recommended layout: collector box (settlement off) → split → secondary boxes (settlement on if desired).
+- All `zainboxCode`s must exist and be **active** in Koodify’s zainboxes cache (seed/sync).
+- Max 10 shares; no duplicate destinations; invalid plan → checkout init rejected.
+- Deposit fees (if any) are not auto-deducted from secondary legs; primary absorbs fee variance in v1.
+
+**Admin / ops APIs** (secret `X-Api-Key` = `GATEWAY_API_KEY`):
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `PUT` | `/api/v1/split-plans` | Create/update a reusable plan |
+| `GET` | `/api/v1/split-plans?primaryZainbox=` | List plans for a box |
+| `GET` | `/api/v1/split-plans/{id}` | Get one plan |
+| `GET` | `/api/v1/payment-splits/{txnRef}` | Run status + legs |
+| `POST` | `/api/v1/payment-splits/{txnRef}` | Force-run pending / retry failed or partial |
+| `POST` | `/api/v1/payment-splits/{txnRef}/run` | Same as force-run (alias) |
+
+**DB:** migration `015_payment_splits.sql` (`split_plans`, `payment_splits`, `payment_split_legs`).
+
 ---
 
 ## Notifications
@@ -367,160 +427,6 @@ Automated checks for the Rust client and gateway logic.
 
 ---
 
-## Zainbox Payment Split
-
-**Status:** Shipped (v1) — validate at init, run after deposit success, internal VA/ISA → secondary ISA
-
-**What it is:** After a customer pays the full amount into one **primary** zainbox, Koodify automatically redistributes value to **secondary** zainboxes by share (percent and/or fixed amount). Developers declare *shares and zainbox codes* — not external bank accounts. Moves are **internal** (zainbox/VA → zainbox/VA), not NIP payouts to third-party banks.
-
-**Example:** A school collects ₦10,000. Plan: ₦2,000 to tutor, ₦1,000 to agent, **percent: 100** on primary (= ₦7,000 remainder). Parent pays once; Koodify settles the boxes after success.
-
-**Why this shape:**
-- Checkout stays simple: one deposit, one DVA, Adaptive Bank/DVA Routing unchanged.
-- No bank account numbers / bank codes in the browser.
-- Matches Zainpay pricing: transfers between virtual accounts across zainboxes are treated as free (vs ~₦25 external).
-- Safer than post-collection external payouts for v1.
-
-**Not in v1:**
-- Splitting into three customer deposits.
-- Sending money to arbitrary external bank accounts from checkout.
-- Replacing Zainpay’s scheduled settlement (`POST /zainbox/settlement`) — that remains a separate merchant config for bank payout schedules.
-
-#### Checkout / init shape
-
-Prefer a saved plan for production; allow inline shares for demos.
-
-```js
-// Option A — saved plan (recommended)
-koodifyInitPayment({
-  publicKey: "pk_live_…",
-  amount: "10000",
-  txnRef: "ORDER_889",
-  email: "parent@school.com",
-  splitPlanId: "split_school_fees_v1",
-});
-
-// Option B — inline shares (demo / simple merchants)
-koodifyInitPayment({
-  publicKey: "pk_live_…",
-  amount: "10000",
-  txnRef: "ORDER_889",
-  paymentSplit: {
-    // Optional; default = zainbox resolved from publicKey
-    primaryZainbox: "school_main_box",
-    shares: [
-      { zainboxCode: "tutor_box", amount: "2000" },
-      { zainboxCode: "agent_box", amount: "1000" },
-      { zainboxCode: "school_main_box", percent: 100 }, // 100% of remainder
-    ],
-  },
-});
-```
-
-Share fields (per leg):
-| Field | Meaning |
-|-------|---------|
-| `zainboxCode` | Destination (or primary keep) box |
-| `amount` | Fixed Naira amount (taken first from the deposit) |
-| `percent` | Share of **whatever remains after all fixed `amount` legs** (must total **100%** of that remainder). Use `percent: 100` on primary to keep the rest. |
-
-A leg uses **either** `percent` **or** `amount`, not both.
-
-#### Validation rules (reject at init if broken)
-
-1. At least one share; max N legs (suggested cap: **10**).
-2. Every `zainboxCode` exists in Koodify’s zainboxes cache and is **active** (v1 ACL).
-3. `primaryZainbox` (if set) must match the publicKey’s box; that box must appear in the plan as collector; customer VA is always on **primary only**.
-4. Fixed `amount` legs are allocated first; `percent` legs split the **remainder** and must sum to 100%.
-5. Flooring leftover kobo in the remainder pool goes to the primary percent leg (or first percent leg). Over-allocate fixed amounts → reject.
-6. No zero/negative shares; no duplicate destination boxes in one plan (or merge duplicates — prefer **reject duplicates** for clarity).
-7. Inline `paymentSplit` is stored on the txn like `customParam` (Koodify-only; not sent to Zainpay create-VA).
-
-#### Fee policy
-
-- Split math uses the **amount the customer was asked to pay** (checkout amount).
-- Zainpay deposit fees (if any) are **not** auto-deducted from secondary legs in v1 — document that primary may absorb fee variance.
-- Internal VA→VA legs: expect **no** Koodify markup in v1; rely on Zainpay’s free internal pricing.
-
-#### Rounding
-
-- Work in **kobo** (integer).
-- Fixed amounts first; then `percent` of the remainder (floor); leftover kobo → primary percent leg.
-- Fixed `amount` legs must be whole Naira/kobo-safe strings; reject fractions that don’t map cleanly.
-
-#### Runtime process flow
-
-1. Merchant starts checkout with `splitPlanId` or `paymentSplit`.
-2. Koodify validates the plan → stores it on the transaction log for that `txnRef`.
-3. Customer pays full amount into the **primary** zainbox DVA (same path as today).
-4. On success (status poll **or** deposit webhook) → Koodify claims “split not run yet” for that `txnRef` (idempotent, same pattern as receipt claims).
-5. Resolve plan → compute kobo legs → for each **secondary** leg, initiate an **internal** funds transfer from primary source VA / wallet to that zainbox’s destination VA (exact source field confirmed in sandbox proof).
-6. Verify each leg; persist status per leg (`pending` / `success` / `failed`).
-7. Primary keep is implicit (no transfer to self required).
-8. Receipts / merchant notice / status enrichment may include a `split` summary (who got what).
-9. Failed secondary leg → mark plan `partial`; retry policy: bounded automatic retries, then ops-visible failed legs (no silent drop).
-
-#### Failure & safety rules
-
-| Situation | Behavior |
-|-----------|----------|
-| Invalid plan at init | Reject checkout start; no VA created |
-| Deposit never succeeds | No split runs |
-| Split already claimed for `txnRef` | No second run |
-| One secondary transfer fails | Other succeeded legs stay; failed leg retried / flagged `partial` |
-| Destination zainbox deactivated after init | Fail that leg; do not invent an external bank fallback |
-| Insufficient balance on primary at split time | Fail remaining legs; alert ops (should be rare right after deposit) |
-| Direct Zainpay popup mode (`auth: "zainpay"`) | Split **off** — Koodify must own the post-success path |
-| **Primary zainbox has auto settlement enabled** | Zainpay rejects transfers: `code=04` — *Funds Transfer is Disabled for Auto Settlement Enabled Zainbox* |
-
-**Hard constraint (confirmed live):** the **primary / source** zainbox must have **auto settlement disabled** (`settlement.status = false`, or no active settlement schedule) for Koodify to move funds to secondary boxes. Scheduled settlement on secondaries is fine.
-
-Recommended layout:
-- **Collector box** (checkout `publicKey`) — settlement **off**, used only to receive + split  
-- **Secondary boxes** — receive ISA credits; may use T1/T7 settlement to external banks  
-
-#### Endpoint proof (2026-10-31)
-
-Confirmed on live Zainpay via `crates/koodify/examples/va_to_va_proof.rs`:
-
-| Item | Result |
-|------|--------|
-| Endpoint | `POST /bank/transfer/v2` |
-| Verify | `GET /virtual-account/wallet/transaction/verify/{txnRef}` |
-| Path tested | Primary **gtBank VA** → secondary **ZainBank ISA** (cross-zainbox) |
-| Fee | `txnFee: "0"` (internal / free) |
-| Result | Immediate `code=00`, `status=success` (not only queued) |
-| Balances | Source −100 kobo, dest +100 kobo |
-
-Notes for implementation:
-- Each zainbox has an **Internal Settlement Account** (`bankType: ZainBank`, bank code `090976`) from `GET /zainbox/internal-settlement-account/{code}` (also appears in VA list).
-- Deposit VAs use issuer codes (e.g. gtBank `000013`); list field is `bankAccount` + `bankName` as the NUBAN code.
-- Prefer debiting the **funded deposit VA** (or ISA if auto-swept) and crediting the secondary **ISA** (or a known VA).
-- Name enquiry on ISA may return invalid — skip NE for ZainBank legs.
-- Re-run proof: `PROOF_EXECUTE=1 PRIMARY_ZAINBOX=… SECONDARY_ZAINBOX=… cargo run -p koodify --example va_to_va_proof`
-
-#### Shipped surface
-
-| Piece | Where |
-|-------|--------|
-| Init validation + schedule | `POST …/initialize/payment/inline` (+ authenticated initialize) |
-| Saved plans | `PUT/GET /api/v1/split-plans` (secret key) |
-| Run status | `GET /api/v1/payment-splits/{txnRef}` + `data.paymentSplit` on status poll |
-| Trigger | Status poll success **or** `deposit.success` webhook (idempotent claim) |
-| DB | Migration `015_payment_splits.sql` |
-| Proof harness | `cargo run -p koodify --example va_to_va_proof` |
-
-#### Process flow (layman)
-
-1. Parent pays ₦10,000 once into the school’s main box account.
-2. Money lands in the primary zainbox.
-3. Koodify reads the share plan for that payment.
-4. It moves ₦2,000 to the tutor box and ₦1,000 to the agent box (inside Zainpay).
-5. School main box keeps ₦7,000.
-6. Status / admin lookup shows the split summary.
-
----
-
 ## Env-gated / optional (plain English)
 
 | Feature | When it turns on |
@@ -532,4 +438,4 @@ Notes for implementation:
 | Merchant email destination | The zainbox has an `email_notification` address |
 | Direct Zainpay popup mode | You set `auth: "zainpay"` and supply an API key |
 | Live-test local server port | Optional `LIVE_TEST_PORT` |
-| Zainbox Payment Split | Checkout sends `paymentSplit` or `splitPlanId` (gateway mode) |
+| Zainbox Payment Split | Gateway checkout includes `paymentSplit` or `splitPlanId`; primary settlement must be off |

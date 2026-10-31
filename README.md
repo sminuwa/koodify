@@ -21,7 +21,7 @@ Reusable Rust integration for [Zainpay](https://docs.zainpay.ng/):
 
 **Live API:** [https://api.koodify.ng](https://api.koodify.ng)
 
-**Product features:** [FEATURES.md](FEATURES.md) — living inventory (Adaptive Bank/DVA Routing, receipts, inline checkout, etc.).
+**Product features:** [FEATURES.md](FEATURES.md) — living inventory (Adaptive Bank/DVA Routing, Zainbox Payment Split, receipts, inline checkout, etc.).
 
 **API docs (HTML + Tailwind):** [docs/api.html](docs/api.html) — full gateway reference. Composite deep-dive: [docs/composite-endpoints.html](docs/composite-endpoints.html). Inline checkout: [docs/inline-checkout.html](docs/inline-checkout.html).
 
