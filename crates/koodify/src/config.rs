@@ -13,6 +13,9 @@ pub struct Config {
     /// HMAC secret for inbound `Zainpay-Signature` verification.
     /// Docs refer to this as the dashboard secret key (`ZAINPAY_WEBHOOK_SECRET`).
     pub zainpay_webhook_secret: Option<String>,
+    /// Public HTTPS origin for this gateway (`PUBLIC_BASE_URL`), e.g. `https://api.koodify.ng`.
+    /// Used to build the inbound Zainpay webhook URL written onto zainbox `callbackUrl`.
+    pub public_base_url: Option<String>,
     /// Resend API key for payer receipt emails (`RESEND_API_KEY`). Optional —
     /// when unset, receipt emails are skipped.
     pub resend_api_key: Option<String>,
@@ -62,6 +65,10 @@ impl Config {
             zainpay_webhook_secret: env::var("ZAINPAY_WEBHOOK_SECRET")
                 .ok()
                 .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
+                .filter(|s| !s.is_empty()),
+            public_base_url: env::var("PUBLIC_BASE_URL")
+                .ok()
+                .map(|s| s.trim().trim_end_matches('/').to_string())
                 .filter(|s| !s.is_empty()),
             resend_api_key: env::var("RESEND_API_KEY").ok().filter(|s| !s.trim().is_empty()),
             resend_from: env::var("RESEND_FROM")
@@ -113,6 +120,23 @@ impl Config {
             .unwrap_or(self.gateway_api_key.as_str())
     }
 
+    /// Absolute URL Zainpay should POST deposit events to (`POST /webhooks/zainpay`).
+    /// `None` when `PUBLIC_BASE_URL` is unset.
+    pub fn inbound_zainpay_webhook_url(&self) -> Option<String> {
+        self.public_base_url
+            .as_ref()
+            .map(|base| format!("{base}/webhooks/zainpay"))
+    }
+
+    /// True when `url` is this gateway's inbound Zainpay webhook (avoid merchant self-POST loops).
+    pub fn is_inbound_zainpay_webhook_url(&self, url: &str) -> bool {
+        let Some(ours) = self.inbound_zainpay_webhook_url() else {
+            return url.trim().ends_with("/webhooks/zainpay");
+        };
+        url.trim().eq_ignore_ascii_case(ours.trim())
+            || url.trim().ends_with("/webhooks/zainpay")
+    }
+
     /// Build config for tests / in-process usage without reading the process env.
     pub fn new(
         bind: impl Into<String>,
@@ -128,6 +152,7 @@ impl Config {
             zainpay_api_key: zainpay_api_key.into(),
             gateway_api_key: gateway_api_key.into(),
             zainpay_webhook_secret: None,
+            public_base_url: None,
             resend_api_key: None,
             resend_from: "Koodify <onboarding@resend.dev>".into(),
             va_bank_candidates: vec!["gtBank".into()],
@@ -140,6 +165,12 @@ impl Config {
             reconcile_poll_cooldown_secs: 120,
             reconcile_batch_size: 40,
         }
+    }
+
+    pub fn with_public_base_url(mut self, url: impl Into<String>) -> Self {
+        let url = url.into().trim().trim_end_matches('/').to_string();
+        self.public_base_url = if url.is_empty() { None } else { Some(url) };
+        self
     }
 
     pub fn with_webhook_secret(mut self, secret: impl Into<String>) -> Self {

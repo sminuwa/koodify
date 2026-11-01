@@ -73,6 +73,10 @@ async fn resolve_callback_url(
     for rec in records {
         if let Some(req) = rec.request_body.as_ref() {
             if let Some(url) = callback_from_request(req) {
+                if state.config.is_inbound_zainpay_webhook_url(&url) {
+                    // Checkout accidentally pointed at Path 1 — do not merchant-POST to ourselves.
+                    continue;
+                }
                 return Some(url);
             }
         }
@@ -86,7 +90,9 @@ async fn resolve_callback_url(
         Ok(Some(zb)) => zb
             .callback_url
             .as_deref()
-            .and_then(normalize_callback_url),
+            .and_then(normalize_callback_url)
+            // Zainbox callbackUrl on Zainpay points at Koodify inbound — not a merchant URL.
+            .filter(|u| !state.config.is_inbound_zainpay_webhook_url(u)),
         Ok(None) => None,
         Err(err) => {
             warn!(error = %err, %code, txn_ref, "failed to load zainbox for merchant webhook");

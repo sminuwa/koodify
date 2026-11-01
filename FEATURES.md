@@ -558,9 +558,21 @@ curl "https://api.koodify.ng/api/v1/zainbox/main_box" \
 ```
 
 ### Inbound webhooks
-**What it is:** Zainpay pings Koodify when a deposit lands. Koodify verifies the signature, stores the event, and runs enriched side effects (emails, split, customer webhook). This is Path 1 — configure **every** zainbox’s Zainpay callback URL to Koodify.
+**What it is:** Zainpay pings Koodify when a deposit lands. Koodify verifies the signature, stores the event, and runs enriched side effects (emails, split, customer webhook). This is Path 1 — **every** zainbox’s Zainpay `callbackUrl` must be Koodify.
 
 **Example:** Parent pays at 2:01; by 2:02 emails + merchant `payment.success` can fire even if the browser tab closed.
+
+**Canonical URL:** `{PUBLIC_BASE_URL}/webhooks/zainpay` (e.g. `https://api.koodify.ng/webhooks/zainpay`).
+
+**Wiring onto zainboxes:**
+1. Set `PUBLIC_BASE_URL=https://api.koodify.ng` in `/opt/koodify/.env` and restart.
+2. Create/update via Koodify already forces `callbackUrl` to that inbound URL.
+3. Backfill existing boxes once:
+
+```bash
+curl -X POST "https://api.koodify.ng/api/v1/zainboxes/sync-webhook-callbacks" \
+  -H "X-Api-Key: $GATEWAY_API_KEY"
+```
 
 **Process flow:**
 1. Zainpay POSTs to `/webhooks/zainpay` with a signature header.
@@ -568,6 +580,8 @@ curl "https://api.koodify.ng/api/v1/zainbox/main_box" \
 3. Delivery is de-duped (`webhook_deliveries`) and persisted.
 4. On `deposit.success` → shared success side effects (not a raw forward of Zainpay’s body).
 5. Invalid signature → rejected.
+
+**Note:** Zainbox `callbackUrl` on Zainpay is Path 1 (Koodify). Merchant delivery uses checkout `callBackUrl` (Path outbound) — do not point merchants at `/webhooks/zainpay`.
 
 ### Local ops lookups
 **What it is:** Admin “look up this account / reference / zainbox history” against Koodify’s database. Health: `GET /health`.
@@ -724,7 +738,7 @@ Automated checks for the Rust client and gateway logic.
 | Merchant outbound webhook | Checkout `callBackUrl` (or zainbox `callback_url`) is an absolute http(s) URL; signed with `MERCHANT_WEBHOOK_SECRET` or `GATEWAY_API_KEY` |
 | Pending checkout reconciler | On by default (`RECONCILE_ENABLED`); disable with `false`. Force: `POST /api/v1/reconcile/pending` |
 | Activity events | Always on after migrate `017`; query `GET /api/v1/activity/{txnRef}` |
-| Inbound webhooks | You set the Zainpay webhook secret; point every zainbox webhook at Koodify `/webhooks/zainpay` |
+| Inbound webhooks | Set `ZAINPAY_WEBHOOK_SECRET` + `PUBLIC_BASE_URL`; sync zainbox callbacks to `/webhooks/zainpay` |
 | Multi-bank Adaptive Bank/DVA Routing | You list more than one bank in `VA_BANK_CANDIDATES` |
 | Custom params / payer name / metadata | You send those fields in the request |
 | Merchant email destination | The zainbox has an `email_notification` address |

@@ -1,13 +1,26 @@
 use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use axum::Json;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Value};
+use tracing::{info, warn};
 use client::{CreateZainboxRequest, ServiceSubscriptionRequest, UpdateZainboxRequest};
 
 use crate::auth::ApiKeyAuth;
+use crate::db;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::proxy;
 use crate::state::AppState;
+
+/// When `PUBLIC_BASE_URL` is set, force Zainpay `callbackUrl` to Koodify's inbound webhook.
+fn apply_inbound_webhook_callback(state: &AppState, mut body: Value) -> Value {
+    if let Some(url) = state.config.inbound_zainpay_webhook_url() {
+        if let Some(obj) = body.as_object_mut() {
+            obj.insert("callbackUrl".into(), json!(url));
+        }
+    }
+    body
+}
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -35,6 +48,7 @@ pub async fn create(
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
+    let body = apply_inbound_webhook_callback(&state, body);
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<CreateZainboxRequest, _>(
         &state,
@@ -66,6 +80,7 @@ pub async fn update(
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
+    let body = apply_inbound_webhook_callback(&state, body);
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<UpdateZainboxRequest, _>(
         &state,
@@ -76,6 +91,114 @@ pub async fn update(
     .await
     .map(Json)
     .map_err(map_proxy_error)
+}
+
+/// Point every known zainbox's Zainpay `callbackUrl` at `POST /webhooks/zainpay`.
+///
+/// Requires `PUBLIC_BASE_URL`. Uses local `zainboxes` rows for code/name, then PATCHes Zainpay
+/// and refreshes the local `callback_url` column.
+pub async fn sync_webhook_callbacks(
+    _auth: ApiKeyAuth,
+    State(state): State<AppState>,
+) -> JsonResult {
+    let Some(webhook_url) = state.config.inbound_zainpay_webhook_url() else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "PUBLIC_BASE_URL is required to sync zainbox webhook callbacks".into(),
+        ));
+    };
+
+    let boxes = db::zainboxes::list(&state.pool).await.map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("list zainboxes: {err}"),
+        )
+    })?;
+
+    let mut updated = Vec::new();
+    let mut failed = Vec::new();
+    let mut skipped = Vec::new();
+
+    for zb in boxes {
+        if zb
+            .callback_url
+            .as_deref()
+            .is_some_and(|u| state.config.is_inbound_zainpay_webhook_url(u))
+        {
+            skipped.push(json!({
+                "codeName": zb.code_name,
+                "callbackUrl": zb.callback_url,
+                "reason": "already_inbound",
+            }));
+            continue;
+        }
+
+        let req = UpdateZainboxRequest {
+            code_name: zb.code_name.clone(),
+            name: zb.name.clone(),
+            callback_url: Some(webhook_url.clone()),
+            email_notification: zb.email_notification.clone(),
+            description: None,
+            tags: zb.tags.clone(),
+            allow_auto_internal_transfer: None,
+            status: None,
+        };
+
+        match state.zainpay.zainbox().update(&req).await {
+            Ok(resp) if resp.is_success() => {
+                let raw = serde_json::to_value(&resp).unwrap_or(Value::Null);
+                if let Err(err) = db::zainboxes::upsert(
+                    &state.pool,
+                    db::zainboxes::UpsertZainbox {
+                        code_name: &zb.code_name,
+                        name: &zb.name,
+                        callback_url: Some(webhook_url.as_str()),
+                        email_notification: zb.email_notification.as_deref(),
+                        tags: zb.tags.as_deref(),
+                        is_active: zb.is_active,
+                        raw: &raw,
+                    },
+                )
+                .await
+                {
+                    warn!(
+                        error = %err,
+                        code = %zb.code_name,
+                        "zainbox webhook sync: Zainpay updated but local upsert failed"
+                    );
+                }
+                info!(code = %zb.code_name, %webhook_url, "zainbox callbackUrl → inbound webhook");
+                updated.push(json!({
+                    "codeName": zb.code_name,
+                    "callbackUrl": webhook_url,
+                }));
+            }
+            Ok(resp) => {
+                failed.push(json!({
+                    "codeName": zb.code_name,
+                    "code": resp.code,
+                    "description": resp.description,
+                }));
+            }
+            Err(err) => {
+                failed.push(json!({
+                    "codeName": zb.code_name,
+                    "error": err.to_string(),
+                }));
+            }
+        }
+    }
+
+    Ok(Json(json!({
+        "code": "00",
+        "description": "zainbox webhook callback sync finished",
+        "data": {
+            "webhookUrl": webhook_url,
+            "updated": updated,
+            "skipped": skipped,
+            "failed": failed,
+        }
+    })))
 }
 
 pub async fn virtual_accounts(

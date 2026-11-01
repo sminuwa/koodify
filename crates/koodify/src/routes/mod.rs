@@ -303,6 +303,10 @@ pub fn router() -> Router<AppState> {
         // Webhooks
         .route("/webhooks/zainpay", post(webhook::inbound))
         .route(
+            "/api/v1/zainboxes/sync-webhook-callbacks",
+            post(zainbox::sync_webhook_callbacks),
+        )
+        .route(
             "/zainbox/repush/deposit/{txn_ref}",
             get(webhook::repush_deposit),
         )
