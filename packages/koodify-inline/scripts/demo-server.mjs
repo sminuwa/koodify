@@ -37,12 +37,26 @@ loadEnvFile(path.join(__dirname, "..", ".env"));
 const KoodifyUpstream =
   process.env.KOODIFY_BASE_URL ||
   `http://127.0.0.1:${(process.env.GATEWAY_BIND || "0.0.0.0:8080").split(":").pop()}`;
-const GatewayKey = process.env.GATEWAY_API_KEY || "";
 
 const HOSTS = {
   sandbox: "https://sandbox.zainpay.ng",
   live: "https://api.zainpay.ng",
 };
+
+/**
+ * Open checkout paths only — never inject GATEWAY_API_KEY and never proxy
+ * admin/credentials/transfer routes through the browser demo.
+ */
+const KOODIFY_PROXY_ALLOW = [
+  /^\/zainbox\/card\/initialize\/payment\/inline\/?$/,
+  /^\/zainbox\/card\/generate-temporary-virtual-account\/?$/,
+  /^\/zainbox\/card\/temporary-virtual-account-payment-status\/?$/,
+];
+
+function isAllowedKoodifyProxyPath(pathname) {
+  const pathOnly = (pathname || "/").split("?")[0];
+  return KOODIFY_PROXY_ALLOW.some((re) => re.test(pathOnly));
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -145,9 +159,24 @@ const server = http.createServer(async (req, res) => {
 
   if (req.url?.startsWith("/proxy/koodify")) {
     const targetPath = req.url.replace(/^\/proxy\/koodify/, "") || "/";
-    const headers = {};
-    if (GatewayKey) headers["X-Api-Key"] = GatewayKey;
-    return forward(req, res, KoodifyUpstream.replace(/\/$/, "") + targetPath, headers);
+    if (!isAllowedKoodifyProxyPath(targetPath)) {
+      return send(
+        res,
+        403,
+        JSON.stringify({
+          code: "proxy_forbidden",
+          description:
+            "Demo proxy only allows open checkout paths (initialize/inline, temp VA, status). Admin routes require a direct authenticated call.",
+          path: targetPath.split("?")[0],
+        }),
+        {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        }
+      );
+    }
+    // Never inject GATEWAY_API_KEY — open checkout uses publicKey only.
+    return forward(req, res, KoodifyUpstream.replace(/\/$/, "") + targetPath, {});
   }
 
   if (req.url?.startsWith("/proxy/sandbox") || req.url?.startsWith("/proxy/live")) {
@@ -165,7 +194,9 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, () => {
   console.log(`Koodify inline demo → http://localhost:${port}`);
-  console.log(`Proxy koodify → ${KoodifyUpstream} (X-Api-Key ${GatewayKey ? "set" : "MISSING"})`);
+  console.log(
+    `Proxy koodify → ${KoodifyUpstream} (checkout paths only; no API key injection)`
+  );
   console.log(`Proxy sandbox → /proxy/sandbox/*`);
   console.log(`Proxy live    → /proxy/live/*`);
 });

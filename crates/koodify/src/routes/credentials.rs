@@ -1,7 +1,7 @@
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
@@ -35,12 +35,63 @@ fn default_status() -> String {
 pub struct ListCredentialsQuery {
     pub customer_id: Option<i64>,
     pub environment: Option<String>,
+    /// When true, include `privateKey` in the response. Default: redacted.
+    #[serde(default)]
+    pub reveal_private_key: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevealQuery {
+    /// When true, include `privateKey` in the response. Default: redacted.
+    #[serde(default)]
+    pub reveal_private_key: bool,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateStatusRequest {
     pub status: String,
+}
+
+/// API view of a credential. `privateKey` is omitted unless explicitly revealed.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialView {
+    pub id: Uuid,
+    pub customer_id: i64,
+    pub environment: String,
+    pub public_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub private_key: Option<String>,
+    /// True when a private key is stored (even if redacted from this response).
+    pub private_key_set: bool,
+    pub metadata: Value,
+    pub status: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl CredentialView {
+    fn from_row(row: Credential, reveal: bool) -> Self {
+        let private_key_set = !row.private_key.is_empty();
+        Self {
+            id: row.id,
+            customer_id: row.customer_id,
+            environment: row.environment,
+            public_key: row.public_key,
+            private_key: if reveal {
+                Some(row.private_key)
+            } else {
+                None
+            },
+            private_key_set,
+            metadata: row.metadata,
+            status: row.status,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
+    }
 }
 
 fn map_db(err: sqlx::Error) -> (StatusCode, String) {
@@ -59,11 +110,13 @@ fn normalize_environment(raw: &str) -> Result<&'static str, (StatusCode, String)
 }
 
 /// `PUT /credentials` — upsert one env (`test` or `live`) for a customer.
+/// Response redacts `privateKey` unless `?revealPrivateKey=true`.
 pub async fn upsert(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
+    Query(q): Query<RevealQuery>,
     Json(body): Json<UpsertCredentialRequest>,
-) -> Result<Json<Credential>, (StatusCode, String)> {
+) -> Result<Json<CredentialView>, (StatusCode, String)> {
     let public_key = body.public_key.trim();
     let private_key = body.private_key.trim();
     if public_key.is_empty() || private_key.is_empty() {
@@ -94,7 +147,7 @@ pub async fn upsert(
         other => other,
     };
 
-    db::credentials::upsert(
+    let row = db::credentials::upsert(
         &state.pool,
         UpsertCredential {
             customer_id: body.customer_id,
@@ -106,78 +159,91 @@ pub async fn upsert(
         },
     )
     .await
-    .map(Json)
-    .map_err(map_db)
+    .map_err(map_db)?;
+
+    Ok(Json(CredentialView::from_row(row, q.reveal_private_key)))
 }
 
-/// `GET /credentials?customerId=&environment=`
+/// `GET /credentials?customerId=&environment=&revealPrivateKey=`
 pub async fn list(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
     Query(q): Query<ListCredentialsQuery>,
-) -> Result<Json<Vec<Credential>>, (StatusCode, String)> {
+) -> Result<Json<Vec<CredentialView>>, (StatusCode, String)> {
     let environment = match q.environment.as_deref() {
         Some(env) => Some(normalize_environment(env)?),
         None => None,
     };
 
-    db::credentials::list(&state.pool, q.customer_id, environment)
+    let rows = db::credentials::list(&state.pool, q.customer_id, environment)
         .await
-        .map(Json)
-        .map_err(map_db)
+        .map_err(map_db)?;
+    Ok(Json(
+        rows.into_iter()
+            .map(|r| CredentialView::from_row(r, q.reveal_private_key))
+            .collect(),
+    ))
 }
 
-/// `GET /credentials/by-customer/{customer_id}`
+/// `GET /credentials/by-customer/{customer_id}?revealPrivateKey=`
 pub async fn by_customer(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(customer_id): Path<i64>,
-) -> Result<Json<Vec<Credential>>, (StatusCode, String)> {
-    db::credentials::list_for_customer(&state.pool, customer_id)
+    Query(q): Query<RevealQuery>,
+) -> Result<Json<Vec<CredentialView>>, (StatusCode, String)> {
+    let rows = db::credentials::list_for_customer(&state.pool, customer_id)
         .await
-        .map(Json)
-        .map_err(map_db)
+        .map_err(map_db)?;
+    Ok(Json(
+        rows.into_iter()
+            .map(|r| CredentialView::from_row(r, q.reveal_private_key))
+            .collect(),
+    ))
 }
 
-/// `GET /credentials/by-customer/{customer_id}/{environment}`
+/// `GET /credentials/by-customer/{customer_id}/{environment}?revealPrivateKey=`
 pub async fn by_customer_env(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path((customer_id, environment)): Path<(i64, String)>,
-) -> Result<Json<Credential>, (StatusCode, String)> {
+    Query(q): Query<RevealQuery>,
+) -> Result<Json<CredentialView>, (StatusCode, String)> {
     let environment = normalize_environment(&environment)?;
     match db::credentials::find_for_customer_env(&state.pool, customer_id, environment).await {
-        Ok(Some(row)) => Ok(Json(row)),
+        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_private_key))),
         Ok(None) => Err((StatusCode::NOT_FOUND, "credential not found".into())),
         Err(err) => Err(map_db(err)),
     }
 }
 
-/// `GET /credentials/{id}` — credential row UUID.
+/// `GET /credentials/{id}?revealPrivateKey=` — credential row UUID.
 pub async fn get_one(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Credential>, (StatusCode, String)> {
+    Query(q): Query<RevealQuery>,
+) -> Result<Json<CredentialView>, (StatusCode, String)> {
     match db::credentials::find_by_id(&state.pool, id).await {
-        Ok(Some(row)) => Ok(Json(row)),
+        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_private_key))),
         Ok(None) => Err((StatusCode::NOT_FOUND, "credential not found".into())),
         Err(err) => Err(map_db(err)),
     }
 }
 
-/// `PATCH /credentials/{id}/status`
+/// `PATCH /credentials/{id}/status?revealPrivateKey=`
 pub async fn update_status(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    Query(q): Query<RevealQuery>,
     Json(body): Json<UpdateStatusRequest>,
-) -> Result<Json<Credential>, (StatusCode, String)> {
+) -> Result<Json<CredentialView>, (StatusCode, String)> {
     if body.status.trim().is_empty() {
         return Err((StatusCode::BAD_REQUEST, "status is required".into()));
     }
     match db::credentials::set_status(&state.pool, id, body.status.trim()).await {
-        Ok(Some(row)) => Ok(Json(row)),
+        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_private_key))),
         Ok(None) => Err((StatusCode::NOT_FOUND, "credential not found".into())),
         Err(err) => Err(map_db(err)),
     }

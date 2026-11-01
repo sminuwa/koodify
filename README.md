@@ -73,7 +73,8 @@ Static VA create also accepts **flat** unknown keys (e.g. `customerId` at the to
 - `PUT /kyc` — upsert KYC linked by integer `customerId` → `customers.id`
 - `GET /kyc/by-customer/{customerId}` — fetch KYC for a customer
 - `PUT /credentials` — upsert keys (`customerId`, `environment`: test|live, `publicKey`, `privateKey`)
-- `GET /credentials/by-customer/{customerId}` — that customer's test + live credentials
+- `GET /credentials/by-customer/{customerId}` — that customer's test + live credentials (`privateKey` redacted by default; pass `?revealPrivateKey=true` to include it)
+- Inbound webhooks de-duplicate by body hash (`webhook_deliveries`) so replays do not re-run side effects
 - `POST /webhooks/zainpay` — inbound Zainpay webhook (HMAC `Zainpay-Signature`; set `ZAINPAY_WEBHOOK_SECRET`)
 - Plain `/api/v1` convenience routes — e.g. `GET /api/v1/zainbox/{zainboxCode}`, `GET /api/v1/virtual-account/{accountNumber}`, `POST /api/v1/transfer`
 

@@ -23,6 +23,9 @@ pub struct Config {
     pub va_bank_candidates: Vec<String>,
     /// How long the preferred DVA bank stays sticky (`VA_BANK_STICKY_SECS`, default 600).
     pub va_bank_sticky_secs: u64,
+    /// HMAC secret for outbound merchant webhooks (`MERCHANT_WEBHOOK_SECRET`).
+    /// When unset, `GATEWAY_API_KEY` is used so merchants can verify with the same secret.
+    pub merchant_webhook_secret: Option<String>,
 }
 
 impl Config {
@@ -52,7 +55,18 @@ impl Config {
                 .unwrap_or_else(|| "Koodify <onboarding@resend.dev>".into()),
             va_bank_candidates,
             va_bank_sticky_secs,
+            merchant_webhook_secret: env::var("MERCHANT_WEBHOOK_SECRET")
+                .ok()
+                .filter(|s| !s.trim().is_empty()),
         })
+    }
+
+    /// Secret used to sign outbound merchant webhook bodies.
+    pub fn merchant_webhook_signing_key(&self) -> &str {
+        self.merchant_webhook_secret
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .unwrap_or(self.gateway_api_key.as_str())
     }
 
     /// Build config for tests / in-process usage without reading the process env.
@@ -74,6 +88,7 @@ impl Config {
             resend_from: "Koodify <onboarding@resend.dev>".into(),
             va_bank_candidates: vec!["gtBank".into()],
             va_bank_sticky_secs: 600,
+            merchant_webhook_secret: None,
         }
     }
 

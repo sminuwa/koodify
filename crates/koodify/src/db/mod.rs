@@ -7,6 +7,7 @@ pub mod seed;
 pub mod split_plans;
 pub mod transactions;
 pub mod virtual_accounts;
+pub mod webhook_deliveries;
 pub mod zainboxes;
 
 use sqlx::postgres::PgPoolOptions;

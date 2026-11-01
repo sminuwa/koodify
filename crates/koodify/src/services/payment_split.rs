@@ -400,11 +400,16 @@ pub async fn assert_boxes_active(
 }
 
 /// Build a resolved plan from init body metadata + checkout fields.
+///
+/// When `browser_checkout` is true (open inline route), only server-side
+/// `splitPlanId` is accepted — ad-hoc `paymentSplit.shares` from the browser
+/// are rejected to prevent redirecting funds to attacker-controlled boxes.
 pub async fn plan_from_checkout(
     state: &AppState,
     primary_zainbox: &str,
     checkout_amount: &str,
     metadata: &Value,
+    browser_checkout: bool,
 ) -> Result<Option<ResolvedPlan>, SplitValidateError> {
     let plan_id = metadata
         .get("splitPlanId")
@@ -412,10 +417,24 @@ pub async fn plan_from_checkout(
         .map(str::trim)
         .filter(|s| !s.is_empty());
 
-    let inline = metadata.get("paymentSplit").cloned();
+    let inline_shares = metadata.get("paymentSplit").cloned();
+    let has_inline_shares = inline_shares
+        .as_ref()
+        .is_some_and(|v| !v.is_null());
 
-    if plan_id.is_none() && inline.as_ref().is_none_or(|v| v.is_null()) {
+    if plan_id.is_none() && !has_inline_shares {
         return Ok(None);
+    }
+
+    if browser_checkout && has_inline_shares && plan_id.is_none() {
+        return Err(SplitValidateError::msg(
+            "inline checkout requires splitPlanId — ad-hoc paymentSplit.shares are not allowed from the browser",
+        ));
+    }
+
+    if browser_checkout && has_inline_shares && plan_id.is_some() {
+        // Prefer the authenticated plan; ignore browser-supplied shares.
+        warn!("ignoring browser paymentSplit.shares because splitPlanId is set");
     }
 
     let input = if let Some(id) = plan_id {
@@ -448,7 +467,8 @@ pub async fn plan_from_checkout(
             shares,
         }
     } else {
-        serde_json::from_value(inline.unwrap()).map_err(|e| {
+        // Authenticated / ApiKeyAuth path only — ad-hoc shares.
+        serde_json::from_value(inline_shares.unwrap()).map_err(|e| {
             SplitValidateError::msg(format!("invalid paymentSplit object: {e}"))
         })?
     };
@@ -502,11 +522,46 @@ pub async fn maybe_run_on_success(
         return;
     }
 
-    if let (Some(acct), Some(code)) = (deposit_account, deposit_bank_code) {
+    let acct = deposit_account
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .or_else(|| extract_deposit_account(response));
+    let bank = deposit_bank_code
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .or_else(|| extract_deposit_bank(response));
+
+    if let (Some(ref acct), Some(ref code)) = (&acct, &bank) {
         let _ = db::payment_splits::set_source(&state.pool, txn_ref, acct, code).await;
-    } else if let Some(acct) = deposit_account {
-        // Infer bank from Zainpay list later; store account early.
+    } else if let Some(ref acct) = acct {
+        // Infer bank from VA list during execute; store account early.
         let _ = db::payment_splits::set_source(&state.pool, txn_ref, acct, "").await;
+    }
+
+    // Soft underpayment guard: refuse to start if deposited amount is known and
+    // clearly below checkout (₦10 / 1000 kobo fee slop).
+    if let Some(deposited) = extract_deposited_kobo(response) {
+        if let Ok(Some(row)) = db::payment_splits::get(&state.pool, txn_ref).await {
+            const FEE_SLOP_KOBO: i64 = 1_000;
+            if row.status == "pending" && deposited + FEE_SLOP_KOBO < row.total_kobo {
+                warn!(
+                    txn_ref,
+                    deposited,
+                    expected = row.total_kobo,
+                    "payment split skipped — deposited amount below checkout"
+                );
+                let _ = db::payment_splits::mark_finished(
+                    &state.pool,
+                    txn_ref,
+                    "failed",
+                    Some("deposited amount below checkout total"),
+                )
+                .await;
+                return;
+            }
+        }
     }
 
     let claimed = match db::payment_splits::claim_pending(&state.pool, txn_ref).await {
@@ -526,7 +581,7 @@ pub async fn maybe_run_on_success(
         "payment split claimed — executing legs"
     );
 
-    if let Err(err) = execute_split(state, &split).await {
+    if let Err(err) = execute_split(state, &split, false).await {
         warn!(error = %err, txn_ref, "payment split execution failed");
         let _ = db::payment_splits::mark_finished(
             &state.pool,
@@ -538,40 +593,70 @@ pub async fn maybe_run_on_success(
     }
 }
 
+/// True only when payment status is an explicit success string.
+/// Top-level API `code=00` alone is NOT payment success (Zainpay uses it for
+/// successful API calls while payment may still be pending).
 fn is_payment_success(response: &Value) -> bool {
-    let candidates = [
-        response.pointer("/data/paymentStatus"),
-        response.get("paymentStatus"),
-        response.pointer("/data/status"),
-        response.get("status"),
-        response.pointer("/data/txnStatus"),
-        response.pointer("/data/transactionStatus"),
-    ];
-    for c in candidates.into_iter().flatten() {
-        let status = match c {
-            Value::String(s) => s.to_ascii_lowercase(),
-            Value::Bool(true) => "success".into(),
-            _ => continue,
-        };
-        if matches!(
-            status.as_str(),
-            "success" | "successful" | "paid" | "completed" | "00"
-        ) {
-            return true;
-        }
-    }
-    // Some envelopes only set top-level code on verify-style payloads.
+    let status = response
+        .pointer("/data/paymentStatus")
+        .or_else(|| response.get("paymentStatus"))
+        .or_else(|| response.pointer("/data/status"))
+        .or_else(|| response.get("status"))
+        .or_else(|| response.pointer("/data/txnStatus"))
+        .or_else(|| response.pointer("/data/transactionStatus"))
+        .and_then(|v| match v {
+            Value::String(s) => Some(s.to_ascii_lowercase()),
+            Value::Bool(true) => Some("success".into()),
+            _ => None,
+        })
+        .unwrap_or_default();
+    matches!(
+        status.as_str(),
+        "success" | "successful" | "paid" | "completed"
+    )
+}
+
+fn extract_deposit_account(response: &Value) -> Option<String> {
     response
-        .get("code")
+        .pointer("/data/accountNumber")
+        .or_else(|| response.pointer("/data/bankAccount"))
+        .or_else(|| response.pointer("/data/recipientAccountNumber"))
         .and_then(|v| v.as_str())
-        .is_some_and(|c| c == "00")
-        && response
-            .pointer("/data/paymentStatus")
-            .or_else(|| response.pointer("/data/depositedAmount"))
-            .is_some()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+fn extract_deposit_bank(response: &Value) -> Option<String> {
+    response
+        .pointer("/data/bankCode")
+        .or_else(|| response.pointer("/data/beneficiaryBankCode"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+fn extract_deposited_kobo(response: &Value) -> Option<i64> {
+    let raw = response
+        .pointer("/data/depositedAmount")
+        .or_else(|| response.pointer("/data/amountPaid"))
+        .or_else(|| response.get("depositedAmount"))?;
+    // Zainpay amounts are naira (string or number).
+    if let Some(s) = raw.as_str() {
+        return naira_to_kobo(s.trim()).ok();
+    }
+    if let Some(f) = raw.as_f64() {
+        return Some((f * 100.0).round() as i64);
+    }
+    if let Some(n) = raw.as_i64() {
+        return Some(n.saturating_mul(100));
+    }
+    None
 }
 
 /// Admin / recovery: run (or retry) a split without waiting for another status poll.
+/// May use a funded-VA fallback when deposit source was never recorded.
 pub async fn force_run(
     state: &AppState,
     txn_ref: &str,
@@ -605,7 +690,7 @@ pub async fn force_run(
     };
 
     info!(txn_ref, "payment split force-run claimed");
-    if let Err(err) = execute_split(state, &split).await {
+    if let Err(err) = execute_split(state, &split, true).await {
         warn!(error = %err, txn_ref, "payment split force-run failed");
         let _ = db::payment_splits::mark_finished(
             &state.pool,
@@ -622,13 +707,17 @@ pub async fn force_run(
         .ok_or_else(|| "split disappeared after run".into())
 }
 
-async fn execute_split(state: &AppState, split: &db::payment_splits::PaymentSplit) -> Result<(), String> {
+async fn execute_split(
+    state: &AppState,
+    split: &db::payment_splits::PaymentSplit,
+    allow_source_fallback: bool,
+) -> Result<(), String> {
     let legs = db::payment_splits::list_legs(&state.pool, &split.txn_ref)
         .await
         .map_err(|e| e.to_string())?;
 
     let (source_account, source_bank) =
-        resolve_source(state, split).await.map_err(|e| e.clone())?;
+        resolve_source(state, split, allow_source_fallback).await?;
 
     let _ = db::payment_splits::set_source(
         &state.pool,
@@ -712,6 +801,31 @@ async fn execute_split(state: &AppState, split: &db::payment_splits::PaymentSpli
     Ok(())
 }
 
+fn stable_transfer_ref(txn_ref: &str, leg_index: i32) -> String {
+    format!("split_{}_{}", sanitize_ref(txn_ref), leg_index)
+}
+
+fn transfer_looks_paid(resp: &client::ApiResponse<Value>) -> bool {
+    if resp.is_success() || resp.code == client::types::codes::FUNDS_TRANSFER_QUEUED {
+        return true;
+    }
+    let status = resp
+        .data
+        .as_ref()
+        .and_then(|d| {
+            d.get("status")
+                .or_else(|| d.get("paymentStatus"))
+                .or_else(|| d.get("txnStatus"))
+        })
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    matches!(
+        status.as_str(),
+        "success" | "successful" | "paid" | "completed" | "queued"
+    )
+}
+
 async fn transfer_leg(
     state: &AppState,
     split: &db::payment_splits::PaymentSplit,
@@ -720,17 +834,80 @@ async fn transfer_leg(
     source_bank: &str,
 ) -> Result<(), String> {
     let dest = resolve_dest_isa(state, &leg.zainbox_code).await?;
+    let transfer_ref = leg
+        .transfer_txn_ref
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| stable_transfer_ref(&split.txn_ref, leg.leg_index));
+
+    // Idempotency: if we already submitted this ref, verify before re-sending.
+    if leg.transfer_txn_ref.as_deref().is_some_and(|s| !s.trim().is_empty()) {
+        match state.zainpay.transfers().verify(&transfer_ref).await {
+            Ok(resp) if transfer_looks_paid(&resp) => {
+                let payment_ref = resp
+                    .data
+                    .as_ref()
+                    .and_then(|d| d.get("paymentRef"))
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string);
+                let _ = db::payment_splits::update_leg_result(
+                    &state.pool,
+                    leg.id,
+                    "success",
+                    Some(&dest.account),
+                    Some(&dest.bank_code),
+                    Some(&transfer_ref),
+                    payment_ref.as_deref(),
+                    None,
+                )
+                .await;
+                info!(
+                    txn_ref = %split.txn_ref,
+                    leg = leg.leg_index,
+                    %transfer_ref,
+                    "split leg already paid — recovered via verify"
+                );
+                return Ok(());
+            }
+            Ok(_) => {
+                // Prior attempt recorded but not paid — do not mint a new ref.
+                warn!(
+                    txn_ref = %split.txn_ref,
+                    leg = leg.leg_index,
+                    %transfer_ref,
+                    "prior transfer_txn_ref not paid yet — retrying same ref"
+                );
+            }
+            Err(err) => {
+                warn!(
+                    txn_ref = %split.txn_ref,
+                    leg = leg.leg_index,
+                    %transfer_ref,
+                    error = %err,
+                    "verify prior transfer_txn_ref failed — retrying same ref"
+                );
+            }
+        }
+    } else {
+        // Persist stable ref before calling Zainpay so a crash mid-flight is recoverable.
+        let _ = db::payment_splits::update_leg_result(
+            &state.pool,
+            leg.id,
+            "submitting",
+            Some(&dest.account),
+            Some(&dest.bank_code),
+            Some(&transfer_ref),
+            None,
+            None,
+        )
+        .await;
+    }
+
     let mut last_err = String::from("transfer failed");
 
     for attempt in 1..=MAX_TRANSFER_ATTEMPTS {
-        let transfer_ref = format!(
-            "split_{}_{}_{}_{}",
-            sanitize_ref(&split.txn_ref),
-            leg.leg_index,
-            attempt,
-            chrono::Utc::now().timestamp_millis() % 1_000_000
-        );
-
         let req = FundsTransferRequest {
             destination_account_number: dest.account.clone(),
             destination_bank_code: dest.bank_code.clone(),
@@ -750,7 +927,6 @@ async fn transfer_leg(
             Ok(resp)
                 if resp.is_success() || resp.code == client::types::codes::FUNDS_TRANSFER_QUEUED =>
             {
-                // Queued (21) is acceptable for async transfers; verify best-effort.
                 let payment_ref = resp
                     .data
                     .as_ref()
@@ -778,11 +954,38 @@ async fn transfer_leg(
                     leg = leg.leg_index,
                     dest = %leg.zainbox_code,
                     amount_kobo = leg.amount_kobo,
+                    %transfer_ref,
                     "split leg transferred"
                 );
                 return Ok(());
             }
             Ok(resp) => {
+                // Duplicate / already-processed refs — verify and treat as success.
+                if resp.code == "04" || resp.description.to_ascii_lowercase().contains("duplicate")
+                {
+                    if let Ok(v) = state.zainpay.transfers().verify(&transfer_ref).await {
+                        if transfer_looks_paid(&v) {
+                            let payment_ref = v
+                                .data
+                                .as_ref()
+                                .and_then(|d| d.get("paymentRef"))
+                                .and_then(|x| x.as_str())
+                                .map(str::to_string);
+                            let _ = db::payment_splits::update_leg_result(
+                                &state.pool,
+                                leg.id,
+                                "success",
+                                Some(&dest.account),
+                                Some(&dest.bank_code),
+                                Some(&transfer_ref),
+                                payment_ref.as_deref(),
+                                None,
+                            )
+                            .await;
+                            return Ok(());
+                        }
+                    }
+                }
                 last_err = format!(
                     "transfer rejected code={} desc={}",
                     resp.code, resp.description
@@ -814,7 +1017,7 @@ async fn transfer_leg(
         "failed",
         Some(&dest.account),
         Some(&dest.bank_code),
-        None,
+        Some(&transfer_ref),
         None,
         Some(&last_err),
     )
@@ -868,6 +1071,7 @@ async fn resolve_dest_isa(state: &AppState, zainbox_code: &str) -> Result<DestAc
 async fn resolve_source(
     state: &AppState,
     split: &db::payment_splits::PaymentSplit,
+    allow_fallback: bool,
 ) -> Result<(String, String), String> {
     if let (Some(acct), Some(code)) = (
         split.source_account.as_deref().map(str::trim).filter(|s| !s.is_empty()),
@@ -886,20 +1090,34 @@ async fn resolve_source(
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        // Have account without bank — look up from VA list.
+        // Have account without bank — look up from VA list for that exact account.
         if let Ok(Some(code)) = lookup_bank_code(state, &split.primary_zainbox, acct).await {
             return Ok((acct.to_string(), code));
         }
+        return Err(format!(
+            "deposit source account `{acct}` known but bank code could not be resolved"
+        ));
     }
 
-    // Prefer a funded deposit VA on the primary box.
+    if !allow_fallback {
+        return Err(
+            "deposit source unknown — wait for webhook with accountNumber or force-run after source is set"
+                .into(),
+        );
+    }
+
+    // Admin force-run only: last-resort funded VA / ISA on the primary box.
+    warn!(
+        txn_ref = %split.txn_ref,
+        primary = %split.primary_zainbox,
+        "force-run using funded-source fallback — prefer webhook-pinned deposit account"
+    );
     if let Ok(Some(pair)) =
         pick_funded_source(state, &split.primary_zainbox, split.total_kobo).await
     {
         return Ok(pair);
     }
 
-    // Fallback: primary ISA.
     let isa = resolve_dest_isa(state, &split.primary_zainbox).await?;
     Ok((isa.account, isa.bank_code))
 }
@@ -1182,5 +1400,57 @@ mod tests {
         assert!(body.get("splitPlanId").is_none());
         assert!(metadata.get("paymentSplit").is_some());
         assert_eq!(metadata.get("splitPlanId").and_then(|v| v.as_str()), Some("plan_1"));
+    }
+
+    #[test]
+    fn is_payment_success_requires_explicit_status() {
+        // API code 00 alone (or with pending + depositedAmount) is NOT paid.
+        assert!(!is_payment_success(&json!({
+            "code": "00",
+            "data": { "paymentStatus": "pending", "depositedAmount": "0" }
+        })));
+        assert!(!is_payment_success(&json!({
+            "code": "00",
+            "data": { "depositedAmount": "1000" }
+        })));
+        assert!(!is_payment_success(&json!({
+            "code": "00",
+            "description": "success"
+        })));
+
+        assert!(is_payment_success(&json!({
+            "code": "00",
+            "data": { "paymentStatus": "success", "depositedAmount": "1000" }
+        })));
+        assert!(is_payment_success(&json!({
+            "data": { "paymentStatus": "Successful" }
+        })));
+        assert!(is_payment_success(&json!({
+            "data": { "paymentStatus": "paid" }
+        })));
+    }
+
+    #[test]
+    fn stable_transfer_ref_is_deterministic() {
+        assert_eq!(
+            stable_transfer_ref("ORDER_889", 1),
+            stable_transfer_ref("ORDER_889", 1)
+        );
+        assert_ne!(
+            stable_transfer_ref("ORDER_889", 1),
+            stable_transfer_ref("ORDER_889", 2)
+        );
+    }
+
+    #[test]
+    fn extract_deposited_kobo_parses_naira() {
+        assert_eq!(
+            extract_deposited_kobo(&json!({ "data": { "depositedAmount": "1000" } })),
+            Some(100_000)
+        );
+        assert_eq!(
+            extract_deposited_kobo(&json!({ "data": { "depositedAmount": 10.5 } })),
+            Some(1050)
+        );
     }
 }

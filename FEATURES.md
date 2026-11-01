@@ -1,7 +1,7 @@
 # Koodify features
 
 What Koodify adds on top of Zainpay — written so a non-engineer can skim it.
-Each feature has **what it is**, a short **example**, and a simple **process flow**.
+Each feature has **what it is**, a short **example**, a simple **process flow**, and (where useful) a **code** snippet for implementers.
 Technical how-tos live under `docs/`.
 
 ---
@@ -19,6 +19,27 @@ Technical how-tos live under `docs/`.
 3. Koodify creates a one-time virtual account and shows bank + account number + amount.
 4. Popup listens (about every 3 seconds) for the transfer; customer can also tap “Check status”.
 5. When paid → short success screen → callback returns result to the merchant site.
+
+```html
+<script src="https://js.koodify.ng/v1/koodify-inline.js"></script>
+<script>
+  koodifyInitPayment(
+    {
+      publicKey: "pk_live_…",
+      amount: "50000",
+      txnRef: "FEES_" + Date.now(),
+      mobileNumber: "08012345678",
+      emailAddress: "parent@example.com",
+      callBackUrl: "https://school.example/paid",
+      name: "Ada Lovelace",
+    },
+    function (response) {
+      // { status, reference, description, payer?, customParam? }
+      console.log(response.status, response.reference);
+    }
+  );
+</script>
+```
 
 Docs: [docs/inline-checkout.html](docs/inline-checkout.html) · Script: `https://js.koodify.ng/v1/koodify-inline.js`
 
@@ -77,6 +98,19 @@ VA_BANK_STICKY_SECS=600
 2. Popup → Zainpay hosts directly.
 3. Merchant must supply a bank type (defaults to `gtBank`); Koodify extras (receipts, smart routing) are skipped.
 
+```js
+// Default — omit auth / baseUrl in production
+koodifyInitPayment({ publicKey: "pk_live_…", /* … */ }, cb);
+
+// Direct Zainpay (no Koodify extras)
+koodifyInitPayment({
+  auth: "zainpay",
+  publicKey: "/* Zainpay merchant key */",
+  bankType: "gtBank",
+  /* … */
+}, cb);
+```
+
 ### Checkout UX extras
 **What it is:** Polish around the popup: logo, reused-reference errors, short success screen.
 
@@ -114,6 +148,20 @@ VA_BANK_STICKY_SECS=600
 3. Fields are not forwarded to Zainpay.
 4. Status, callback, and emails can include the same object again.
 
+```js
+koodifyInitPayment({
+  /* required fields… */
+  customParam: {
+    matric: "ND/12/2211",
+    session: "2026",
+    paymentType: "School Fees",
+  },
+}, function (response) {
+  // echoed on success when you sent it
+  console.log(response.customParam);
+});
+```
+
 ### Metadata on mutating calls
 **What it is:** General notes on API actions (customer IDs, store IDs). Saved by Koodify, not sent to Zainpay.
 
@@ -143,12 +191,12 @@ VA_BANK_STICKY_SECS=600
 **Example:** Checkout for ₦1,000 with shares `₦200` + `₦50` + `percent: 100` on primary → primary keeps ₦750; the other boxes receive ₦200 and ₦50 after payment succeeds.
 
 **Process flow:**
-1. Checkout sends `paymentSplit` or `splitPlanId` (gateway mode only).
-2. Koodify validates the plan (active zainboxes, math) and stores a pending run for that `txnRef`.
-3. Customer pays once into the primary box’s temporary account (same as normal checkout).
-4. On success (status poll or deposit webhook) → Koodify claims the run once, then transfers each secondary leg.
+1. Create a reusable plan under `ApiKeyAuth` (`PUT /api/v1/split-plans`), **or** send ad-hoc `paymentSplit` on the authenticated initialize route. Browser checkout (`koodifyInitPayment` / open inline) accepts **`splitPlanId` only**.
+2. Koodify validates the plan (active zainboxes, math) and stores a pending run for that `txnRef` (init fails closed if persist fails).
+3. Customer pays once into the primary box’s temporary account (same as normal checkout). Open checkout requires `publicKey`.
+4. On explicit payment success (status string `success`/`paid`/… — not API `code=00` alone) via webhook (preferred) or status poll → Koodify claims the run once, pins the deposit source account, then transfers each secondary leg with a stable idempotent `transfer_txn_ref`.
 5. Primary keep needs no transfer. Status / admin APIs show `data.paymentSplit` with per-leg results.
-6. Ops can force a pending/failed run: `POST /api/v1/payment-splits/{txnRef}` (secret `X-Api-Key`).
+6. Ops can force a pending/failed run: `POST /api/v1/payment-splits/{txnRef}` (secret `X-Api-Key`). Force-run may use a funded-VA fallback when source was never recorded.
 
 **Share rules:**
 | Field | Meaning |
@@ -157,32 +205,159 @@ VA_BANK_STICKY_SECS=600
 | `percent` | Share of **whatever remains** after fixed amounts (must total **100%** of that remainder). Use `percent: 100` on primary to keep the rest |
 | Either `amount` **or** `percent` per leg — not both |
 
-```js
-koodifyInitPayment({
-  publicKey: "pk_live_…",       // primary / collector box
-  amount: "1000",
-  txnRef: "ORDER_889",
-  mobileNumber: "080…",
-  emailAddress: "payer@example.com",
-  callBackUrl: "https://…",
-  paymentSplit: {
-    shares: [
-      { zainboxCode: "tutor_box", amount: "200" },
-      { zainboxCode: "agent_box", amount: "50" },
-      { zainboxCode: "main_box", percent: 100 }, // remainder → ₦750
-    ],
-  },
-  // or: splitPlanId: "split_school_fees_v1",
-});
-```
-
 **Requirements / limits:**
 - Gateway mode only (`auth: "gateway"`). Direct Zainpay popup does not run splits.
 - **Primary (collector) zainbox must have auto settlement OFF.** If settlement is enabled, Zainpay returns `code=04` (*Funds Transfer is Disabled for Auto Settlement Enabled Zainbox*). Disable via `POST /zainbox/settlement` with `"status": false` (boolean). Secondaries may keep T1/T7 settlement.
 - Recommended layout: collector box (settlement off) → split → secondary boxes (settlement on if desired).
 - All `zainboxCode`s must exist and be **active** in Koodify’s zainboxes cache (seed/sync).
 - Max 10 shares; no duplicate destinations; invalid plan → checkout init rejected.
-- Deposit fees (if any) are not auto-deducted from secondary legs; primary absorbs fee variance in v1.
+- Deposit fees (if any) are not auto-deducted from secondary legs; primary absorbs fee variance in v1 (underpayment > ₦10 vs checkout refuses the split).
+- Auto-run requires a pinned deposit source (webhook/status `accountNumber`); it will not debit an arbitrary funded VA on the primary box.
+
+#### Code — authenticated ad-hoc shares (ApiKeyAuth)
+
+```bash
+curl -X POST "https://api.koodify.ng/zainbox/card/initialize/payment" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: $GATEWAY_API_KEY" \
+  -d '{
+    "zainboxCode": "main_box",
+    "amount": "1000",
+    "txnRef": "ORDER_889",
+    "mobileNumber": "08012345678",
+    "emailAddress": "payer@example.com",
+    "callBackUrl": "https://merchant.example/paid",
+    "paymentSplit": {
+      "shares": [
+        { "zainboxCode": "tutor_box", "amount": "200" },
+        { "zainboxCode": "agent_box", "amount": "50" },
+        { "zainboxCode": "main_box", "percent": 100 }
+      ]
+    }
+  }'
+```
+
+Percent-only example (70 / 20 / 10 of the full deposit):
+
+```json
+"paymentSplit": {
+  "shares": [
+    { "zainboxCode": "main_box", "percent": 70 },
+    { "zainboxCode": "tutor_box", "percent": 20 },
+    { "zainboxCode": "agent_box", "percent": 10 }
+  ]
+}
+```
+
+#### Code — disable auto-settlement on the collector
+
+```bash
+curl -X POST "https://api.koodify.ng/zainbox/settlement" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: $GATEWAY_API_KEY" \
+  -d '{
+    "name": "Collector — settlement off",
+    "scheduleType": "T1",
+    "schedulePeriod": "1",
+    "zainboxCode": "main_box",
+    "status": false,
+    "settlementAccountList": [
+      {
+        "bankCode": "000",
+        "accountNumber": "0123456789",
+        "percentage": "100"
+      }
+    ]
+  }'
+```
+
+(`status` must be the JSON boolean `false`, not the string `"false"`.)
+
+#### Code — reusable plan + checkout by id
+
+```bash
+curl -X PUT "https://api.koodify.ng/api/v1/split-plans" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: $GATEWAY_API_KEY" \
+  -d '{
+    "id": "split_school_fees_v1",
+    "name": "School fees — tutor + agent",
+    "primaryZainbox": "main_box",
+    "isActive": true,
+    "shares": [
+      { "zainboxCode": "tutor_box", "amount": "200" },
+      { "zainboxCode": "agent_box", "amount": "50" },
+      { "zainboxCode": "main_box", "percent": 100 }
+    ]
+  }'
+```
+
+```js
+koodifyInitPayment({
+  publicKey: "pk_live_…",
+  amount: "1000",
+  txnRef: "ORDER_890",
+  mobileNumber: "08012345678",
+  emailAddress: "payer@example.com",
+  callBackUrl: "https://merchant.example/paid",
+  splitPlanId: "split_school_fees_v1",
+}, cb);
+```
+
+#### Code — status / force-run
+
+Payment status (and admin GET) include `data.paymentSplit` after the run is stored:
+
+```json
+{
+  "code": "00",
+  "data": {
+    "paymentSplit": {
+      "txnRef": "ORDER_889",
+      "primaryZainbox": "main_box",
+      "checkoutAmount": "1000",
+      "status": "success",
+      "legs": [
+        {
+          "index": 0,
+          "zainboxCode": "tutor_box",
+          "role": "transfer",
+          "amountKobo": 20000,
+          "amount": "200",
+          "status": "success"
+        },
+        {
+          "index": 1,
+          "zainboxCode": "agent_box",
+          "role": "transfer",
+          "amountKobo": 5000,
+          "amount": "50",
+          "status": "success"
+        },
+        {
+          "index": 2,
+          "zainboxCode": "main_box",
+          "role": "keep",
+          "amountKobo": 75000,
+          "percent": 100,
+          "status": "success"
+        }
+      ]
+    }
+  }
+}
+```
+
+```bash
+# Inspect run
+curl "https://api.koodify.ng/api/v1/payment-splits/ORDER_889" \
+  -H "X-Api-Key: $GATEWAY_API_KEY"
+
+# Force-run pending / retry failed or partial
+curl -X POST "https://api.koodify.ng/api/v1/payment-splits/ORDER_889" \
+  -H "X-Api-Key: $GATEWAY_API_KEY"
+# alias: POST …/payment-splits/ORDER_889/run
+```
 
 **Admin / ops APIs** (secret `X-Api-Key` = `GATEWAY_API_KEY`):
 
@@ -213,6 +388,11 @@ koodifyInitPayment({
 4. Renders receipt HTML and sends via Resend.
 5. If no Resend key or no payer email → skip quietly.
 
+```env
+RESEND_API_KEY=re_…
+RESEND_FROM=Koodify <receipts@yourdomain.com>
+```
+
 ### Merchant notice email
 **What it is:** Same success can email the *business* (zainbox notification address) that money arrived.
 
@@ -223,6 +403,50 @@ koodifyInitPayment({
 2. Separate once-per-txn claim for merchant notice.
 3. Resolve zainbox → read `email_notification`.
 4. If missing → skip; if present → send merchant template with payer + settlement details.
+
+### Merchant outbound webhook (`callBackUrl`)
+**What it is:** On payment success, Koodify POSTs a signed JSON payload to the merchant’s server URL — even if the browser tab closed and the JS callback never ran.
+
+**Example:** Parent pays and closes the phone; the school backend still gets `payment.success` and marks fees paid.
+
+**Process flow:**
+1. Checkout stores `callBackUrl` on init (required by the inline widget). Fallback: zainbox `callback_url` from seed.
+2. Success trigger (status poll *or* inbound deposit webhook) → same path as receipts / split.
+3. Koodify claims once per `txnRef` (`metadata.merchantWebhookSent`).
+4. Builds JSON (`event`, `status`, `reference`, `amount`, `payer`, `customParam`, `paymentSplit` when present).
+5. POSTs with `X-Koodify-Signature` = hex HMAC-SHA256 of the raw body (same algorithm as inbound Zainpay webhooks).
+6. Up to 3 attempts with short backoff; non-2xx is logged. Signing secret: `MERCHANT_WEBHOOK_SECRET`, else `GATEWAY_API_KEY`.
+
+```js
+// Checkout — callBackUrl must be an absolute http(s) endpoint that accepts POST
+koodifyInitPayment({
+  /* … */
+  callBackUrl: "https://school.example/webhooks/koodify",
+}, browserCb); // browserCb still fires when the tab stays open
+```
+
+```bash
+# Merchant verifies (pseudo)
+# signature = HMAC_SHA256_hex(MERCHANT_WEBHOOK_SECRET or GATEWAY_API_KEY, raw_body)
+# compare to header X-Koodify-Signature
+```
+
+```json
+{
+  "event": "payment.success",
+  "status": "success",
+  "reference": "ORDER_889",
+  "description": "Payment was successful",
+  "amount": "1000",
+  "currencyCode": "NGN",
+  "zainboxCode": "main_box",
+  "payer": { "email": "parent@example.com", "phone": "080…" },
+  "customParam": { "matric": "ND/12/2211" },
+  "paymentSplit": { "status": "success", "legs": [] }
+}
+```
+
+**Notes:** Use a real API route, not a marketing page URL. The browser JS callback and this HTTP POST are independent. Direct Zainpay popup mode does not get this delivery.
 
 ### Branded templates
 **What it is:** Ready-made email layouts (logo, amount panel, details) for payer and merchant.
@@ -262,6 +486,13 @@ Live: [https://api.koodify.ng](https://api.koodify.ng)
 3. SDK sends HTTP, parses the standard envelope (`code` / `data`).
 4. Caller handles success or error.
 
+```rust
+use client::{Environment, ZainpayClient};
+
+let zainpay = ZainpayClient::new(Environment::Sandbox, api_key);
+let banks = zainpay.bank().list().await?;
+```
+
 ### Composite endpoints
 **What it is:** One Koodify request that runs two Zainpay calls and returns one combined answer.
 
@@ -273,6 +504,11 @@ Docs: [docs/composite-endpoints.html](docs/composite-endpoints.html)
 2. Koodify calls Zainpay endpoint A, then endpoint B.
 3. Results are merged into one JSON response.
 4. Client renders a dashboard from a single round-trip.
+
+```bash
+curl "https://api.koodify.ng/api/v1/zainbox/main_box" \
+  -H "X-Api-Key: $GATEWAY_API_KEY"
+```
 
 ### Inbound webhooks
 **What it is:** Zainpay pings Koodify when a deposit lands. Koodify verifies the signature, stores the event, and can email receipts.
@@ -379,6 +615,12 @@ Docs: [docs/composite-endpoints.html](docs/composite-endpoints.html)
 5. Create/update one customer per box + test/live credentials.
 6. Print public keys for merchants to embed.
 
+```bash
+export DATABASE_URL=postgres://…
+export ZAINPAY_API_KEY=…
+cargo run -p koodify --example seed
+```
+
 ### Migrations
 **What it is:** Ordered database schema updates.
 
@@ -432,10 +674,11 @@ Automated checks for the Rust client and gateway logic.
 | Feature | When it turns on |
 |---------|------------------|
 | Receipt & merchant emails | You set a Resend API key |
+| Merchant outbound webhook | Checkout `callBackUrl` (or zainbox `callback_url`) is an absolute http(s) URL; signed with `MERCHANT_WEBHOOK_SECRET` or `GATEWAY_API_KEY` |
 | Inbound webhooks | You set the Zainpay webhook secret |
 | Multi-bank Adaptive Bank/DVA Routing | You list more than one bank in `VA_BANK_CANDIDATES` |
 | Custom params / payer name / metadata | You send those fields in the request |
 | Merchant email destination | The zainbox has an `email_notification` address |
 | Direct Zainpay popup mode | You set `auth: "zainpay"` and supply an API key |
 | Live-test local server port | Optional `LIVE_TEST_PORT` |
-| Zainbox Payment Split | Gateway checkout includes `paymentSplit` or `splitPlanId`; primary settlement must be off |
+| Zainbox Payment Split | Gateway: `splitPlanId` on open checkout, or `paymentSplit`/`splitPlanId` on ApiKeyAuth init; primary settlement must be off |

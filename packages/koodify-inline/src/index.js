@@ -16,7 +16,7 @@ const REQUIRED = [
   "callBackUrl",
 ];
 
-/** Publishable key (preferred) or legacy zainboxCode during migration. */
+/** Publishable merchant key required for gateway checkout. */
 function resolvePublicKey(config) {
   const pk =
     config?.publicKey ??
@@ -24,8 +24,6 @@ function resolvePublicKey(config) {
     config?.koodifyKey ??
     "";
   if (pk != null && String(pk).trim() !== "") return String(pk).trim();
-  const legacy = config?.zainboxCode ?? config?.zainbox_code ?? "";
-  if (legacy != null && String(legacy).trim() !== "") return String(legacy).trim();
   return "";
 }
 
@@ -201,11 +199,8 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
           allowRecurringPayment: !!paymentConfig.allowRecurringPayment,
         };
         if (useGateway) {
-          // Koodify resolves publicKey → zainbox server-side.
+          // Koodify resolves publicKey → zainbox server-side (zainboxCode alone is rejected).
           payload.publicKey = publicKey;
-          if (paymentConfig.zainboxCode) {
-            payload.zainboxCode = paymentConfig.zainboxCode;
-          }
         } else {
           // Direct Zainpay still needs the real zainbox code.
           payload.zainboxCode =
@@ -214,11 +209,9 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
         if (paymentConfig.name) payload.name = paymentConfig.name;
         if (paymentConfig.payer) payload.payer = paymentConfig.payer;
         if (customParam) payload.customParam = customParam;
-        // Zainbox Payment Split — gateway-only; stripped server-side before Zainpay.
+        // Zainbox Payment Split — gateway-only; open checkout accepts splitPlanId only
+        // (ad-hoc paymentSplit.shares must be created server-side via ApiKeyAuth).
         if (useGateway) {
-          if (paymentConfig.paymentSplit && typeof paymentConfig.paymentSplit === "object") {
-            payload.paymentSplit = paymentConfig.paymentSplit;
-          }
           const planId =
             paymentConfig.splitPlanId || paymentConfig.split_plan_id;
           if (planId != null && String(planId).trim() !== "") {

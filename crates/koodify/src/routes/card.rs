@@ -9,7 +9,7 @@ use tracing::warn;
 use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
-use crate::services::{payer, payment_split, proxy, receipt};
+use crate::services::{merchant_webhook, payer, payment_split, proxy, receipt};
 use crate::state::AppState;
 
 fn take_str_field(body: &mut Value, keys: &[&str]) -> Option<String> {
@@ -26,61 +26,40 @@ fn take_str_field(body: &mut Value, keys: &[&str]) -> Option<String> {
 
 /// Resolve merchant from publishable `publicKey` → active zainbox.
 /// Injects `zainboxCode` for Zainpay and strips browser-only fields.
-/// Legacy: bare `zainboxCode` still accepted during migration.
+/// Open checkout requires `publicKey` (bare `zainboxCode` is rejected).
 async fn resolve_checkout_merchant(
     pool: &sqlx::PgPool,
     body: &mut Value,
 ) -> Result<String, (StatusCode, String)> {
     let public_key = take_str_field(body, &["publicKey", "public_key"]);
-    let legacy_code = body
-        .get("zainboxCode")
-        .or_else(|| body.get("zainbox_code"))
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
 
-    let zainbox = if let Some(pk) = public_key {
-        match db::zainboxes::get_by_public_key(pool, &pk).await {
-            Ok(Some(z)) => z,
-            Ok(None) => {
-                return Err((
-                    StatusCode::UNAUTHORIZED,
-                    "invalid or unknown publicKey".into(),
-                ));
-            }
-            Err(err) => {
-                warn!(error = %err, "publicKey lookup failed");
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "failed to verify publicKey".into(),
-                ));
-            }
+    let Some(pk) = public_key else {
+        // Strip legacy code so it cannot be forwarded as a silent identity.
+        if let Some(obj) = body.as_object_mut() {
+            obj.remove("zainboxCode");
+            obj.remove("zainbox_code");
         }
-    } else if let Some(code) = legacy_code {
-        match db::zainboxes::get_by_code(pool, &code).await {
-            Ok(Some(z)) => z,
-            Ok(None) => {
-                return Err((
-                    StatusCode::NOT_FOUND,
-                    format!(
-                        "unknown zainboxCode `{code}` — prefer publicKey from the seeder"
-                    ),
-                ));
-            }
-            Err(err) => {
-                warn!(error = %err, "zainbox lookup failed");
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "failed to verify zainboxCode".into(),
-                ));
-            }
-        }
-    } else {
         return Err((
             StatusCode::BAD_REQUEST,
             "publicKey is required for checkout".into(),
         ));
+    };
+
+    let zainbox = match db::zainboxes::get_by_public_key(pool, &pk).await {
+        Ok(Some(z)) => z,
+        Ok(None) => {
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                "invalid or unknown publicKey".into(),
+            ));
+        }
+        Err(err) => {
+            warn!(error = %err, "publicKey lookup failed");
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to verify publicKey".into(),
+            ));
+        }
     };
 
     if !zainbox.is_active {
@@ -171,6 +150,7 @@ async fn initialize_with_optional_split(
         &primary_zainbox,
         &amount,
         &metadata,
+        inline,
     )
     .await
     {
@@ -212,12 +192,19 @@ async fn initialize_with_optional_split(
     .map_err(map_upstream)?;
 
     if let Some(plan) = plan {
-        if !txn_ref.is_empty() {
-            if let Err(err) =
-                payment_split::persist_pending(&state.pool, &txn_ref, &plan).await
-            {
-                warn!(error = %err, %txn_ref, "failed to persist payment split plan");
-            }
+        if txn_ref.is_empty() {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "txnRef is required when paymentSplit / splitPlanId is set".into(),
+            ));
+        }
+        if let Err(err) = payment_split::persist_pending(&state.pool, &txn_ref, &plan).await
+        {
+            warn!(error = %err, %txn_ref, "failed to persist payment split plan");
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "payment initialized upstream but failed to store payment split plan — retry or contact support".into(),
+            ));
         }
         let response =
             payment_split::enrich_response(&state.pool, &txn_ref, response).await;
@@ -357,7 +344,24 @@ pub async fn temporary_virtual_account_payment_status(
         .map_err(map_upstream)?;
     let enriched = payer::enrich_response_from_db(&state.pool, &q.txn_ref, response).await;
     receipt::maybe_send_on_success(&state, &q.txn_ref, &enriched).await;
-    payment_split::maybe_run_on_success(&state, &q.txn_ref, &enriched, None, None).await;
+    let deposit_account = enriched
+        .pointer("/data/accountNumber")
+        .or_else(|| enriched.pointer("/data/bankAccount"))
+        .and_then(|v| v.as_str());
+    let deposit_bank = enriched
+        .pointer("/data/bankCode")
+        .or_else(|| enriched.pointer("/data/beneficiaryBankCode"))
+        .and_then(|v| v.as_str());
+    payment_split::maybe_run_on_success(
+        &state,
+        &q.txn_ref,
+        &enriched,
+        deposit_account,
+        deposit_bank,
+    )
+    .await;
     let enriched = payment_split::enrich_response(&state.pool, &q.txn_ref, enriched).await;
+    // After split enrichment so payload can include paymentSplit summary.
+    merchant_webhook::maybe_deliver_on_success(&state, &q.txn_ref, &enriched).await;
     Ok(Json(enriched))
 }

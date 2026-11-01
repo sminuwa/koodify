@@ -171,13 +171,13 @@ pub async fn claim_for_run(
 
     if split.is_some() && allow_retry {
         // Re-queue transfer legs that did not succeed; keep successful ones.
+        // Preserve transfer_txn_ref / payment_ref so retries verify the same
+        // idempotency key instead of minting a new one (avoids double-pay).
         sqlx::query(
             r#"
             UPDATE payment_split_legs
             SET status = 'pending',
                 error = NULL,
-                transfer_txn_ref = NULL,
-                payment_ref = NULL,
                 updated_at = now()
             WHERE txn_ref = $1
               AND role = 'transfer'

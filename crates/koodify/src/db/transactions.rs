@@ -142,3 +142,8 @@ pub async fn claim_receipt_email(pool: &PgPool, resource_key: &str) -> Result<bo
 pub async fn claim_merchant_notice(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
     claim_metadata_flag(pool, resource_key, "merchantNoticeSent").await
 }
+
+/// Outbound merchant HTTP webhook — once per txn.
+pub async fn claim_merchant_webhook(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
+    claim_metadata_flag(pool, resource_key, "merchantWebhookSent").await
+}

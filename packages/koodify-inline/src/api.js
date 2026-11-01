@@ -47,11 +47,11 @@ export function buildAuthHeaders(config, apiKey) {
   const key = String(apiKey || "").trim();
   if (!key) return headers;
 
+  // Gateway checkout is publicKey-based — never put a secret in the browser.
   if (isGatewayCheckout(config)) {
-    headers["X-Api-Key"] = key;
-  } else {
-    headers.Authorization = `Bearer ${key}`;
+    return headers;
   }
+  headers.Authorization = `Bearer ${key}`;
   return headers;
 }
 

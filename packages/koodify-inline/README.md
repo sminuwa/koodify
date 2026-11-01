@@ -38,15 +38,8 @@ koodifyInitPayment(
     },
 
     // optional — Zainbox Payment Split (gateway mode only)
-    // Fixed amounts first; percent is of the remainder (use 100 on primary to keep the rest).
-    // paymentSplit: {
-    //   shares: [
-    //     { zainboxCode: "tutor_box", amount: "200" },
-    //     { zainboxCode: "agent_box", amount: "50" },
-    //     { zainboxCode: "main_box", percent: 100 },
-    //   ],
-    // },
-    // or: splitPlanId: "split_school_fees_v1",
+    // Create the plan server-side (PUT /api/v1/split-plans), then pass its id:
+    // splitPlanId: "split_school_fees_v1",
 
     // optional
     currencyCode: "NGN",
@@ -72,10 +65,10 @@ koodifyInitPayment(
 | `mobileNumber` | yes | → stored `payer.phone` |
 | `emailAddress` | yes | → stored `payer.email` |
 | `publicKey` | yes | Publishable `pk_live_…`; tied to zainbox in Koodify DB |
-| `callBackUrl` | yes | Merchant webhook / return URL |
+| `callBackUrl` | yes | Absolute `https://…` server endpoint. On success Koodify POSTs a signed `payment.success` JSON body (see `FEATURES.md`). Also kept for Zainpay init. Browser `cb` still runs if the tab stays open. |
 | `name` / `payer.name` | no | Koodify-only; merged into `payer` |
 | `customParam` | **no** | Optional. Arbitrary merchant fields; omit if unused. Alias `customParams` |
-| `paymentSplit` / `splitPlanId` | no | Live. After deposit, redistribute to secondary zainboxes (`amount` + remainder `percent`). Gateway only; primary settlement must be off. See `FEATURES.md` |
+| `splitPlanId` | no | Live. After deposit, redistribute using a server-side plan (`PUT /api/v1/split-plans`). Open checkout rejects ad-hoc `paymentSplit.shares`. Gateway only; primary settlement must be off. See `FEATURES.md` |
 | `auth` | no | Defaults to `"gateway"`. Use `"zainpay"` only for direct Zainpay |
 | `baseUrl` | no | Defaults to `https://api.koodify.ng`. Override for local/proxy only |
 
