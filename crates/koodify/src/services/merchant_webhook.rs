@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use tracing::{info, warn};
 
 use crate::db;
+use crate::services::activity::{self, SuccessSource};
 use crate::services::payer;
 use crate::state::AppState;
 
@@ -186,7 +187,12 @@ async fn post_signed(
 }
 
 /// Deliver a signed POST to the merchant callback once payment is confirmed.
-pub async fn maybe_deliver_on_success(state: &AppState, txn_ref: &str, response: &Value) {
+pub async fn maybe_deliver_on_success(
+    state: &AppState,
+    txn_ref: &str,
+    response: &Value,
+    source: SuccessSource,
+) {
     if !payment_status_success(response) {
         return;
     }
@@ -199,13 +205,38 @@ pub async fn maybe_deliver_on_success(state: &AppState, txn_ref: &str, response:
         }
     };
 
+    let zainbox_code = records.iter().find_map(|r| r.zainbox_code.as_deref());
+    let src = source.as_str();
+
     let Some(url) = resolve_callback_url(state, txn_ref, &records).await else {
+        activity::record(
+            state,
+            "merchant.webhook.skipped",
+            src,
+            Some(txn_ref),
+            zainbox_code,
+            format!("No merchant callBackUrl for {txn_ref} — outbound webhook skipped"),
+            json!({ "reason": "no_callback_url" }),
+        )
+        .await;
         return;
     };
 
     match db::transactions::claim_merchant_webhook(&state.pool, txn_ref).await {
         Ok(true) => {}
-        Ok(false) => return,
+        Ok(false) => {
+            activity::record(
+                state,
+                "merchant.webhook.duplicate",
+                src,
+                Some(txn_ref),
+                zainbox_code,
+                format!("Merchant webhook already claimed for {txn_ref}"),
+                json!({ "url": url }),
+            )
+            .await;
+            return;
+        }
         Err(err) => {
             warn!(error = %err, txn_ref, "failed to claim merchant webhook send");
             return;
@@ -217,12 +248,33 @@ pub async fn maybe_deliver_on_success(state: &AppState, txn_ref: &str, response:
         Ok(b) => b,
         Err(err) => {
             warn!(error = %err, txn_ref, "failed to serialize merchant webhook body");
+            activity::record(
+                state,
+                "merchant.webhook.failed",
+                src,
+                Some(txn_ref),
+                zainbox_code,
+                format!("Merchant webhook serialize failed for {txn_ref}"),
+                json!({ "url": url, "error": err.to_string() }),
+            )
+            .await;
             return;
         }
     };
 
     let secret = state.config.merchant_webhook_signing_key();
     let signature = sign_webhook_body(secret.as_bytes(), &body);
+
+    activity::record(
+        state,
+        "merchant.webhook.attempt",
+        src,
+        Some(txn_ref),
+        zainbox_code,
+        format!("Posting merchant webhook for {txn_ref}"),
+        json!({ "url": url, "bodyBytes": body.len() }),
+    )
+    .await;
 
     let mut last_err: Option<String> = None;
     for attempt in 1..=MAX_ATTEMPTS {
@@ -235,6 +287,20 @@ pub async fn maybe_deliver_on_success(state: &AppState, txn_ref: &str, response:
                     %status,
                     "merchant webhook delivered"
                 );
+                activity::record(
+                    state,
+                    "merchant.webhook.delivered",
+                    src,
+                    Some(txn_ref),
+                    zainbox_code,
+                    format!("Merchant webhook delivered for {txn_ref}"),
+                    json!({
+                        "url": url,
+                        "attempt": attempt,
+                        "httpStatus": status.as_u16(),
+                    }),
+                )
+                .await;
                 return;
             }
             Ok(status) => {
@@ -269,6 +335,20 @@ pub async fn maybe_deliver_on_success(state: &AppState, txn_ref: &str, response:
         error = last_err.as_deref().unwrap_or("unknown"),
         "merchant webhook exhausted retries — marked sent to avoid storm; clear metadata.merchantWebhookSent to retry"
     );
+    activity::record(
+        state,
+        "merchant.webhook.failed",
+        src,
+        Some(txn_ref),
+        zainbox_code,
+        format!("Merchant webhook failed for {txn_ref} after retries"),
+        json!({
+            "url": url,
+            "attempts": MAX_ATTEMPTS,
+            "error": last_err.unwrap_or_else(|| "unknown".into()),
+        }),
+    )
+    .await;
 }
 
 #[cfg(test)]

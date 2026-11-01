@@ -191,9 +191,10 @@ koodifyInitPayment({
 **Example:** Email arrived ~60s after pay with no `inbound.webhook.received` row → Path 2 only; Zainpay never knocked.
 
 **Process flow:**
-1. Inbound Zainpay POST → `inbound.webhook.received` (or `duplicate` / `rejected_signature`).
+1. Inbound Zainpay POST → `inbound.webhook.received` (or `duplicate` / `unconfirmed`).
 2. Success side effects → `payment.success.side_effects` with `source`: `zainpay_webhook` | `status_poll` | `reconciler`.
-3. Look up: `GET /api/v1/activity/{txnRef}` (secret `X-Api-Key`).
+3. Outbound merchant/customer POST → `merchant.webhook.attempt` then `delivered` / `failed` / `skipped` (URL + HTTP status in payload).
+4. Look up: `GET /api/v1/activity/{txnRef}` (secret `X-Api-Key`).
 
 ```bash
 curl "https://api.koodify.ng/api/v1/activity/LIVE_your_txn" \

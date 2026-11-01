@@ -78,7 +78,7 @@ pub async fn apply_side_effects(
     )
     .await;
     let enriched = payment_split::enrich_response(&state.pool, txn_ref, response.clone()).await;
-    merchant_webhook::maybe_deliver_on_success(state, txn_ref, &enriched).await;
+    merchant_webhook::maybe_deliver_on_success(state, txn_ref, &enriched, source).await;
 
     if let Err(err) = db::transactions::mark_payment_success_handled(&state.pool, txn_ref).await {
         warn!(error = %err, txn_ref, "failed to mark paymentSuccessHandled");
