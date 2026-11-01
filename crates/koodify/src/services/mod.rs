@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod bank_router;
 pub mod mail;
 pub mod merchant_webhook;

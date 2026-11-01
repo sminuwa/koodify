@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod bank;
 pub mod card;
 pub mod composite;
@@ -84,6 +85,11 @@ pub fn router() -> Router<AppState> {
         .route(
             "/api/v1/reconcile/pending",
             post(reconcile::run_pending),
+        )
+        .route("/api/v1/activity", get(activity::recent))
+        .route(
+            "/api/v1/activity/{txn_ref}",
+            get(activity::by_txn_ref),
         )
         // Local lookups
         .route(

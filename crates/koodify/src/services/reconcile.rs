@@ -11,6 +11,7 @@ use serde_json::Value;
 use tracing::{info, warn};
 
 use crate::db;
+use crate::services::activity::SuccessSource;
 use crate::services::{payer, payment_success};
 use crate::state::AppState;
 
@@ -102,6 +103,7 @@ pub async fn run_once(state: &AppState) -> ReconcileStats {
             &enriched,
             deposit_account,
             deposit_bank,
+            SuccessSource::Reconciler,
         )
         .await;
 
@@ -109,7 +111,7 @@ pub async fn run_once(state: &AppState) -> ReconcileStats {
         info!(
             txn_ref,
             zainbox = ?row.zainbox_code,
-            "reconcile: confirmed success — applied Koodify side effects"
+            "reconcile: confirmed success — applied Koodify side effects (Path 2)"
         );
     }
 

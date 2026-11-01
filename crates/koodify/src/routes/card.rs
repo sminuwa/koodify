@@ -9,6 +9,7 @@ use tracing::warn;
 use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
+use crate::services::activity::SuccessSource;
 use crate::services::{payer, payment_split, payment_success, proxy};
 use crate::state::AppState;
 
@@ -351,6 +352,7 @@ pub async fn temporary_virtual_account_payment_status(
         &enriched,
         deposit_account,
         deposit_bank,
+        SuccessSource::StatusPoll,
     )
     .await;
     Ok(Json(enriched))

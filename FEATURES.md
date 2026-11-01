@@ -185,6 +185,23 @@ koodifyInitPayment({
 3. Enrichment (payer, customParam, email-sent flags) lives in the same log.
 4. Ops queries by reference or zainbox to reconstruct the story.
 
+### Activity events (trigger audit)
+**What it is:** Append-only timeline that records *who* fired payment success — Zainpay webhook (Path 1), status poll, or reconciler (Path 2). Use this to confirm whether Zainpay is delivering webhooks.
+
+**Example:** Email arrived ~60s after pay with no `inbound.webhook.received` row → Path 2 only; Zainpay never knocked.
+
+**Process flow:**
+1. Inbound Zainpay POST → `inbound.webhook.received` (or `duplicate` / `rejected_signature`).
+2. Success side effects → `payment.success.side_effects` with `source`: `zainpay_webhook` | `status_poll` | `reconciler`.
+3. Look up: `GET /api/v1/activity/{txnRef}` (secret `X-Api-Key`).
+
+```bash
+curl "https://api.koodify.ng/api/v1/activity/LIVE_your_txn" \
+  -H "X-Api-Key: $GATEWAY_API_KEY"
+```
+
+**DB:** migration `017_activity_events.sql`.
+
 ### Zainbox Payment Split
 **What it is:** After the customer pays the full amount into one **primary** zainbox, Koodify redistributes value to **secondary** zainboxes. Merchants declare *zainbox codes + shares* (not external bank accounts). Moves are **internal** VA/ISA → ISA (typically free on Zainpay).
 
@@ -706,6 +723,7 @@ Automated checks for the Rust client and gateway logic.
 | Receipt & merchant emails | You set a Resend API key |
 | Merchant outbound webhook | Checkout `callBackUrl` (or zainbox `callback_url`) is an absolute http(s) URL; signed with `MERCHANT_WEBHOOK_SECRET` or `GATEWAY_API_KEY` |
 | Pending checkout reconciler | On by default (`RECONCILE_ENABLED`); disable with `false`. Force: `POST /api/v1/reconcile/pending` |
+| Activity events | Always on after migrate `017`; query `GET /api/v1/activity/{txnRef}` |
 | Inbound webhooks | You set the Zainpay webhook secret; point every zainbox webhook at Koodify `/webhooks/zainpay` |
 | Multi-bank Adaptive Bank/DVA Routing | You list more than one bank in `VA_BANK_CANDIDATES` |
 | Custom params / payer name / metadata | You send those fields in the request |

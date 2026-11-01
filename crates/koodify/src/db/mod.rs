@@ -1,3 +1,4 @@
+pub mod activity_events;
 pub mod credentials;
 pub mod customers;
 pub mod kyc;

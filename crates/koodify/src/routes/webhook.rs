@@ -10,6 +10,7 @@ use client::WebhookEventType;
 use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_upstream, JsonResult};
+use crate::services::activity::{self, SuccessSource};
 use crate::services::payment_success;
 use crate::state::AppState;
 
@@ -65,6 +66,16 @@ pub async fn inbound(
         .unwrap_or("");
 
     if !verify_webhook_signature(secret.as_bytes(), &body, signature) {
+        activity::record(
+            &state,
+            "inbound.webhook.rejected_signature",
+            SuccessSource::ZainpayWebhook.as_str(),
+            None,
+            None,
+            "Inbound Zainpay webhook rejected — invalid signature",
+            json!({ "bodyBytes": body.len() }),
+        )
+        .await;
         return Err((StatusCode::UNAUTHORIZED, "invalid Zainpay-Signature".into()));
     }
 
@@ -101,11 +112,35 @@ pub async fn inbound(
             event = %event_name,
             "duplicate webhook delivery — acknowledging without re-processing"
         );
+        activity::record(
+            &state,
+            "inbound.webhook.duplicate",
+            SuccessSource::ZainpayWebhook.as_str(),
+            resource_key.as_deref(),
+            event.data.zainbox_code.as_deref(),
+            format!("Duplicate Zainpay webhook ignored ({event_name})"),
+            json!({ "event": event_name, "deliveryHash": delivery_hash }),
+        )
+        .await;
         return Ok("OK");
     }
 
     let zainbox_code = event.data.zainbox_code.clone();
     let payload = serde_json::to_value(&event).unwrap_or(Value::Null);
+
+    activity::record(
+        &state,
+        "inbound.webhook.received",
+        SuccessSource::ZainpayWebhook.as_str(),
+        resource_key.as_deref(),
+        zainbox_code.as_deref(),
+        format!("Zainpay webhook received ({event_name})"),
+        json!({
+            "event": event_name,
+            "deliveryHash": delivery_hash,
+        }),
+    )
+    .await;
 
     if let Err(err) = db::transactions::insert(
         &state.pool,
@@ -177,6 +212,9 @@ pub async fn inbound(
             if let Some(b) = deposit_bank {
                 data.insert("bankCode".into(), json!(b));
             }
+            if let Some(code) = zainbox_code.as_deref() {
+                data.insert("zainboxCode".into(), json!(code));
+            }
 
             let synthetic = json!({ "data": data });
             payment_success::apply_side_effects(
@@ -185,6 +223,7 @@ pub async fn inbound(
                 &synthetic,
                 deposit_account,
                 deposit_bank,
+                SuccessSource::ZainpayWebhook,
             )
             .await;
         }
