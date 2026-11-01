@@ -575,11 +575,11 @@ curl -X POST "https://api.koodify.ng/api/v1/zainboxes/sync-webhook-callbacks" \
 ```
 
 **Process flow:**
-1. Zainpay POSTs to `/webhooks/zainpay` with a signature header.
-2. Koodify verifies HMAC using `ZAINPAY_WEBHOOK_SECRET` (required).
-3. Delivery is de-duped (`webhook_deliveries`) and persisted.
-4. On `deposit.success` → shared success side effects (not a raw forward of Zainpay’s body).
-5. Invalid signature → rejected.
+1. Zainpay POSTs plain JSON to open `POST /webhooks/zainpay` (no gateway API key, HMAC not required).
+2. Koodify de-dupes (`webhook_deliveries`), logs `inbound.webhook.received`, persists the event.
+3. Extracts `txnRef` → confirms payment with Zainpay (temp-VA status and/or deposit verify).
+4. If confirmed → shared success side effects (receipts / split / merchant POST).
+5. Always returns HTTP 200 for valid JSON so Zainpay stops retrying; Path 2 covers delayed confirms.
 
 **Note:** Zainbox `callbackUrl` on Zainpay is Path 1 (Koodify). Merchant delivery uses checkout `callBackUrl` (Path outbound) — do not point merchants at `/webhooks/zainpay`.
 
