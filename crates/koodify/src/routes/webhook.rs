@@ -60,40 +60,113 @@ fn candidate_secrets(state: &AppState) -> Vec<Vec<u8>> {
     out
 }
 
-async fn accept_via_upstream_verify(state: &AppState, body: &[u8]) -> bool {
-    let Ok(event) = serde_json::from_slice::<WebhookEvent>(body) else {
-        return false;
-    };
-    if event.event != WebhookEventType::DepositSuccess {
-        return false;
+fn first_str(v: &Value, keys: &[&str]) -> Option<String> {
+    for key in keys {
+        if let Some(s) = v
+            .get(*key)
+            .and_then(|x| x.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            return Some(s.to_string());
+        }
     }
-    let Some(txn_ref) = event.data.idempotency_key() else {
-        return false;
-    };
-    match state.zainpay.reconciliation().verify_deposit(txn_ref).await {
+    None
+}
+
+fn extract_txn_ref_loose(body: &[u8]) -> Result<(String, Value), String> {
+    let value: Value =
+        serde_json::from_slice(body).map_err(|e| format!("json_parse: {e}"))?;
+    let data = value.get("data").unwrap_or(&value);
+    let txn = first_str(
+        data,
+        &[
+            "txnRef",
+            "txn_ref",
+            "paymentRef",
+            "payment_ref",
+            "internalTxnRef",
+            "internal_txn_ref",
+        ],
+    )
+    .or_else(|| {
+        first_str(
+            &value,
+            &[
+                "txnRef",
+                "txn_ref",
+                "paymentRef",
+                "payment_ref",
+                "internalTxnRef",
+                "internal_txn_ref",
+            ],
+        )
+    })
+    .ok_or_else(|| "missing_txn_ref".to_string())?;
+    Ok((txn, value))
+}
+
+fn payment_status_success(response: &Value) -> bool {
+    let status = response
+        .pointer("/data/paymentStatus")
+        .or_else(|| response.get("paymentStatus"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    matches!(
+        status.as_str(),
+        "success" | "successful" | "paid" | "completed"
+    )
+}
+
+/// When HMAC fails, confirm the payment with Zainpay (same sources Path 2 uses).
+/// Returns `Ok(txn_ref)` when accepted, `Err(reason)` for activity diagnostics.
+async fn accept_via_upstream_verify(state: &AppState, body: &[u8]) -> Result<String, String> {
+    let (txn_ref, parsed) = extract_txn_ref_loose(body)?;
+    let event_name = parsed
+        .get("event")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // Temp-VA checkouts (LIVE_…) — same poll Path 2 uses.
+    match state
+        .zainpay
+        .cards()
+        .temporary_virtual_account_payment_status(&txn_ref)
+        .await
+    {
+        Ok(resp) => {
+            let value = serde_json::to_value(&resp).unwrap_or(Value::Null);
+            if resp.is_success() && payment_status_success(&value) {
+                tracing::warn!(
+                    %txn_ref,
+                    %event_name,
+                    "inbound webhook HMAC mismatch — accepted via temp-VA status poll"
+                );
+                return Ok(txn_ref);
+            }
+        }
+        Err(err) => {
+            tracing::debug!(%txn_ref, error = %err, "temp-VA status poll failed during webhook fallback");
+        }
+    }
+
+    // Generic deposit verify (permanent VA / wallet deposits).
+    match state.zainpay.reconciliation().verify_deposit(&txn_ref).await {
         Ok(resp) if resp.is_success() => {
             tracing::warn!(
                 %txn_ref,
-                "inbound webhook signature mismatch — accepted after Zainpay deposit verify"
+                %event_name,
+                "inbound webhook HMAC mismatch — accepted via deposit verify"
             );
-            true
+            Ok(txn_ref)
         }
-        Ok(resp) => {
-            tracing::warn!(
-                %txn_ref,
-                code = %resp.code,
-                "inbound webhook signature mismatch — upstream verify not success"
-            );
-            false
-        }
-        Err(err) => {
-            tracing::warn!(
-                %txn_ref,
-                error = %err,
-                "inbound webhook signature mismatch — upstream verify failed"
-            );
-            false
-        }
+        Ok(resp) => Err(format!(
+            "upstream_not_success code={} event={}",
+            resp.code, event_name
+        )),
+        Err(err) => Err(format!("upstream_error: {err}")),
     }
 }
 
@@ -123,48 +196,59 @@ pub async fn inbound(
 
     let mut auth_mode = "hmac";
     if !verify_webhook_signature_any(&secrets, &body, signature) {
-        if accept_via_upstream_verify(&state, &body).await {
-            auth_mode = "upstream_verify";
-            activity::record(
-                &state,
-                "inbound.webhook.accepted_upstream_verify",
-                SuccessSource::ZainpayWebhook.as_str(),
-                None,
-                None,
-                "Inbound Zainpay webhook accepted after upstream deposit verify (HMAC mismatch)",
-                {
-                    let mut meta = describe_signature_header(signature);
-                    if let Some(obj) = meta.as_object_mut() {
-                        obj.insert("bodyBytes".into(), json!(body.len()));
-                        obj.insert("secretCandidates".into(), json!(secrets.len()));
-                    }
-                    meta
-                },
-            )
-            .await;
-        } else {
-            activity::record(
-                &state,
-                "inbound.webhook.rejected_signature",
-                SuccessSource::ZainpayWebhook.as_str(),
-                None,
-                None,
-                "Inbound Zainpay webhook rejected — invalid signature",
-                {
-                    let mut meta = describe_signature_header(signature);
-                    if let Some(obj) = meta.as_object_mut() {
-                        obj.insert("bodyBytes".into(), json!(body.len()));
-                        obj.insert("secretCandidates".into(), json!(secrets.len()));
-                        obj.insert(
-                            "secretLens".into(),
-                            json!(secrets.iter().map(|s| s.len()).collect::<Vec<_>>()),
-                        );
-                    }
-                    meta
-                },
-            )
-            .await;
-            return Err((StatusCode::UNAUTHORIZED, "invalid Zainpay-Signature".into()));
+        match accept_via_upstream_verify(&state, &body).await {
+            Ok(txn_ref) => {
+                auth_mode = "upstream_verify";
+                activity::record(
+                    &state,
+                    "inbound.webhook.accepted_upstream_verify",
+                    SuccessSource::ZainpayWebhook.as_str(),
+                    Some(txn_ref.as_str()),
+                    None,
+                    "Inbound Zainpay webhook accepted after upstream verify (HMAC mismatch)",
+                    {
+                        let mut meta = describe_signature_header(signature);
+                        if let Some(obj) = meta.as_object_mut() {
+                            obj.insert("bodyBytes".into(), json!(body.len()));
+                            obj.insert("secretCandidates".into(), json!(secrets.len()));
+                            obj.insert("txnRef".into(), json!(txn_ref));
+                        }
+                        meta
+                    },
+                )
+                .await;
+            }
+            Err(reason) => {
+                let top_keys = serde_json::from_slice::<Value>(&body)
+                    .ok()
+                    .and_then(|v| v.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()));
+                activity::record(
+                    &state,
+                    "inbound.webhook.rejected_signature",
+                    SuccessSource::ZainpayWebhook.as_str(),
+                    None,
+                    None,
+                    "Inbound Zainpay webhook rejected — invalid signature",
+                    {
+                        let mut meta = describe_signature_header(signature);
+                        if let Some(obj) = meta.as_object_mut() {
+                            obj.insert("bodyBytes".into(), json!(body.len()));
+                            obj.insert("secretCandidates".into(), json!(secrets.len()));
+                            obj.insert(
+                                "secretLens".into(),
+                                json!(secrets.iter().map(|s| s.len()).collect::<Vec<_>>()),
+                            );
+                            obj.insert("fallbackFail".into(), json!(reason));
+                            if let Some(keys) = top_keys {
+                                obj.insert("bodyTopKeys".into(), json!(keys));
+                            }
+                        }
+                        meta
+                    },
+                )
+                .await;
+                return Err((StatusCode::UNAUTHORIZED, "invalid Zainpay-Signature".into()));
+            }
         }
     }
 

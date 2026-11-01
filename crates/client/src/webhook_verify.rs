@@ -79,6 +79,16 @@ fn verify_one_secret(secret: &[u8], raw_body: &[u8], signature_header: &str) -> 
         return true;
     }
 
+    // Observed Zainpay deliveries with 62-char hex (truncated SHA-256 HMAC).
+    // Accept a prefix match only when the provided hex is long enough (>= 48).
+    if received_hex.len() >= 48
+        && received_hex.len() < expected_hex.len()
+        && received_hex.bytes().all(|b| b.is_ascii_hexdigit())
+        && ct_eq_str(&expected_hex[..received_hex.len()], &received_hex)
+    {
+        return true;
+    }
+
     // Base64 (std + url-safe, with/without padding).
     let b64_std = {
         use base64::Engine;
@@ -183,5 +193,15 @@ mod tests {
         let bad: &[&[u8]] = &[b"wrong", b"also-wrong"];
         assert!(verify_webhook_signature_any(ok, body, &sig));
         assert!(!verify_webhook_signature_any(bad, body, &sig));
+    }
+
+    #[test]
+    fn accepts_truncated_hex_prefix() {
+        let body = br#"{"event":"deposit.success"}"#;
+        let secret = b"secret";
+        let full = sign_webhook_body(secret, body);
+        let truncated = &full[..62];
+        assert!(verify_webhook_signature(secret, body, truncated));
+        assert!(!verify_webhook_signature(secret, body, &full[..16]));
     }
 }
