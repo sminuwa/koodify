@@ -2,8 +2,8 @@
 /**
  * Demo merchant webhook for Koodify checkout `callBackUrl`.
  *
- * URL:  https://demo.koodify.ng/webhook/koodify
- * Path: /webhook/koodify/index.php
+ * URL:  https://demo.koodify.ng/webhooks/koodify/   (trailing slash)
+ * Path: /webhooks/koodify/index.php
  *
  * On payment success Koodify POSTs a JSON body, for example:
  * {

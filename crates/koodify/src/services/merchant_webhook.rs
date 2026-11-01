@@ -45,7 +45,28 @@ fn first_str(map: Option<&Value>, keys: &[&str]) -> Option<String> {
     None
 }
 
+/// Ensure a directory-style path ends with `/` so nginx trailing-slash redirects
+/// do not turn our POST into GET (HTTP 405). Leave as-is when already slashed,
+/// or when the last path segment looks like a file (`….php`, `….ashx`, …).
+fn ensure_trailing_slash(url: &str) -> String {
+    if url.ends_with('/') {
+        return url.to_string();
+    }
+    // Split off query/fragment so we only inspect the path.
+    let (path_part, suffix) = match url.find(['?', '#']) {
+        Some(i) => (&url[..i], &url[i..]),
+        None => (url, ""),
+    };
+    let last = path_part.rsplit('/').next().unwrap_or("");
+    if last.contains('.') {
+        // Likely a file endpoint — do not append `/`.
+        return url.to_string();
+    }
+    format!("{path_part}/{suffix}")
+}
+
 /// Accept only absolute http(s) URLs. Reject blank / relative / non-http schemes.
+/// Directory-style paths get a trailing slash when the merchant omitted it.
 pub fn normalize_callback_url(raw: &str) -> Option<String> {
     let url = raw.trim();
     if url.is_empty() {
@@ -55,7 +76,7 @@ pub fn normalize_callback_url(raw: &str) -> Option<String> {
     if !(lower.starts_with("https://") || lower.starts_with("http://")) {
         return None;
     }
-    Some(url.to_string())
+    Some(ensure_trailing_slash(url))
 }
 
 fn callback_from_request(req: &Value) -> Option<String> {
@@ -162,6 +183,9 @@ async fn build_payload(state: &AppState, txn_ref: &str, response: &Value) -> Val
     payload
 }
 
+/// POST and follow 301/302/307/308 while **keeping** the POST method.
+/// Default reqwest/fetch behaviour turns 301/302 into GET, which makes many
+/// merchant endpoints return HTTP 405 (e.g. nginx trailing-slash redirects).
 async fn post_signed(
     url: &str,
     body: &[u8],
@@ -169,21 +193,45 @@ async fn post_signed(
 ) -> Result<reqwest::StatusCode, String> {
     let client = reqwest::Client::builder()
         .timeout(ATTEMPT_TIMEOUT)
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|e| e.to_string())?;
 
-    let resp = client
-        .post(url)
-        .header("Content-Type", "application/json")
-        .header("User-Agent", "Koodify-Webhook/1.0")
-        .header("X-Koodify-Signature", signature)
-        .header("X-Koodify-Event", "payment.success")
-        .body(body.to_vec())
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    let mut next = url.to_string();
+    for hop in 0..5u32 {
+        let resp = client
+            .post(&next)
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "Koodify-Webhook/1.0")
+            .header("X-Koodify-Signature", signature)
+            .header("X-Koodify-Event", "payment.success")
+            .body(body.to_vec())
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
 
-    Ok(resp.status())
+        let status = resp.status();
+        if !status.is_redirection() {
+            return Ok(status);
+        }
+
+        let loc = resp
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| format!("redirect {status} without Location from {next}"))?;
+
+        next = match reqwest::Url::parse(&next).and_then(|base| base.join(loc)) {
+            Ok(u) => u.to_string(),
+            Err(_) if loc.starts_with("http://") || loc.starts_with("https://") => loc.to_string(),
+            Err(err) => return Err(format!("bad redirect Location `{loc}`: {err}")),
+        };
+        info!(%status, from = %url, to = %next, hop, "merchant webhook following redirect with POST");
+    }
+
+    Err(format!("too many redirects starting from {url}"))
 }
 
 /// Deliver a signed POST to the merchant callback once payment is confirmed.
@@ -360,16 +408,37 @@ mod tests {
     fn normalize_accepts_http_https_only() {
         assert_eq!(
             normalize_callback_url(" https://pay.example/hook "),
-            Some("https://pay.example/hook".into())
+            Some("https://pay.example/hook/".into())
         );
         assert_eq!(
             normalize_callback_url("http://localhost:3000/paid"),
-            Some("http://localhost:3000/paid".into())
+            Some("http://localhost:3000/paid/".into())
         );
         assert!(normalize_callback_url("").is_none());
         assert!(normalize_callback_url("/relative").is_none());
         assert!(normalize_callback_url("ftp://x").is_none());
         assert!(normalize_callback_url("javascript:alert(1)").is_none());
+    }
+
+    #[test]
+    fn normalize_adds_trailing_slash_when_missing() {
+        assert_eq!(
+            normalize_callback_url("https://demo.koodify.ng/webhooks/koodify"),
+            Some("https://demo.koodify.ng/webhooks/koodify/".into())
+        );
+        assert_eq!(
+            normalize_callback_url("https://demo.koodify.ng/webhooks/koodify/"),
+            Some("https://demo.koodify.ng/webhooks/koodify/".into())
+        );
+        assert_eq!(
+            normalize_callback_url("https://school.example/paid?x=1"),
+            Some("https://school.example/paid/?x=1".into())
+        );
+        // File-looking last segment stays unchanged.
+        assert_eq!(
+            normalize_callback_url("https://school.example/hooks/koodify.php"),
+            Some("https://school.example/hooks/koodify.php".into())
+        );
     }
 
     #[test]
@@ -385,12 +454,12 @@ mod tests {
         let req = json!({ "callBackUrl": "https://school.example/paid" });
         assert_eq!(
             callback_from_request(&req).as_deref(),
-            Some("https://school.example/paid")
+            Some("https://school.example/paid/")
         );
         let req2 = json!({ "callback_url": "https://a.example/w" });
         assert_eq!(
             callback_from_request(&req2).as_deref(),
-            Some("https://a.example/w")
+            Some("https://a.example/w/")
         );
     }
 }

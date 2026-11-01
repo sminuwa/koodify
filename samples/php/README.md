@@ -4,22 +4,23 @@ Minimal receiver for checkout `callBackUrl`: accept Koodify’s `payment.success
 
 ```text
 samples/php/webhook/koodify/index.php
-→ https://demo.koodify.ng/webhook/koodify
+→ https://demo.koodify.ng/webhooks/koodify/
 ```
 
 ## Deploy
 
 ```bash
-mkdir -p /path/to/demo.koodify.ng/webhook/koodify
+mkdir -p /path/to/demo.koodify.ng/webhooks/koodify
 cp samples/php/webhook/koodify/index.php \
-   /path/to/demo.koodify.ng/webhook/koodify/index.php
-chmod 775 /path/to/demo.koodify.ng/webhook/koodify
+   /path/to/demo.koodify.ng/webhooks/koodify/index.php
+chmod 775 /path/to/demo.koodify.ng/webhooks/koodify
 ```
 
 Checkout:
 
 ```js
-callBackUrl: "https://demo.koodify.ng/webhook/koodify"
+callBackUrl: "https://demo.koodify.ng/webhooks/koodify"
+// Koodify normalizes directory URLs to end with `/` before POSTing.
 ```
 
 ## Log
@@ -36,7 +37,7 @@ Each POST appends one line to `webhook-log.jsonl`:
 ```
 
 ```bash
-tail -f /path/to/demo.koodify.ng/webhook/koodify/webhook-log.jsonl | jq .
+tail -f /path/to/demo.koodify.ng/webhooks/koodify/webhook-log.jsonl | jq .
 ```
 
 No webhook secret required for this demo — it only receipts and logs the transaction object Koodify posts.
