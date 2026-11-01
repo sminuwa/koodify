@@ -39,4 +39,7 @@ pub use types::webhook::{WebhookAmount, WebhookData, WebhookEvent, WebhookEventT
 pub use types::zainbox::{
     CreateZainboxRequest, ServiceSubscriptionRequest, UpdateZainboxRequest,
 };
-pub use webhook_verify::{sign_webhook_body, verify_webhook_signature};
+pub use webhook_verify::{
+    describe_signature_header, sign_webhook_body, verify_webhook_signature,
+    verify_webhook_signature_any,
+};

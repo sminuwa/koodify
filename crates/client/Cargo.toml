@@ -7,6 +7,7 @@ description = "Reusable HTTP client for the Zainpay payment API"
 readme = "README.md"
 
 [dependencies]
+base64 = { workspace = true }
 hex = { workspace = true }
 hmac = { workspace = true }
 reqwest = { workspace = true }

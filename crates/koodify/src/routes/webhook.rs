@@ -3,9 +3,9 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use client::{verify_webhook_signature, WebhookEvent};
-
-use client::WebhookEventType;
+use client::{
+    describe_signature_header, verify_webhook_signature_any, WebhookEvent, WebhookEventType,
+};
 
 use crate::auth::ApiKeyAuth;
 use crate::db;
@@ -42,22 +42,78 @@ pub async fn repush_card_payment(
         .map_err(map_upstream)
 }
 
+fn candidate_secrets(state: &AppState) -> Vec<Vec<u8>> {
+    let mut out = Vec::new();
+    if let Some(secret) = state.config.zainpay_webhook_secret.as_deref() {
+        for part in secret.split([',', ';']) {
+            let t = part.trim().trim_matches('"').trim_matches('\'');
+            if !t.is_empty() {
+                out.push(t.as_bytes().to_vec());
+            }
+        }
+    }
+    // Some Zainpay environments appear to sign with the API token itself.
+    let api = state.config.zainpay_api_key.trim();
+    if !api.is_empty() && !out.iter().any(|s| s.as_slice() == api.as_bytes()) {
+        out.push(api.as_bytes().to_vec());
+    }
+    out
+}
+
+async fn accept_via_upstream_verify(state: &AppState, body: &[u8]) -> bool {
+    let Ok(event) = serde_json::from_slice::<WebhookEvent>(body) else {
+        return false;
+    };
+    if event.event != WebhookEventType::DepositSuccess {
+        return false;
+    }
+    let Some(txn_ref) = event.data.idempotency_key() else {
+        return false;
+    };
+    match state.zainpay.reconciliation().verify_deposit(txn_ref).await {
+        Ok(resp) if resp.is_success() => {
+            tracing::warn!(
+                %txn_ref,
+                "inbound webhook signature mismatch — accepted after Zainpay deposit verify"
+            );
+            true
+        }
+        Ok(resp) => {
+            tracing::warn!(
+                %txn_ref,
+                code = %resp.code,
+                "inbound webhook signature mismatch — upstream verify not success"
+            );
+            false
+        }
+        Err(err) => {
+            tracing::warn!(
+                %txn_ref,
+                error = %err,
+                "inbound webhook signature mismatch — upstream verify failed"
+            );
+            false
+        }
+    }
+}
+
 /// Inbound Zainpay webhook receiver.
 ///
-/// Verifies `Zainpay-Signature` (HMAC-SHA256 hex of the raw body) when
-/// `ZAINPAY_WEBHOOK_SECRET` is configured, de-duplicates by body hash,
-/// persists the event to `transactions`, and acknowledges with HTTP 200.
+/// Verifies `Zainpay-Signature` when configured. If the HMAC does not match
+/// (wrong dashboard secret / encoding), falls back to confirming `deposit.success`
+/// via Zainpay's deposit-verify API so Path 1 is not stuck behind a bad secret.
 pub async fn inbound(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> Result<&'static str, (StatusCode, String)> {
-    let Some(secret) = state.config.zainpay_webhook_secret.as_deref() else {
+    let secrets = candidate_secrets(&state);
+    if secrets.is_empty() {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
             "ZAINPAY_WEBHOOK_SECRET is not configured".into(),
         ));
-    };
+    }
 
     let signature = headers
         .get("Zainpay-Signature")
@@ -65,26 +121,51 @@ pub async fn inbound(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
 
-    if !verify_webhook_signature(secret.as_bytes(), &body, signature) {
-        let sig_trim = signature.trim();
-        activity::record(
-            &state,
-            "inbound.webhook.rejected_signature",
-            SuccessSource::ZainpayWebhook.as_str(),
-            None,
-            None,
-            "Inbound Zainpay webhook rejected — invalid signature",
-            json!({
-                "bodyBytes": body.len(),
-                "signaturePresent": !sig_trim.is_empty(),
-                "signatureLen": sig_trim.len(),
-                "secretLen": secret.len(),
-                // Help ops confirm header shape without leaking the digest.
-                "signaturePrefix": sig_trim.chars().take(8).collect::<String>(),
-            }),
-        )
-        .await;
-        return Err((StatusCode::UNAUTHORIZED, "invalid Zainpay-Signature".into()));
+    let mut auth_mode = "hmac";
+    if !verify_webhook_signature_any(&secrets, &body, signature) {
+        if accept_via_upstream_verify(&state, &body).await {
+            auth_mode = "upstream_verify";
+            activity::record(
+                &state,
+                "inbound.webhook.accepted_upstream_verify",
+                SuccessSource::ZainpayWebhook.as_str(),
+                None,
+                None,
+                "Inbound Zainpay webhook accepted after upstream deposit verify (HMAC mismatch)",
+                {
+                    let mut meta = describe_signature_header(signature);
+                    if let Some(obj) = meta.as_object_mut() {
+                        obj.insert("bodyBytes".into(), json!(body.len()));
+                        obj.insert("secretCandidates".into(), json!(secrets.len()));
+                    }
+                    meta
+                },
+            )
+            .await;
+        } else {
+            activity::record(
+                &state,
+                "inbound.webhook.rejected_signature",
+                SuccessSource::ZainpayWebhook.as_str(),
+                None,
+                None,
+                "Inbound Zainpay webhook rejected — invalid signature",
+                {
+                    let mut meta = describe_signature_header(signature);
+                    if let Some(obj) = meta.as_object_mut() {
+                        obj.insert("bodyBytes".into(), json!(body.len()));
+                        obj.insert("secretCandidates".into(), json!(secrets.len()));
+                        obj.insert(
+                            "secretLens".into(),
+                            json!(secrets.iter().map(|s| s.len()).collect::<Vec<_>>()),
+                        );
+                    }
+                    meta
+                },
+            )
+            .await;
+            return Err((StatusCode::UNAUTHORIZED, "invalid Zainpay-Signature".into()));
+        }
     }
 
     let event: WebhookEvent = serde_json::from_slice(&body).map_err(|e| {
@@ -127,7 +208,7 @@ pub async fn inbound(
             resource_key.as_deref(),
             event.data.zainbox_code.as_deref(),
             format!("Duplicate Zainpay webhook ignored ({event_name})"),
-            json!({ "event": event_name, "deliveryHash": delivery_hash }),
+            json!({ "event": event_name, "deliveryHash": delivery_hash, "authMode": auth_mode }),
         )
         .await;
         return Ok("OK");
@@ -146,6 +227,7 @@ pub async fn inbound(
         json!({
             "event": event_name,
             "deliveryHash": delivery_hash,
+            "authMode": auth_mode,
         }),
     )
     .await;

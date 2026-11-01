@@ -1,4 +1,8 @@
-//! HMAC-SHA256 verification for inbound `Zainpay-Signature` webhooks.
+//! HMAC verification for inbound `Zainpay-Signature` webhooks.
+//!
+//! Zainpay docs are thin on the exact encoding. We accept the common variants:
+//! HMAC-SHA256 of the raw body as lowercase/uppercase hex, `sha256=` / `v1=`
+//! prefixed hex, and standard / URL-safe Base64 digests.
 
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -14,9 +18,32 @@ pub fn sign_webhook_body(secret: impl AsRef<[u8]>, raw_body: impl AsRef<[u8]>) -
     hex::encode(mac.finalize().into_bytes())
 }
 
-/// Normalize a signature header to bare lowercase hex.
-/// Accepts optional `sha256=` / `v1=` prefixes and mixed-case hex.
-fn normalize_signature_header(signature_header: &str) -> String {
+fn hmac_sha256_raw(secret: &[u8], raw_body: &[u8]) -> [u8; 32] {
+    let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC accepts any key length");
+    mac.update(raw_body);
+    let bytes = mac.finalize().into_bytes();
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&bytes);
+    out
+}
+
+fn ct_eq_str(a: &str, b: &str) -> bool {
+    if a.len() != b.len() || a.is_empty() {
+        return false;
+    }
+    a.as_bytes().ct_eq(b.as_bytes()).into()
+}
+
+fn ct_eq_bytes(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() || a.is_empty() {
+        return false;
+    }
+    a.ct_eq(b).into()
+}
+
+/// Normalize a signature header to bare lowercase hex when it looks like hex.
+/// Also returns the trimmed original (minus common prefixes) for base64 attempts.
+fn normalize_signature_header(signature_header: &str) -> (String, String) {
     let mut s = signature_header.trim();
     if let Some(rest) = s.strip_prefix("sha256=") {
         s = rest.trim();
@@ -39,23 +66,83 @@ fn normalize_signature_header(signature_header: &str) -> String {
             s = part.strip_prefix("v1=").unwrap_or(part);
         }
     }
-    s.to_ascii_lowercase()
+    let bare = s.trim_matches('"').trim().to_string();
+    (bare.to_ascii_lowercase(), bare)
 }
 
-/// Verify a `Zainpay-Signature` header (hex HMAC-SHA256 of the raw body).
-///
-/// Uses a constant-time comparison of the hex digests (case-insensitive).
+fn verify_one_secret(secret: &[u8], raw_body: &[u8], signature_header: &str) -> bool {
+    let digest = hmac_sha256_raw(secret, raw_body);
+    let expected_hex = hex::encode(digest);
+    let (received_hex, received_raw) = normalize_signature_header(signature_header);
+
+    if ct_eq_str(&expected_hex, &received_hex) {
+        return true;
+    }
+
+    // Base64 (std + url-safe, with/without padding).
+    let b64_std = {
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD.encode(digest)
+    };
+    let b64_url = {
+        use base64::Engine;
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(digest)
+    };
+    if ct_eq_str(&b64_std, &received_raw) || ct_eq_str(&b64_url, &received_raw) {
+        return true;
+    }
+    // Compare decoded bytes if the header decodes as base64 of length 32.
+    for engine in [
+        &base64::engine::general_purpose::STANDARD,
+        &base64::engine::general_purpose::STANDARD_NO_PAD,
+        &base64::engine::general_purpose::URL_SAFE,
+        &base64::engine::general_purpose::URL_SAFE_NO_PAD,
+    ] {
+        use base64::Engine;
+        if let Ok(bytes) = engine.decode(received_raw.as_bytes()) {
+            if ct_eq_bytes(&digest, &bytes) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Verify a `Zainpay-Signature` header against one secret.
 pub fn verify_webhook_signature(
     secret: impl AsRef<[u8]>,
     raw_body: impl AsRef<[u8]>,
     signature_header: &str,
 ) -> bool {
-    let expected = sign_webhook_body(secret, raw_body);
-    let received = normalize_signature_header(signature_header);
-    if expected.len() != received.len() || received.is_empty() {
-        return false;
-    }
-    expected.as_bytes().ct_eq(received.as_bytes()).into()
+    verify_one_secret(secret.as_ref(), raw_body.as_ref(), signature_header)
+}
+
+/// Try each secret until one verifies. Empty secrets are skipped.
+pub fn verify_webhook_signature_any(
+    secrets: &[impl AsRef<[u8]>],
+    raw_body: impl AsRef<[u8]>,
+    signature_header: &str,
+) -> bool {
+    let body = raw_body.as_ref();
+    secrets.iter().any(|s| {
+        let key = s.as_ref();
+        !key.is_empty() && verify_one_secret(key, body, signature_header)
+    })
+}
+
+/// Classify a signature header for ops diagnostics (no secret material).
+pub fn describe_signature_header(signature_header: &str) -> serde_json::Value {
+    let trimmed = signature_header.trim();
+    let (hexish, bare) = normalize_signature_header(trimmed);
+    let hex_ok = !hexish.is_empty() && hexish.bytes().all(|b| b.is_ascii_hexdigit());
+    serde_json::json!({
+        "signaturePresent": !trimmed.is_empty(),
+        "signatureLen": trimmed.len(),
+        "normalizedLen": bare.len(),
+        "looksLikeHex": hex_ok,
+        "signaturePrefix": trimmed.chars().take(12).collect::<String>(),
+    })
 }
 
 #[cfg(test)]
@@ -76,5 +163,25 @@ mod tests {
         ));
         assert!(!verify_webhook_signature(secret, body, "deadbeef"));
         assert!(!verify_webhook_signature(b"other", body, &sig));
+    }
+
+    #[test]
+    fn accepts_base64_digest() {
+        use base64::Engine;
+        let body = br#"{"event":"deposit.success"}"#;
+        let secret = b"secret";
+        let digest = hmac_sha256_raw(secret, body);
+        let b64 = base64::engine::general_purpose::STANDARD.encode(digest);
+        assert!(verify_webhook_signature(secret, body, &b64));
+    }
+
+    #[test]
+    fn any_secret_matches() {
+        let body = b"payload";
+        let sig = sign_webhook_body(b"right", body);
+        let ok: &[&[u8]] = &[b"wrong", b"right"];
+        let bad: &[&[u8]] = &[b"wrong", b"also-wrong"];
+        assert!(verify_webhook_signature_any(ok, body, &sig));
+        assert!(!verify_webhook_signature_any(bad, body, &sig));
     }
 }
