@@ -23,6 +23,38 @@ callBackUrl: "https://demo.koodify.ng/webhooks/koodify"
 // Koodify normalizes directory URLs to end with `/` before POSTing.
 ```
 
+## Koodify POST body
+
+Headers: `Content-Type: application/json`, `X-Koodify-Event: payment.success`, `X-Koodify-Signature` (HMAC-SHA256 hex).
+
+```json
+{
+  "event": "payment.success",
+  "status": "success",
+  "reference": "LIVE_…",
+  "description": "Payment was successful",
+  "amount": "500",
+  "currencyCode": "NGN",
+  "zainboxCode": "main_box",
+  "payer": {
+    "email": "customer@example.com",
+    "phone": "08012345678",
+    "name": "Ada Lovelace"
+  },
+  "customParam": {
+    "matric": "ND/12/2211",
+    "session": "2026"
+  },
+  "paymentSplit": {
+    "txnRef": "LIVE_…",
+    "status": "success",
+    "legs": []
+  }
+}
+```
+
+`amount` / `zainboxCode` / `payer` / `customParam` / `paymentSplit` appear only when Koodify has them. Full docs: `docs/inline-checkout.html#merchant-webhook`.
+
 ## Log
 
 Each POST appends one line to `webhook-log.jsonl`:
@@ -32,7 +64,7 @@ Each POST appends one line to `webhook-log.jsonl`:
   "receivedAt": "2026-11-01T22:00:00+00:00",
   "reference": "LIVE_…",
   "event": "payment.success",
-  "payload": { "event": "payment.success", "amount": "500", "payer": {}, "customParam": {} }
+  "payload": { "…full body above…" }
 }
 ```
 

@@ -6,18 +6,18 @@ use sqlx::PgPool;
 pub async fn try_claim(
     pool: &PgPool,
     delivery_hash: &str,
-    resource_key: Option<&str>,
+    txn_ref: Option<&str>,
     event_name: &str,
 ) -> Result<bool, sqlx::Error> {
     let result = sqlx::query(
         r#"
-        INSERT INTO webhook_deliveries (delivery_hash, resource_key, event_name)
+        INSERT INTO webhook_deliveries (delivery_hash, txn_ref, event_name)
         VALUES ($1, $2, $3)
         ON CONFLICT (delivery_hash) DO NOTHING
         "#,
     )
     .bind(delivery_hash)
-    .bind(resource_key)
+    .bind(txn_ref)
     .bind(event_name)
     .execute(pool)
     .await?;

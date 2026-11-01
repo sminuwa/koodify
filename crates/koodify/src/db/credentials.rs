@@ -5,14 +5,15 @@ use uuid::Uuid;
 use super::models::Credential;
 
 const COLUMNS: &str = r#"
-    id, customer_id, environment, public_key, private_key, metadata, status, created_at, updated_at
+    id, customer_id, environment, public_key, zainbox_code, metadata, status, created_at, updated_at
 "#;
 
 pub struct UpsertCredential<'a> {
     pub customer_id: i64,
     pub environment: &'a str,
     pub public_key: &'a str,
-    pub private_key: &'a str,
+    /// Zainpay zainbox business id (`codeName`) used as Bearer — not a crypto key.
+    pub zainbox_code: &'a str,
     pub metadata: &'a Value,
     pub status: &'a str,
 }
@@ -25,12 +26,12 @@ pub async fn upsert(
     sqlx::query_as::<_, Credential>(&format!(
         r#"
         INSERT INTO credentials (
-            id, customer_id, environment, public_key, private_key, metadata, status
+            id, customer_id, environment, public_key, zainbox_code, metadata, status
         )
         VALUES ($1,$2,$3,$4,$5,$6,$7)
         ON CONFLICT (customer_id, environment) DO UPDATE SET
             public_key = EXCLUDED.public_key,
-            private_key = EXCLUDED.private_key,
+            zainbox_code = EXCLUDED.zainbox_code,
             metadata = EXCLUDED.metadata,
             status = EXCLUDED.status,
             updated_at = now()
@@ -41,7 +42,7 @@ pub async fn upsert(
     .bind(input.customer_id)
     .bind(input.environment)
     .bind(input.public_key)
-    .bind(input.private_key)
+    .bind(input.zainbox_code)
     .bind(input.metadata)
     .bind(input.status)
     .fetch_one(pool)

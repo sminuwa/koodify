@@ -126,7 +126,7 @@ pub async fn sync_webhook_callbacks(
             .is_some_and(|u| state.config.is_inbound_zainpay_webhook_url(u))
         {
             skipped.push(json!({
-                "codeName": zb.code_name,
+                "codeName": zb.zainbox_code,
                 "callbackUrl": zb.callback_url,
                 "reason": "already_inbound",
             }));
@@ -134,7 +134,8 @@ pub async fn sync_webhook_callbacks(
         }
 
         let req = UpdateZainboxRequest {
-            code_name: zb.code_name.clone(),
+            // Zainpay API field remains `codeName` on the client request type.
+            code_name: zb.zainbox_code.clone(),
             name: zb.name.clone(),
             callback_url: Some(webhook_url.clone()),
             email_notification: zb.email_notification.clone(),
@@ -150,7 +151,7 @@ pub async fn sync_webhook_callbacks(
                 if let Err(err) = db::zainboxes::upsert(
                     &state.pool,
                     db::zainboxes::UpsertZainbox {
-                        code_name: &zb.code_name,
+                        zainbox_code: &zb.zainbox_code,
                         name: &zb.name,
                         callback_url: Some(webhook_url.as_str()),
                         email_notification: zb.email_notification.as_deref(),
@@ -163,26 +164,26 @@ pub async fn sync_webhook_callbacks(
                 {
                     warn!(
                         error = %err,
-                        code = %zb.code_name,
+                        code = %zb.zainbox_code,
                         "zainbox webhook sync: Zainpay updated but local upsert failed"
                     );
                 }
-                info!(code = %zb.code_name, %webhook_url, "zainbox callbackUrl → inbound webhook");
+                info!(code = %zb.zainbox_code, %webhook_url, "zainbox callbackUrl → inbound webhook");
                 updated.push(json!({
-                    "codeName": zb.code_name,
+                    "codeName": zb.zainbox_code,
                     "callbackUrl": webhook_url,
                 }));
             }
             Ok(resp) => {
                 failed.push(json!({
-                    "codeName": zb.code_name,
+                    "codeName": zb.zainbox_code,
                     "code": resp.code,
                     "description": resp.description,
                 }));
             }
             Err(err) => {
                 failed.push(json!({
-                    "codeName": zb.code_name,
+                    "codeName": zb.zainbox_code,
                     "error": err.to_string(),
                 }));
             }

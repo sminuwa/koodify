@@ -18,8 +18,8 @@ const ZAIN_BANK_CODE: &str = "090976";
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentSplitInput {
-    #[serde(default)]
-    pub primary_zainbox: Option<String>,
+    #[serde(default, alias = "primaryZainbox", alias = "primary_zainbox")]
+    pub primary_zainbox_code: Option<String>,
     pub shares: Vec<ShareInput>,
 }
 
@@ -44,7 +44,7 @@ pub struct ResolvedLeg {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedPlan {
-    pub primary_zainbox: String,
+    pub primary_zainbox_code: String,
     pub checkout_amount: String,
     pub total_kobo: i64,
     pub legs: Vec<ResolvedLeg>,
@@ -144,15 +144,15 @@ pub fn naira_to_kobo(amount: &str) -> Result<i64, SplitValidateError> {
 
 /// Resolve + validate a plan against the checkout amount and primary zainbox.
 pub fn resolve_plan(
-    primary_zainbox: &str,
+    primary_zainbox_code: &str,
     checkout_amount: &str,
     input: &PaymentSplitInput,
 ) -> Result<ResolvedPlan, SplitValidateError> {
-    if let Some(ref p) = input.primary_zainbox {
+    if let Some(ref p) = input.primary_zainbox_code {
         let p = p.trim();
-        if !p.is_empty() && p != primary_zainbox {
+        if !p.is_empty() && p != primary_zainbox_code {
             return Err(SplitValidateError::msg(format!(
-                "paymentSplit.primaryZainbox `{p}` must match checkout zainbox `{primary_zainbox}`"
+                "paymentSplit.primaryZainboxCode `{p}` must match checkout zainbox `{primary_zainbox_code}`"
             )));
         }
     }
@@ -207,7 +207,7 @@ pub fn resolve_plan(
             )));
         }
 
-        let role = if code == primary_zainbox {
+        let role = if code == primary_zainbox_code {
             "keep"
         } else {
             "transfer"
@@ -282,7 +282,7 @@ pub fn resolve_plan(
         percent_allocated = percent_allocated
             .checked_add(kobo)
             .ok_or_else(|| SplitValidateError::msg("share amounts overflow"))?;
-        let role = if code == primary_zainbox {
+        let role = if code == primary_zainbox_code {
             "keep"
         } else {
             "transfer"
@@ -302,7 +302,7 @@ pub fn resolve_plan(
     if pct_leftover > 0 && !percent_legs.is_empty() {
         let idx = percent_legs
             .iter()
-            .position(|l| l.zainbox_code == primary_zainbox)
+            .position(|l| l.zainbox_code == primary_zainbox_code)
             .unwrap_or(0);
         percent_legs[idx].amount_kobo += pct_leftover;
     }
@@ -326,7 +326,7 @@ pub fn resolve_plan(
         }
     }
 
-    if !computed.iter().any(|l| l.zainbox_code == primary_zainbox) {
+    if !computed.iter().any(|l| l.zainbox_code == primary_zainbox_code) {
         return Err(SplitValidateError::msg(
             "paymentSplit.shares must include the primary (collector) zainbox",
         ));
@@ -346,7 +346,7 @@ pub fn resolve_plan(
     }
 
     let snapshot = json!({
-        "primaryZainbox": primary_zainbox,
+        "primaryZainboxCode": primary_zainbox_code,
         "checkoutAmount": checkout_amount,
         "totalKobo": total_kobo,
         "shares": input.shares,
@@ -360,7 +360,7 @@ pub fn resolve_plan(
     });
 
     Ok(ResolvedPlan {
-        primary_zainbox: primary_zainbox.to_string(),
+        primary_zainbox_code: primary_zainbox_code.to_string(),
         checkout_amount: checkout_amount.to_string(),
         total_kobo,
         legs: computed,
@@ -406,7 +406,7 @@ pub async fn assert_boxes_active(
 /// are rejected to prevent redirecting funds to attacker-controlled boxes.
 pub async fn plan_from_checkout(
     state: &AppState,
-    primary_zainbox: &str,
+    primary_zainbox_code: &str,
     checkout_amount: &str,
     metadata: &Value,
     browser_checkout: bool,
@@ -454,16 +454,16 @@ pub async fn plan_from_checkout(
                 "splitPlanId `{id}` is inactive"
             )));
         }
-        if stored.primary_zainbox != primary_zainbox {
+        if stored.primary_zainbox_code != primary_zainbox_code {
             return Err(SplitValidateError::msg(format!(
-                "splitPlanId `{id}` belongs to `{}`, not checkout zainbox `{primary_zainbox}`",
-                stored.primary_zainbox
+                "splitPlanId `{id}` belongs to `{}`, not checkout zainbox `{primary_zainbox_code}`",
+                stored.primary_zainbox_code
             )));
         }
         let shares: Vec<ShareInput> = serde_json::from_value(stored.shares.clone())
             .map_err(|e| SplitValidateError::msg(format!("split plan shares invalid: {e}")))?;
         PaymentSplitInput {
-            primary_zainbox: Some(stored.primary_zainbox),
+            primary_zainbox_code: Some(stored.primary_zainbox_code),
             shares,
         }
     } else {
@@ -473,7 +473,7 @@ pub async fn plan_from_checkout(
         })?
     };
 
-    let plan = resolve_plan(primary_zainbox, checkout_amount, &input)?;
+    let plan = resolve_plan(primary_zainbox_code, checkout_amount, &input)?;
     assert_boxes_active(&state.pool, &plan).await?;
     Ok(Some(plan))
 }
@@ -500,7 +500,7 @@ pub async fn persist_pending(
     db::payment_splits::insert_pending(
         pool,
         txn_ref,
-        &plan.primary_zainbox,
+        &plan.primary_zainbox_code,
         &plan.checkout_amount,
         plan.total_kobo,
         &plan.snapshot,
@@ -577,7 +577,7 @@ pub async fn maybe_run_on_success(
 
     info!(
         txn_ref,
-        primary = %split.primary_zainbox,
+        primary = %split.primary_zainbox_code,
         "payment split claimed — executing legs"
     );
 
@@ -916,7 +916,7 @@ async fn transfer_leg(
             source_bank_code: source_bank.to_string(),
             amount: leg.amount_kobo.to_string(),
             txn_ref: transfer_ref.clone(),
-            zainbox_code: split.primary_zainbox.clone(),
+            zainbox_code: split.primary_zainbox_code.clone(),
             call_back_url: None,
             narration: Some(format!(
                 "koodify split {} → {}",
@@ -1092,7 +1092,7 @@ async fn resolve_source(
         .filter(|s| !s.is_empty())
     {
         // Have account without bank — look up from VA list for that exact account.
-        if let Ok(Some(code)) = lookup_bank_code(state, &split.primary_zainbox, acct).await {
+        if let Ok(Some(code)) = lookup_bank_code(state, &split.primary_zainbox_code, acct).await {
             return Ok((acct.to_string(), code));
         }
         return Err(format!(
@@ -1110,16 +1110,16 @@ async fn resolve_source(
     // Admin force-run only: last-resort funded VA / ISA on the primary box.
     warn!(
         txn_ref = %split.txn_ref,
-        primary = %split.primary_zainbox,
+        primary = %split.primary_zainbox_code,
         "force-run using funded-source fallback — prefer webhook-pinned deposit account"
     );
     if let Ok(Some(pair)) =
-        pick_funded_source(state, &split.primary_zainbox, split.total_kobo).await
+        pick_funded_source(state, &split.primary_zainbox_code, split.total_kobo).await
     {
         return Ok(pair);
     }
 
-    let isa = resolve_dest_isa(state, &split.primary_zainbox).await?;
+    let isa = resolve_dest_isa(state, &split.primary_zainbox_code).await?;
     Ok((isa.account, isa.bank_code))
 }
 
@@ -1288,7 +1288,7 @@ mod tests {
     #[test]
     fn resolve_percent_only_with_leftover_to_primary() {
         let input = PaymentSplitInput {
-            primary_zainbox: Some("primary".into()),
+            primary_zainbox_code: Some("primary".into()),
             shares: vec![
                 share_pct("primary", 70.0),
                 share_pct("tutor", 20.0),
@@ -1309,7 +1309,7 @@ mod tests {
     fn resolve_fixed_then_remainder_percent() {
         // ₦1000 deposit: ₦200 + ₦50 + 100% of remainder (₦750) on primary.
         let input = PaymentSplitInput {
-            primary_zainbox: None,
+            primary_zainbox_code: None,
             shares: vec![
                 share_amt("tutor_box", "200"),
                 share_amt("agent_box", "50"),
@@ -1334,7 +1334,7 @@ mod tests {
     fn resolve_mixed_example() {
         // Fixed secondaries, primary keeps 100% of whatever remains.
         let input = PaymentSplitInput {
-            primary_zainbox: None,
+            primary_zainbox_code: None,
             shares: vec![
                 share_amt("tutor_box", "2000"),
                 share_amt("agent_box", "1000"),
@@ -1358,13 +1358,13 @@ mod tests {
     #[test]
     fn rejects_duplicate_and_primary_mismatch() {
         let input = PaymentSplitInput {
-            primary_zainbox: Some("other".into()),
+            primary_zainbox_code: Some("other".into()),
             shares: vec![share_pct("a", 50.0), share_pct("b", 50.0)],
         };
         assert!(resolve_plan("primary", "1000", &input).is_err());
 
         let input = PaymentSplitInput {
-            primary_zainbox: None,
+            primary_zainbox_code: None,
             shares: vec![share_pct("a", 50.0), share_pct("a", 50.0)],
         };
         assert!(resolve_plan("a", "1000", &input).is_err());
@@ -1373,7 +1373,7 @@ mod tests {
     #[test]
     fn rejects_over_allocate_and_missing_secondary() {
         let input = PaymentSplitInput {
-            primary_zainbox: None,
+            primary_zainbox_code: None,
             shares: vec![
                 share_amt("primary", "6000"),
                 share_amt("tutor", "5000"),
@@ -1382,7 +1382,7 @@ mod tests {
         assert!(resolve_plan("primary", "10000", &input).is_err());
 
         let input = PaymentSplitInput {
-            primary_zainbox: None,
+            primary_zainbox_code: None,
             shares: vec![share_pct("primary", 100.0)],
         };
         assert!(resolve_plan("primary", "10000", &input).is_err());

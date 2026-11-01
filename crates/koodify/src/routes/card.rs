@@ -71,13 +71,13 @@ async fn resolve_checkout_merchant(
     }
 
     if let Some(obj) = body.as_object_mut() {
-        obj.insert("zainboxCode".into(), json!(zainbox.code_name));
+        obj.insert("zainboxCode".into(), json!(zainbox.zainbox_code));
         obj.remove("zainbox_code");
         obj.remove("publicKey");
         obj.remove("public_key");
     }
 
-    Ok(zainbox.code_name)
+    Ok(zainbox.zainbox_code)
 }
 
 pub async fn initialize_payment(

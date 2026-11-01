@@ -23,7 +23,8 @@ koodifyInitPayment(
     mobileNumber: "08012345678",
     publicKey: "pk_live_…",       // from seed/dashboard — maps to zainbox server-side
     emailAddress: "customer@example.com",
-    callBackUrl: "https://example.com/webhook",
+    callBackUrl: "https://example.com/webhook/koodify",
+    // → Koodify POSTs payment.success JSON to …/webhook/koodify/ (see below)
 
     // recommended (stored by koodify; not sent to Zainpay)
     name: "Ada Lovelace",
@@ -51,12 +52,32 @@ koodifyInitPayment(
     // baseUrl: "http://localhost:8080", // local override only
   },
   function (response) {
-    // { status, reference, description, payer?, customParam? }
-    // payer: { email, phone, name? }
-    // customParam only present when you sent it
+    // Browser only (tab open): { status, reference, description, payer?, customParam? }
+    // Server webhook POST to callBackUrl is separate — see Merchant webhook below
   }
 );
 ```
+
+### Merchant webhook (`callBackUrl`)
+
+On success Koodify POSTs once per `txnRef` (headers: `X-Koodify-Event`, `X-Koodify-Signature`):
+
+```json
+{
+  "event": "payment.success",
+  "status": "success",
+  "reference": "ORDER_1793402668162",
+  "description": "Payment was successful",
+  "amount": "500",
+  "currencyCode": "NGN",
+  "zainboxCode": "main_box",
+  "payer": { "email": "customer@example.com", "phone": "08012345678", "name": "Ada Lovelace" },
+  "customParam": { "matric": "ND/12/2211", "session": "2026" },
+  "paymentSplit": { "status": "success", "legs": [] }
+}
+```
+
+Full field reference: [docs/inline-checkout.html#merchant-webhook](../../docs/inline-checkout.html#merchant-webhook) · [FEATURES.md](../../FEATURES.md).
 
 | Field | Required | Notes |
 |-------|----------|--------|
@@ -65,7 +86,7 @@ koodifyInitPayment(
 | `mobileNumber` | yes | → stored `payer.phone` |
 | `emailAddress` | yes | → stored `payer.email` |
 | `publicKey` | yes | Publishable `pk_live_…`; tied to zainbox in Koodify DB |
-| `callBackUrl` | yes | Absolute `https://…` server endpoint. On success Koodify POSTs a signed `payment.success` JSON body (see `FEATURES.md`). Also kept for Zainpay init. Browser `cb` still runs if the tab stays open. |
+| `callBackUrl` | yes | Absolute `https://…` server endpoint. On success Koodify POSTs signed `payment.success` JSON (see above). Directory URLs get a trailing `/`. Browser `cb` still runs if the tab stays open. |
 | `name` / `payer.name` | no | Koodify-only; merged into `payer` |
 | `customParam` | **no** | Optional. Arbitrary merchant fields; omit if unused. Alias `customParams` |
 | `splitPlanId` | no | Live. After deposit, redistribute using a server-side plan (`PUT /api/v1/split-plans`). Open checkout rejects ad-hoc `paymentSplit.shares`. Gateway only; primary settlement must be off. See `FEATURES.md` |

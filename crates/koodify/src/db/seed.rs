@@ -11,7 +11,9 @@ use super::zainboxes::{self, UpsertZainbox};
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ZainboxListItem {
-    code_name: String,
+    /// Zainpay list payload uses `codeName`.
+    #[serde(alias = "codeName", rename = "codeName")]
+    zainbox_code: String,
     name: String,
     #[serde(default)]
     callback_url: Option<String>,
@@ -30,8 +32,8 @@ fn default_active() -> bool {
 /// Sync Zainpay zainboxes into local DB, then create one customer per box.
 ///
 /// Each zainbox gets a browser-safe `public_key` (`pk_live_…`) stored on
-/// `zainboxes` (and mirrored on credentials). Credential `private_key` remains
-/// the Zainpay zainbox `codeName` — never sent to the browser.
+/// `zainboxes` (and mirrored on credentials). Credential `zainbox_code` is the
+/// Zainpay zainbox `codeName` (Bearer identity) — never sent to the browser by default.
 pub async fn run(pool: &PgPool) -> Result<()> {
     let api_key = std::env::var("ZAINPAY_API_KEY")
         .context("ZAINPAY_API_KEY is required to seed from live zainboxes")?;
@@ -86,7 +88,7 @@ pub async fn run(pool: &PgPool) -> Result<()> {
                 arr.iter().find(|v| {
                     v.get("codeName")
                         .and_then(|c| c.as_str())
-                        .map(|c| c == item.code_name)
+                        .map(|c| c == item.zainbox_code)
                         .unwrap_or(false)
                 })
             })
@@ -96,7 +98,7 @@ pub async fn run(pool: &PgPool) -> Result<()> {
         zainboxes::upsert(
             pool,
             UpsertZainbox {
-                code_name: &item.code_name,
+                zainbox_code: &item.zainbox_code,
                 name: &item.name,
                 callback_url: item.callback_url.as_deref(),
                 email_notification: item.email_notification.as_deref(),
@@ -106,21 +108,21 @@ pub async fn run(pool: &PgPool) -> Result<()> {
             },
         )
         .await
-        .with_context(|| format!("upsert zainbox {}", item.code_name))?;
+        .with_context(|| format!("upsert zainbox {}", item.zainbox_code))?;
     }
 
     let boxes = zainboxes::list(pool).await?;
     println!("creating {} customer(s) from local zainboxes…", boxes.len());
 
     for zb in &boxes {
-        let public_key = zainboxes::ensure_public_key(pool, &zb.code_name)
+        let public_key = zainboxes::ensure_public_key(pool, &zb.zainbox_code)
             .await
-            .with_context(|| format!("assign public_key for {}", zb.code_name))?;
+            .with_context(|| format!("assign public_key for {}", zb.zainbox_code))?;
 
         let status = if zb.is_active { "active" } else { "inactive" };
         let metadata = json!({
             "source": "zainbox-sync",
-            "zainboxCode": zb.code_name,
+            "zainboxCode": zb.zainbox_code,
             "tags": zb.tags,
             "callbackUrl": zb.callback_url,
         });
@@ -131,17 +133,17 @@ pub async fn run(pool: &PgPool) -> Result<()> {
                 display_name: &zb.name,
                 email: zb.email_notification.as_deref(),
                 mobile_number: None,
-                zainbox_code: Some(&zb.code_name),
+                zainbox_code: Some(&zb.zainbox_code),
                 metadata: &metadata,
                 status,
             },
         )
         .await
-        .with_context(|| format!("create customer for {}", zb.code_name))?;
+        .with_context(|| format!("create customer for {}", zb.zainbox_code))?;
 
-        let cred_meta = json!({ "zainboxCode": zb.code_name });
+        let cred_meta = json!({ "zainboxCode": zb.zainbox_code });
 
-        // public_key = Koodify publishable token; private_key = Zainpay zainbox id.
+        // public_key = Koodify publishable token; zainbox_code = Zainpay Bearer id.
         for environment in ["test", "live"] {
             credentials::upsert(
                 pool,
@@ -149,7 +151,7 @@ pub async fn run(pool: &PgPool) -> Result<()> {
                     customer_id: customer.id,
                     environment,
                     public_key: &public_key,
-                    private_key: &zb.code_name,
+                    zainbox_code: &zb.zainbox_code,
                     metadata: &cred_meta,
                     status: "active",
                 },
@@ -158,14 +160,14 @@ pub async fn run(pool: &PgPool) -> Result<()> {
             .with_context(|| {
                 format!(
                     "upsert {} credentials for customer {} ({})",
-                    environment, customer.id, zb.code_name
+                    environment, customer.id, zb.zainbox_code
                 )
             })?;
         }
 
         println!(
             "  id={} uuid={} publicKey={} zainbox={} — {}",
-            customer.id, customer.uuid, public_key, zb.code_name, zb.name
+            customer.id, customer.uuid, public_key, zb.zainbox_code, zb.name
         );
     }
 

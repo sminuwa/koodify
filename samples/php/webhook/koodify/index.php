@@ -5,19 +5,22 @@
  * URL:  https://demo.koodify.ng/webhooks/koodify/   (trailing slash)
  * Path: /webhooks/koodify/index.php
  *
- * On payment success Koodify POSTs a JSON body, for example:
+ * On payment success Koodify POSTs JSON (headers: X-Koodify-Event,
+ * X-Koodify-Signature), for example:
  * {
  *   "event": "payment.success",
  *   "status": "success",
  *   "reference": "LIVE_…",
+ *   "description": "Payment was successful",
  *   "amount": "500",
  *   "currencyCode": "NGN",
  *   "zainboxCode": "…",
- *   "payer": { … },
+ *   "payer": { "email": "…", "phone": "…", "name": "…" },
  *   "customParam": { … },
- *   "paymentSplit": { … }
+ *   "paymentSplit": { "status": "success", "legs": [ … ] }
  * }
  *
+ * Docs: docs/inline-checkout.html#merchant-webhook
  * This script only receives that POST and appends it to webhook-log.jsonl.
  */
 

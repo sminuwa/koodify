@@ -255,6 +255,12 @@ pub fn parse_candidates(raw: Option<&str>) -> Vec<String> {
 }
 
 /// Warn when unknown/experimental keys are configured.
+///
+/// TODO(zainpay-va-banks): Replace this hardcoded `KNOWN` allowlist once Zainpay
+/// ships an “available temporary/dynamic VA banks” endpoint. The `client` crate
+/// should fetch/cache that list; Adaptive Bank/DVA Routing would validate (and
+/// preferably *populate*) candidates from it. At that point `VA_BANK_CANDIDATES`
+/// may become an optional override / preference order, not the source of truth.
 pub fn warn_if_experimental(candidates: &[String]) {
     const KNOWN: &[&str] = &["gtBank", "wemaBank", "polaris", "fcmb", "zainMFB", "moniepoint"];
     for c in candidates {

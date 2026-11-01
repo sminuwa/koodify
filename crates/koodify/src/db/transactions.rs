@@ -225,7 +225,7 @@ pub async fn list_pending_checkouts(
           AND NOT EXISTS (
               SELECT 1
               FROM webhook_deliveries w
-              WHERE w.resource_key = t.resource_key
+              WHERE w.txn_ref = t.resource_key
                 AND w.event_name = 'deposit.success'
           )
           AND (

@@ -24,7 +24,8 @@ use crate::state::AppState;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health", get(|| async { "ok" }))
-        // Plain /api/v1 convenience (two Zainpay calls → one response)
+        // ── Stable Koodify `/api/v1` surface (insulates merchants from Zainpay path churn)
+        // Composites (one Koodify call → two Zainpay upstreams)
         .route(
             "/api/v1/zainbox/{zainbox_code}",
             get(composite::zainbox_snapshot),
@@ -33,6 +34,11 @@ pub fn router() -> Router<AppState> {
             "/api/v1/zainbox/{zainbox_code}/wallet",
             get(composite::zainbox_wallet_view),
         )
+        .route(
+            "/api/v1/zainbox/{zainbox_code}/transactions",
+            get(composite::zainbox_activity),
+        )
+        // Deprecated alias — prefer `/transactions`
         .route(
             "/api/v1/zainbox/{zainbox_code}/activity",
             get(composite::zainbox_activity),
@@ -50,23 +56,178 @@ pub fn router() -> Router<AppState> {
             get(composite::subscriptions_bundle),
         )
         .route(
-            "/api/v1/virtual-account/{account_number}",
-            get(composite::virtual_account_wallet),
+            "/api/v1/merchant/transactions",
+            get(composite::merchant_activity),
         )
-        .route("/api/v1/bank/resolve", get(composite::name_resolve))
+        // Deprecated alias — prefer `/merchant/transactions`
         .route(
             "/api/v1/merchant/activity",
             get(composite::merchant_activity),
         )
+        .route("/api/v1/bank/resolve", get(composite::name_resolve))
         .route("/api/v1/payout/prep", get(composite::payout_prep))
         .route("/api/v1/transfer", post(composite::transfer_and_verify))
+        .route(
+            "/api/v1/settlement",
+            post(composite::settlement_create_with_history),
+        )
+        // Static VA — talks to `/virtual-account/…` upstreams
+        .route("/api/v1/va/create", post(virtual_account::create))
+        .route(
+            "/api/v1/va/balance/{account_number}",
+            get(virtual_account::balance),
+        )
+        .route(
+            "/api/v1/va/transactions/{account_number}",
+            get(virtual_account::transactions),
+        )
+        .route(
+            "/api/v1/va/{account_number}",
+            get(composite::virtual_account_wallet),
+        )
+        .route("/api/v1/va/status", patch(virtual_account::update_status))
+        .route("/api/v1/va/bvn", post(virtual_account::update_bvn))
+        .route("/api/v1/va/fund", post(virtual_account::fund_static))
+        // Deprecated composite alias — prefer `/api/v1/va/{accountNumber}`
+        .route(
+            "/api/v1/virtual-account/{account_number}",
+            get(composite::virtual_account_wallet),
+        )
+        // Dynamic VA (DVA)
+        .route(
+            "/api/v1/dva/create",
+            post(virtual_account::create_dynamic),
+        )
+        .route(
+            "/api/v1/dva/deposit/{txn_ref}",
+            get(virtual_account::dynamic_deposit_status),
+        )
+        .route(
+            "/api/v1/dva/verify/{txn_ref}",
+            get(composite::dynamic_deposit_check),
+        )
+        .route("/api/v1/dva/fund", post(virtual_account::fund_dynamic))
+        // Deprecated composite alias — prefer `/api/v1/dva/verify/{txnRef}`
         .route(
             "/api/v1/deposit/{txn_ref}",
             get(composite::dynamic_deposit_check),
         )
+        // Transfer verify (single upstream)
         .route(
-            "/api/v1/settlement",
-            post(composite::settlement_create_with_history),
+            "/api/v1/transfers/{txn_ref}/verify",
+            get(transfer::verify),
+        )
+        .route(
+            "/api/v1/transfers/network",
+            get(transfer::network_status),
+        )
+        .route("/api/v1/banks", get(bank::list))
+        .route("/api/v1/banks/resolve", get(composite::name_resolve))
+        .route("/api/v1/banks/enquiry", get(bank::name_enquiry))
+        // Zainbox admin (single upstream wrappers)
+        .route("/api/v1/zainboxes", get(zainbox::list))
+        .route(
+            "/api/v1/zainbox",
+            post(zainbox::create).patch(zainbox::update),
+        )
+        .route(
+            "/api/v1/zainbox/{zainbox_code}/vas",
+            get(zainbox::virtual_accounts),
+        )
+        .route(
+            "/api/v1/zainbox/{zainbox_code}/balances",
+            get(zainbox::accounts_balance),
+        )
+        .route(
+            "/api/v1/zainbox/{zainbox_code}/profile",
+            get(zainbox::profile_v2),
+        )
+        .route(
+            "/api/v1/zainbox/{zainbox_code}/profile/v1",
+            get(zainbox::profile),
+        )
+        .route(
+            "/api/v1/zainbox/{zainbox_code}/deposit-summary",
+            get(zainbox::deposit_summary),
+        )
+        .route(
+            "/api/v1/zainbox/{zainbox_code}/card-transactions",
+            get(zainbox::card_transactions),
+        )
+        .route(
+            "/api/v1/zainbox/{zainbox_code}/ledger",
+            get(zainbox::transactions),
+        )
+        .route(
+            "/api/v1/zainbox/subscribe",
+            post(zainbox::subscribe),
+        )
+        .route(
+            "/api/v1/zainbox/unsubscribe",
+            post(zainbox::unsubscribe),
+        )
+        .route(
+            "/api/v1/merchant/transactions/summary",
+            get(zainbox::transactions_summary),
+        )
+        .route(
+            "/api/v1/merchant/transactions/list",
+            get(zainbox::merchant_transactions),
+        )
+        // Transfers / settlements / reconcile (single upstream)
+        .route("/api/v1/transfers", post(transfer::funds_transfer))
+        .route(
+            "/api/v1/settlements",
+            post(settlement::create).get(settlement::get),
+        )
+        .route(
+            "/api/v1/settlements/history/{zainbox_code}",
+            get(settlement::history),
+        )
+        .route(
+            "/api/v1/settlements/internal/{zainbox_code}",
+            get(settlement::internal_account),
+        )
+        .route(
+            "/api/v1/reconcile/deposit/{txn_ref}",
+            get(reconciliation::verify_deposit),
+        )
+        .route(
+            "/api/v1/reconcile/bank-deposit",
+            get(reconciliation::reconcile_bank_deposit),
+        )
+        .route(
+            "/api/v1/reconcile/card-payment",
+            get(reconciliation::reconcile_card_payment),
+        )
+        // Checkout (card / temporary VA) — stable names for inline + server flows
+        .route(
+            "/api/v1/checkout/initialize",
+            post(card::initialize_payment),
+        )
+        .route(
+            "/api/v1/checkout/initialize/inline",
+            post(card::initialize_payment_inline),
+        )
+        .route(
+            "/api/v1/checkout/account",
+            get(card::generate_temporary_virtual_account),
+        )
+        .route(
+            "/api/v1/checkout/status",
+            get(card::temporary_virtual_account_payment_status),
+        )
+        .route(
+            "/api/v1/checkout/recurring",
+            post(card::recurring_purchase),
+        )
+        .route(
+            "/api/v1/webhooks/repush/deposit/{txn_ref}",
+            get(webhook::repush_deposit),
+        )
+        .route(
+            "/api/v1/webhooks/repush/card/{txn_ref}",
+            get(webhook::repush_card_payment),
         )
         // Zainbox Payment Split (admin)
         .route(

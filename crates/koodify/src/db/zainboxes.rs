@@ -7,7 +7,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Zainbox {
-    pub code_name: String,
+    pub zainbox_code: String,
     pub name: String,
     pub callback_url: Option<String>,
     pub email_notification: Option<String>,
@@ -22,7 +22,7 @@ pub struct Zainbox {
 }
 
 pub struct UpsertZainbox<'a> {
-    pub code_name: &'a str,
+    pub zainbox_code: &'a str,
     pub name: &'a str,
     pub callback_url: Option<&'a str>,
     pub email_notification: Option<&'a str>,
@@ -32,7 +32,7 @@ pub struct UpsertZainbox<'a> {
 }
 
 const COLUMNS: &str = r#"
-    code_name, name, callback_url, email_notification, tags, is_active, public_key, raw,
+    zainbox_code, name, callback_url, email_notification, tags, is_active, public_key, raw,
     synced_at, created_at, updated_at
 "#;
 
@@ -41,11 +41,11 @@ pub async fn upsert(pool: &PgPool, input: UpsertZainbox<'_>) -> Result<Zainbox, 
     sqlx::query_as::<_, Zainbox>(&format!(
         r#"
         INSERT INTO zainboxes (
-            code_name, name, callback_url, email_notification, tags, is_active, raw,
+            zainbox_code, name, callback_url, email_notification, tags, is_active, raw,
             synced_at, updated_at
         )
         VALUES ($1,$2,$3,$4,$5,$6,$7, now(), now())
-        ON CONFLICT (code_name) DO UPDATE SET
+        ON CONFLICT (zainbox_code) DO UPDATE SET
             name = EXCLUDED.name,
             callback_url = EXCLUDED.callback_url,
             email_notification = EXCLUDED.email_notification,
@@ -57,7 +57,7 @@ pub async fn upsert(pool: &PgPool, input: UpsertZainbox<'_>) -> Result<Zainbox, 
         RETURNING {COLUMNS}
         "#
     ))
-    .bind(input.code_name)
+    .bind(input.zainbox_code)
     .bind(input.name)
     .bind(input.callback_url)
     .bind(input.email_notification)
@@ -73,22 +73,22 @@ pub async fn list(pool: &PgPool) -> Result<Vec<Zainbox>, sqlx::Error> {
         r#"
         SELECT {COLUMNS}
         FROM zainboxes
-        ORDER BY name ASC, code_name ASC
+        ORDER BY name ASC, zainbox_code ASC
         "#
     ))
     .fetch_all(pool)
     .await
 }
 
-pub async fn get_by_code(pool: &PgPool, code_name: &str) -> Result<Option<Zainbox>, sqlx::Error> {
+pub async fn get_by_code(pool: &PgPool, zainbox_code: &str) -> Result<Option<Zainbox>, sqlx::Error> {
     sqlx::query_as::<_, Zainbox>(&format!(
         r#"
         SELECT {COLUMNS}
         FROM zainboxes
-        WHERE code_name = $1
+        WHERE zainbox_code = $1
         "#
     ))
-    .bind(code_name)
+    .bind(zainbox_code)
     .fetch_optional(pool)
     .await
 }
@@ -110,8 +110,8 @@ pub async fn get_by_public_key(
 }
 
 /// Assign a publishable key if missing. Returns the (possibly new) key.
-pub async fn ensure_public_key(pool: &PgPool, code_name: &str) -> Result<String, sqlx::Error> {
-    if let Some(existing) = get_by_code(pool, code_name).await? {
+pub async fn ensure_public_key(pool: &PgPool, zainbox_code: &str) -> Result<String, sqlx::Error> {
+    if let Some(existing) = get_by_code(pool, zainbox_code).await? {
         if let Some(pk) = existing.public_key.filter(|s| !s.is_empty()) {
             return Ok(pk);
         }
@@ -122,12 +122,12 @@ pub async fn ensure_public_key(pool: &PgPool, code_name: &str) -> Result<String,
         r#"
         UPDATE zainboxes
         SET public_key = $2, updated_at = now()
-        WHERE code_name = $1
+        WHERE zainbox_code = $1
           AND (public_key IS NULL OR public_key = '')
         RETURNING {COLUMNS}
         "#
     ))
-    .bind(code_name)
+    .bind(zainbox_code)
     .bind(&public_key)
     .fetch_optional(pool)
     .await?;
@@ -137,7 +137,7 @@ pub async fn ensure_public_key(pool: &PgPool, code_name: &str) -> Result<String,
     }
 
     // Race: another writer set it — re-read.
-    match get_by_code(pool, code_name).await? {
+    match get_by_code(pool, zainbox_code).await? {
         Some(z) => Ok(z
             .public_key
             .filter(|s| !s.is_empty())

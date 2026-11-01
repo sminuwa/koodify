@@ -19,7 +19,9 @@ pub struct UpsertCredentialRequest {
     /// `test` or `live`
     pub environment: String,
     pub public_key: String,
-    pub private_key: String,
+    /// Zainpay zainbox business id (`codeName`). Alias: `privateKey` (legacy).
+    #[serde(alias = "privateKey", alias = "private_key")]
+    pub zainbox_code: String,
     #[serde(default)]
     pub metadata: Value,
     #[serde(default = "default_status")]
@@ -35,17 +37,17 @@ fn default_status() -> String {
 pub struct ListCredentialsQuery {
     pub customer_id: Option<i64>,
     pub environment: Option<String>,
-    /// When true, include `privateKey` in the response. Default: redacted.
-    #[serde(default)]
-    pub reveal_private_key: bool,
+    /// When true, include `zainboxCode` in the response. Default: redacted.
+    #[serde(default, alias = "revealPrivateKey")]
+    pub reveal_zainbox_code: bool,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RevealQuery {
-    /// When true, include `privateKey` in the response. Default: redacted.
-    #[serde(default)]
-    pub reveal_private_key: bool,
+    /// When true, include `zainboxCode` in the response. Default: redacted.
+    #[serde(default, alias = "revealPrivateKey")]
+    pub reveal_zainbox_code: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,7 +56,7 @@ pub struct UpdateStatusRequest {
     pub status: String,
 }
 
-/// API view of a credential. `privateKey` is omitted unless explicitly revealed.
+/// API view of a credential. `zainboxCode` is omitted unless explicitly revealed.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialView {
@@ -63,9 +65,9 @@ pub struct CredentialView {
     pub environment: String,
     pub public_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub private_key: Option<String>,
-    /// True when a private key is stored (even if redacted from this response).
-    pub private_key_set: bool,
+    pub zainbox_code: Option<String>,
+    /// True when a zainbox code is stored (even if redacted from this response).
+    pub zainbox_code_set: bool,
     pub metadata: Value,
     pub status: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -74,18 +76,18 @@ pub struct CredentialView {
 
 impl CredentialView {
     fn from_row(row: Credential, reveal: bool) -> Self {
-        let private_key_set = !row.private_key.is_empty();
+        let zainbox_code_set = !row.zainbox_code.is_empty();
         Self {
             id: row.id,
             customer_id: row.customer_id,
             environment: row.environment,
             public_key: row.public_key,
-            private_key: if reveal {
-                Some(row.private_key)
+            zainbox_code: if reveal {
+                Some(row.zainbox_code)
             } else {
                 None
             },
-            private_key_set,
+            zainbox_code_set,
             metadata: row.metadata,
             status: row.status,
             created_at: row.created_at,
@@ -110,7 +112,7 @@ fn normalize_environment(raw: &str) -> Result<&'static str, (StatusCode, String)
 }
 
 /// `PUT /credentials` — upsert one env (`test` or `live`) for a customer.
-/// Response redacts `privateKey` unless `?revealPrivateKey=true`.
+/// Response redacts `zainboxCode` unless `?revealZainboxCode=true` (alias: `revealPrivateKey`).
 pub async fn upsert(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -118,11 +120,11 @@ pub async fn upsert(
     Json(body): Json<UpsertCredentialRequest>,
 ) -> Result<Json<CredentialView>, (StatusCode, String)> {
     let public_key = body.public_key.trim();
-    let private_key = body.private_key.trim();
-    if public_key.is_empty() || private_key.is_empty() {
+    let zainbox_code = body.zainbox_code.trim();
+    if public_key.is_empty() || zainbox_code.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
-            "publicKey and privateKey are required".into(),
+            "publicKey and zainboxCode are required".into(),
         ));
     }
 
@@ -153,7 +155,7 @@ pub async fn upsert(
             customer_id: body.customer_id,
             environment,
             public_key,
-            private_key,
+            zainbox_code,
             metadata: &metadata,
             status: body.status.trim(),
         },
@@ -161,10 +163,10 @@ pub async fn upsert(
     .await
     .map_err(map_db)?;
 
-    Ok(Json(CredentialView::from_row(row, q.reveal_private_key)))
+    Ok(Json(CredentialView::from_row(row, q.reveal_zainbox_code)))
 }
 
-/// `GET /credentials?customerId=&environment=&revealPrivateKey=`
+/// `GET /credentials?customerId=&environment=&revealZainboxCode=`
 pub async fn list(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -180,12 +182,12 @@ pub async fn list(
         .map_err(map_db)?;
     Ok(Json(
         rows.into_iter()
-            .map(|r| CredentialView::from_row(r, q.reveal_private_key))
+            .map(|r| CredentialView::from_row(r, q.reveal_zainbox_code))
             .collect(),
     ))
 }
 
-/// `GET /credentials/by-customer/{customer_id}?revealPrivateKey=`
+/// `GET /credentials/by-customer/{customer_id}?revealZainboxCode=`
 pub async fn by_customer(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -197,12 +199,12 @@ pub async fn by_customer(
         .map_err(map_db)?;
     Ok(Json(
         rows.into_iter()
-            .map(|r| CredentialView::from_row(r, q.reveal_private_key))
+            .map(|r| CredentialView::from_row(r, q.reveal_zainbox_code))
             .collect(),
     ))
 }
 
-/// `GET /credentials/by-customer/{customer_id}/{environment}?revealPrivateKey=`
+/// `GET /credentials/by-customer/{customer_id}/{environment}?revealZainboxCode=`
 pub async fn by_customer_env(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -211,13 +213,13 @@ pub async fn by_customer_env(
 ) -> Result<Json<CredentialView>, (StatusCode, String)> {
     let environment = normalize_environment(&environment)?;
     match db::credentials::find_for_customer_env(&state.pool, customer_id, environment).await {
-        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_private_key))),
+        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_zainbox_code))),
         Ok(None) => Err((StatusCode::NOT_FOUND, "credential not found".into())),
         Err(err) => Err(map_db(err)),
     }
 }
 
-/// `GET /credentials/{id}?revealPrivateKey=` — credential row UUID.
+/// `GET /credentials/{id}?revealZainboxCode=` — credential row UUID.
 pub async fn get_one(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -225,13 +227,13 @@ pub async fn get_one(
     Query(q): Query<RevealQuery>,
 ) -> Result<Json<CredentialView>, (StatusCode, String)> {
     match db::credentials::find_by_id(&state.pool, id).await {
-        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_private_key))),
+        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_zainbox_code))),
         Ok(None) => Err((StatusCode::NOT_FOUND, "credential not found".into())),
         Err(err) => Err(map_db(err)),
     }
 }
 
-/// `PATCH /credentials/{id}/status?revealPrivateKey=`
+/// `PATCH /credentials/{id}/status?revealZainboxCode=`
 pub async fn update_status(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -243,7 +245,7 @@ pub async fn update_status(
         return Err((StatusCode::BAD_REQUEST, "status is required".into()));
     }
     match db::credentials::set_status(&state.pool, id, body.status.trim()).await {
-        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_private_key))),
+        Ok(Some(row)) => Ok(Json(CredentialView::from_row(row, q.reveal_zainbox_code))),
         Ok(None) => Err((StatusCode::NOT_FOUND, "credential not found".into())),
         Err(err) => Err(map_db(err)),
     }

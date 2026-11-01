@@ -8,7 +8,7 @@ use uuid::Uuid;
 #[serde(rename_all = "camelCase")]
 pub struct PaymentSplit {
     pub txn_ref: String,
-    pub primary_zainbox: String,
+    pub primary_zainbox_code: String,
     pub checkout_amount: String,
     pub total_kobo: i64,
     pub plan_snapshot: Value,
@@ -57,7 +57,7 @@ pub struct NewSplitLeg<'a> {
 pub async fn insert_pending(
     pool: &PgPool,
     txn_ref: &str,
-    primary_zainbox: &str,
+    primary_zainbox_code: &str,
     checkout_amount: &str,
     total_kobo: i64,
     plan_snapshot: &Value,
@@ -68,12 +68,12 @@ pub async fn insert_pending(
     let split = sqlx::query_as::<_, PaymentSplit>(
         r#"
         INSERT INTO payment_splits (
-            txn_ref, primary_zainbox, checkout_amount, total_kobo,
+            txn_ref, primary_zainbox_code, checkout_amount, total_kobo,
             plan_snapshot, status
         )
         VALUES ($1, $2, $3, $4, $5, 'pending')
         ON CONFLICT (txn_ref) DO UPDATE SET
-            primary_zainbox = EXCLUDED.primary_zainbox,
+            primary_zainbox_code = EXCLUDED.primary_zainbox_code,
             checkout_amount = EXCLUDED.checkout_amount,
             total_kobo = EXCLUDED.total_kobo,
             plan_snapshot = EXCLUDED.plan_snapshot,
@@ -84,13 +84,13 @@ pub async fn insert_pending(
             END,
             updated_at = now()
         RETURNING
-            txn_ref, primary_zainbox, checkout_amount, total_kobo, plan_snapshot,
+            txn_ref, primary_zainbox_code, checkout_amount, total_kobo, plan_snapshot,
             status, source_account, source_bank_code, error,
             claimed_at, completed_at, created_at, updated_at
         "#,
     )
     .bind(txn_ref)
-    .bind(primary_zainbox)
+    .bind(primary_zainbox_code)
     .bind(checkout_amount)
     .bind(total_kobo)
     .bind(plan_snapshot)
@@ -173,7 +173,7 @@ pub async fn claim_for_run(
             )
           )
         RETURNING
-            txn_ref, primary_zainbox, checkout_amount, total_kobo, plan_snapshot,
+            txn_ref, primary_zainbox_code, checkout_amount, total_kobo, plan_snapshot,
             status, source_account, source_bank_code, error,
             claimed_at, completed_at, created_at, updated_at
         "#,
@@ -212,7 +212,7 @@ pub async fn get(pool: &PgPool, txn_ref: &str) -> Result<Option<PaymentSplit>, s
     sqlx::query_as::<_, PaymentSplit>(
         r#"
         SELECT
-            txn_ref, primary_zainbox, checkout_amount, total_kobo, plan_snapshot,
+            txn_ref, primary_zainbox_code, checkout_amount, total_kobo, plan_snapshot,
             status, source_account, source_bank_code, error,
             claimed_at, completed_at, created_at, updated_at
         FROM payment_splits
@@ -333,7 +333,7 @@ pub async fn summary_json(pool: &PgPool, txn_ref: &str) -> Result<Option<Value>,
     let legs = list_legs(pool, txn_ref).await?;
     Ok(Some(serde_json::json!({
         "txnRef": split.txn_ref,
-        "primaryZainbox": split.primary_zainbox,
+        "primaryZainboxCode": split.primary_zainbox_code,
         "checkoutAmount": split.checkout_amount,
         "totalKobo": split.total_kobo,
         "status": split.status,

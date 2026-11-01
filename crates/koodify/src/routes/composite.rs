@@ -72,7 +72,8 @@ pub async fn zainbox_wallet_view(
         .and_then(to_json)
 }
 
-/// `GET /api/v1/zainbox/{zainboxCode}/activity` — transactions + deposit summary
+/// `GET /api/v1/zainbox/{zainboxCode}/transactions` — transactions + deposit summary.
+/// Alias: `/api/v1/zainbox/{zainboxCode}/activity` (deprecated).
 pub async fn zainbox_activity(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -141,7 +142,8 @@ pub async fn subscriptions_bundle(
         .and_then(to_json)
 }
 
-/// `GET /api/v1/virtual-account/{accountNumber}` — balance + transactions
+/// `GET /api/v1/va/{accountNumber}` — balance + transactions.
+/// Alias: `/api/v1/virtual-account/{accountNumber}` (deprecated).
 pub async fn virtual_account_wallet(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -179,7 +181,8 @@ pub async fn name_resolve(
         .and_then(to_json)
 }
 
-/// `GET /api/v1/merchant/activity` — summary + transaction list
+/// `GET /api/v1/merchant/transactions` — summary + transaction list.
+/// Alias: `/api/v1/merchant/activity` (deprecated).
 pub async fn merchant_activity(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -242,7 +245,8 @@ pub async fn transfer_and_verify(
     Ok(Json(json))
 }
 
-/// `GET /api/v1/deposit/{txnRef}` — dynamic status + deposit verify
+/// `GET /api/v1/dva/verify/{txnRef}` — dynamic status + deposit verify.
+/// Alias: `/api/v1/deposit/{txnRef}` (deprecated).
 pub async fn dynamic_deposit_check(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,

@@ -73,16 +73,19 @@ Docs: [docs/inline-checkout.html](docs/inline-checkout.html) · Script: `https:/
 
 **Process flow:**
 1. Checkout omits `bankType` (recommended).
-2. Gateway picks the current preferred bank from `VA_BANK_CANDIDATES`.
+2. Gateway picks the current preferred bank from `VA_BANK_CANDIDATES` (default when unset: `gtBank` only).
 3. Tries to create the temporary account with that bank.
 4. On failure → tries the next candidate; records success/speed for each attempt.
 5. Preferred bank sticks for a while (`VA_BANK_STICKY_SECS`), then can be re-scored.
 6. If merchant *does* pass `bankType`, that bank is used once (no auto-switch) — override path.
+7. At startup, keys in `VA_BANK_CANDIDATES` that are not on Koodify’s known-good list (`gtBank`, `wemaBank`, `polaris`, `fcmb`, `zainMFB`, `moniepoint`) log a warning only — they are still tried.
 
 ```env
 VA_BANK_CANDIDATES=gtBank,moniepoint
 VA_BANK_STICKY_SECS=600
 ```
+
+**Planned (Zainpay):** When Zainpay exposes an “available temporary/dynamic VA banks” API, the `client` crate will fetch/cache that list. Routing will validate (and preferably populate) candidates from it; `VA_BANK_CANDIDATES` becomes preference order / override, not the catalog. Until then env + the local known list are the stopgap (`bank_router::warn_if_experimental`).
 
 ### Gateway vs direct Zainpay mode
 **What it is:** By default the popup talks to Koodify (recommended). Advanced users can point it straight at Zainpay.
@@ -300,7 +303,7 @@ curl -X PUT "https://api.koodify.ng/api/v1/split-plans" \
   -d '{
     "id": "split_school_fees_v1",
     "name": "School fees — tutor + agent",
-    "primaryZainbox": "main_box",
+    "primaryZainboxCode": "main_box",
     "isActive": true,
     "shares": [
       { "zainboxCode": "tutor_box", "amount": "200" },
@@ -332,7 +335,7 @@ Payment status (and admin GET) include `data.paymentSplit` after the run is stor
   "data": {
     "paymentSplit": {
       "txnRef": "ORDER_889",
-      "primaryZainbox": "main_box",
+      "primaryZainboxCode": "main_box",
       "checkoutAmount": "1000",
       "status": "success",
       "legs": [
@@ -382,7 +385,7 @@ curl -X POST "https://api.koodify.ng/api/v1/payment-splits/ORDER_889" \
 | Method | Path | Purpose |
 |--------|------|---------|
 | `PUT` | `/api/v1/split-plans` | Create/update a reusable plan |
-| `GET` | `/api/v1/split-plans?primaryZainbox=` | List plans for a box |
+| `GET` | `/api/v1/split-plans?primaryZainboxCode=` | List plans for a box (`primaryZainbox` alias accepted) |
 | `GET` | `/api/v1/split-plans/{id}` | Get one plan |
 | `GET` | `/api/v1/payment-splits/{txnRef}` | Run status + legs |
 | `POST` | `/api/v1/payment-splits/{txnRef}` | Force-run pending / retry failed or partial |
@@ -436,14 +439,16 @@ RESEND_FROM=Koodify <receipts@yourdomain.com>
 2. Success trigger (inbound webhook, browser status poll, *or* reconciler) → shared side effects (receipts / split / merchant POST).
 3. Koodify claims once per `txnRef` (`metadata.merchantWebhookSent`).
 4. Builds JSON (`event`, `status`, `reference`, `amount`, `payer`, `customParam`, `paymentSplit` when present).
-5. POSTs with `X-Koodify-Signature` = hex HMAC-SHA256 of the raw body (same algorithm as inbound Zainpay webhooks).
-6. Up to 3 attempts with short backoff; non-2xx is logged. Signing secret: `MERCHANT_WEBHOOK_SECRET`, else `GATEWAY_API_KEY`.
+5. Normalizes directory-style callback URLs to end with `/` (skips file-looking paths) and follows 301/302 while **keeping POST** (avoids nginx trailing-slash → HTTP 405).
+6. POSTs with `X-Koodify-Signature` = hex HMAC-SHA256 of the raw body; also sends `X-Koodify-Event: payment.success`.
+7. Up to 3 attempts with short backoff; non-2xx is logged. Signing secret: `MERCHANT_WEBHOOK_SECRET`, else `GATEWAY_API_KEY`.
 
 ```js
 // Checkout — callBackUrl must be an absolute http(s) endpoint that accepts POST
 koodifyInitPayment({
   /* … */
   callBackUrl: "https://school.example/webhooks/koodify",
+  // Koodify POSTs to …/webhooks/koodify/ (trailing slash added when missing)
 }, browserCb); // browserCb still fires when the tab stays open
 ```
 
@@ -451,6 +456,14 @@ koodifyInitPayment({
 # Merchant verifies (pseudo)
 # signature = HMAC_SHA256_hex(MERCHANT_WEBHOOK_SECRET or GATEWAY_API_KEY, raw_body)
 # compare to header X-Koodify-Signature
+```
+
+```http
+POST /webhooks/koodify/ HTTP/1.1
+Content-Type: application/json
+User-Agent: Koodify-Webhook/1.0
+X-Koodify-Event: payment.success
+X-Koodify-Signature: <hex hmac-sha256 of raw body>
 ```
 
 ```json
@@ -462,13 +475,49 @@ koodifyInitPayment({
   "amount": "1000",
   "currencyCode": "NGN",
   "zainboxCode": "main_box",
-  "payer": { "email": "parent@example.com", "phone": "080…" },
-  "customParam": { "matric": "ND/12/2211" },
-  "paymentSplit": { "status": "success", "legs": [] }
+  "payer": {
+    "email": "parent@example.com",
+    "phone": "08012345678",
+    "name": "Ada Lovelace"
+  },
+  "customParam": {
+    "matric": "ND/12/2211",
+    "session": "2026",
+    "paymentType": "School Fees",
+    "studentId": "STU001"
+  },
+  "paymentSplit": {
+    "txnRef": "ORDER_889",
+    "primaryZainboxCode": "main_box",
+    "checkoutAmount": "1000",
+    "totalKobo": 100000,
+    "status": "success",
+    "sourceAccount": "0123456789",
+    "sourceBankCode": "058",
+    "error": null,
+    "legs": [
+      {
+        "index": 0,
+        "zainboxCode": "tutor_box",
+        "role": "secondary",
+        "amountKobo": 20000,
+        "percent": null,
+        "amount": "200",
+        "status": "success",
+        "destAccount": "9876543210",
+        "transferTxnRef": "split_ORDER_889_0",
+        "paymentRef": "…",
+        "error": null,
+        "attempts": 1
+      }
+    ]
+  }
 }
 ```
 
-**Notes:** Use a real API route, not a marketing page URL. The browser JS callback and this HTTP POST are independent. Direct Zainpay popup mode does not get this delivery. Point all zainbox webhook addresses at Koodify so Path 1 works.
+Always present: `event`, `status`, `reference`, `description`, `currencyCode`. Optional when known: `amount`, `zainboxCode`, `payer`, `customParam`, `paymentSplit`.
+
+**Notes:** Use a real API route, not a marketing page URL. The browser JS callback and this HTTP POST are independent. Direct Zainpay popup mode does not get this delivery. Point all zainbox webhook addresses at Koodify so Path 1 works. HTML docs: `docs/inline-checkout.html#merchant-webhook`. PHP sample: `samples/php/webhook/koodify/`.
 
 ### Pending checkout reconciler
 **What it is:** Koodify’s own safety net: periodically ask Zainpay “is this pending checkout paid?” and, if yes and Path 1 never fired, push the same custom customer webhook / receipts / split.
@@ -511,16 +560,86 @@ curl -X POST "https://api.koodify.ng/api/v1/reconcile/pending" \
 
 ## Gateway platform
 
-### Zainpay API mirror
-**What it is:** Koodify exposes Zainpay-style payment APIs, plus storage and extras.  
-Live: [https://api.koodify.ng](https://api.koodify.ng)
+### Stable Koodify API surface (`/api/v1`)
+**What it is:** The merchant-facing contract. Developers integrate against short, stable Koodify paths under `/api/v1/…`. Under the hood, the gateway (via the `client` crate) maps each call to one or more **current** Zainpay HTTP endpoints. If Zainpay renames or moves an upstream path, Koodify updates that mapping only — **integrators do not change their code**.
 
-**Example:** Your app talks to Koodify and gets Zainpay’s power plus memory (payer, metadata, receipts).
+**Why it exists:** Zainpay’s own URLs are long, versioned, and can change (`/virtual-account/wallet/balance/v2/…`, `/virtual-account/create/request`, …). Binding merchants directly to those paths couples their apps to Zainpay’s churn. Koodify paths are the insulation layer.
+
+**Example:** A school app calls `POST /api/v1/va/create` and `GET /api/v1/va/balance/{accountNumber}` forever. Today those talk to Zainpay’s create/balance URLs; if Zainpay ships a `v3` balance path, only Koodify’s client mapping and docs’ “Talks to” line change.
 
 **Process flow:**
-1. Client calls a Koodify path (often with secret key).
+1. Merchant app calls a **canonical** Koodify route (e.g. `/api/v1/va/balance/{n}`), not the raw Zainpay path.
+2. Gateway authenticates (`X-Api-Key` / public key as appropriate), may peel metadata / enrich.
+3. `client` crate issues the mapped Zainpay request(s) with server credentials.
+4. Koodify may persist, enrich, or combine (composites), then returns the response.
+5. Docs always show **Koodify path → talks to → Zainpay path(s)** so developers understand the hop without depending on the upstream URL.
+
+**Naming rules (house style):**
+- Prefer `/api/v1/{resource}/{action}` — short nouns (`va`, `dva`, `zainbox`, `merchant`, `banks`, `transfers`).
+- Name routes for **what they return**, not an internal nickname (e.g. merchant transactions composite is `/api/v1/merchant/transactions`, not `…/activity`).
+- Keep `/api/v1/activity*` for the real Koodify `activity_events` timeline (local, not a Zainpay mirror).
+- Zainpay-shaped gateway paths (and older aliases) may keep working for compatibility, but **new integrations should use `/api/v1`**.
+
+**Docs:** Cluster endpoints by resource; each entry lists the upstream Zainpay path(s). Full catalogue: [docs/api.html](docs/api.html) · composites: [docs/composite-endpoints.html](docs/composite-endpoints.html).
+
+```text
+Merchant  →  GET /api/v1/va/balance/{n}          ← stable (do not change for Zainpay churn)
+                ↓
+            client maps to
+                ↓
+Zainpay   →  GET /virtual-account/wallet/balance/v2/{n}   ← may change; only Koodify updates
+```
+
+**Shipped stable wrappers:**
+
+*Composites / renames*
+| Koodify | Talks to (Zainpay) |
+|---------|--------------------|
+| `GET /api/v1/merchant/transactions` | summary + list (alias: `…/activity`) |
+| `GET /api/v1/zainbox/{code}/transactions` | box ledger + deposit summary (alias: `…/activity`) |
+| `GET /api/v1/va/{n}` | VA balance + transactions |
+| `GET /api/v1/dva/verify/{txnRef}` | DVA status + deposit verify (alias: `…/deposit/{txnRef}`) |
+
+*VA / DVA*
+| Koodify | Talks to |
+|---------|----------|
+| `POST /api/v1/va/create` | `POST /virtual-account/create/request` |
+| `GET /api/v1/va/balance/{n}` | `…/wallet/balance/v2/{n}` |
+| `GET /api/v1/va/transactions/{n}` | `…/wallet/transactions/{n}` |
+| `PATCH /api/v1/va/status` · `POST /api/v1/va/bvn` · `POST /api/v1/va/fund` | matching VA paths |
+| `POST /api/v1/dva/create` | `POST /virtual-account/dynamic/create/request` |
+| `GET /api/v1/dva/deposit/{txnRef}` · `POST /api/v1/dva/fund` | dynamic status / mock fund |
+
+*Zainbox / merchant*
+| Koodify | Talks to |
+|---------|----------|
+| `GET /api/v1/zainboxes` | `GET /zainbox/list` |
+| `POST /api/v1/zainbox` · `PATCH /api/v1/zainbox` | create / update |
+| `GET /api/v1/zainbox/{code}/vas` · `/balances` · `/profile` · `/ledger` · `/deposit-summary` · `/card-transactions` | matching `/zainbox/…` paths |
+| `POST /api/v1/zainbox/subscribe` · `/unsubscribe` | service-subscription |
+| `GET /api/v1/merchant/transactions/summary` · `/list` | summary / merchant transactions |
+
+*Bank / transfer / settlement / checkout*
+| Koodify | Talks to |
+|---------|----------|
+| `GET /api/v1/banks` · `/banks/enquiry` · `/banks/resolve` | list / name-enquiry / composite |
+| `POST /api/v1/transfers` · `GET …/verify` · `…/network` | transfer v2 / verify / network |
+| `POST\|GET /api/v1/settlements` · `/history/{code}` · `/internal/{code}` | settlement family |
+| `POST /api/v1/checkout/initialize` · `/initialize/inline` · `GET /account` · `/status` · `POST /recurring` | card / TVA checkout family |
+| `GET /api/v1/reconcile/deposit/{txnRef}` · `/bank-deposit` · `/card-payment` | reconcile family |
+| `GET /api/v1/webhooks/repush/deposit\|card/{txnRef}` | webhook repush |
+
+Live API host: [https://api.koodify.ng](https://api.koodify.ng)
+
+### Zainpay API mirror (compatibility paths)
+**What it is:** Koodify also exposes many Zainpay-shaped URLs (same path shape as upstream) for drop-in proxying, plus storage and extras. Prefer the **stable `/api/v1` surface** above for new work.
+
+**Example:** An old script still posts to `/virtual-account/create/request` on the gateway; new code should use `/api/v1/va/create` once that wrapper ships.
+
+**Process flow:**
+1. Client calls a Koodify path (often with secret key) — either `/api/v1/…` or a Zainpay-shaped alias.
 2. Koodify may strip metadata / enrich the body.
-3. Request is forwarded to Zainpay with server credentials.
+3. Request is forwarded to Zainpay with server credentials (path taken from the client mapping, not hard-wired into the merchant’s integration).
 4. Response returns; Koodify may persist and enrich before answering you.
 
 ### Client SDK (`client` crate)
@@ -596,14 +715,14 @@ curl -X POST "https://api.koodify.ng/api/v1/zainboxes/sync-webhook-callbacks" \
 4. `/health` simply answers that the service is up.
 
 ### Canonical + legacy paths
-**What it is:** Newer Zainpay-style URLs and older `/zainbox/bank/…` aliases so old integrations keep working.
+**What it is:** Layered aliases so old integrations keep working while the stable `/api/v1` surface grows: (1) preferred Koodify `/api/v1/…`, (2) Zainpay-shaped gateway mirrors, (3) older quirks like `/zainbox/bank/…`.
 
-**Example:** An old script on a legacy path still works while new code uses the modern path.
+**Example:** An old script on a legacy path still works; new merchants integrate only against `/api/v1` so a future Zainpay path change never reaches them.
 
 **Process flow:**
-1. Request hits either canonical or legacy route.
-2. Both map to the same underlying handler / Zainpay call.
-3. Response shape stays consistent for the client.
+1. Request hits canonical `/api/v1`, a Zainpay-shaped mirror, or a legacy alias.
+2. All map to the same handler / `client` call (and thus the current Zainpay upstream URL).
+3. Response shape stays consistent for the client; only the documented “Talks to” upstream may change over time.
 
 ---
 
@@ -731,6 +850,22 @@ Automated checks for the Rust client and gateway logic.
 
 ---
 
+## Schema naming (house style)
+
+| Concept | Canonical DB column | Notes |
+|---------|---------------------|--------|
+| Checkout / payment id | `txn_ref` | Matches Zainpay `txnRef`. Used on `activity_events`, `payment_splits`, `payment_split_legs`, `webhook_deliveries`. |
+| Polymorphic ops id | `resource_key` | **Only** on `transactions` — may be `txnRef` *or* `accountNumber`. |
+| Zainbox business id | `zainbox_code` | On `zainboxes` (PK), `customers`, `credentials`, legs, logs, etc. Zainpay wire name remains `codeName`. |
+| Split owner box | `primary_zainbox_code` | Role-qualified; not bare `primary_zainbox`. |
+| Split leg transfer id | `transfer_txn_ref` | Child transfer’s own ref — not the checkout `txn_ref`. |
+
+`credentials.zainbox_code` is the Zainpay Bearer identity (formerly misnamed `private_key`). API: `zainboxCode`; reveal with `?revealZainboxCode=true`.
+
+Migration: `018_naming_consistency.sql`.
+
+---
+
 ## Env-gated / optional (plain English)
 
 | Feature | When it turns on |
@@ -740,7 +875,7 @@ Automated checks for the Rust client and gateway logic.
 | Pending checkout reconciler | On by default (`RECONCILE_ENABLED`); disable with `false`. Force: `POST /api/v1/reconcile/pending` |
 | Activity events | Always on after migrate `017`; query `GET /api/v1/activity/{txnRef}` |
 | Inbound webhooks | Set `ZAINPAY_WEBHOOK_SECRET` + `PUBLIC_BASE_URL`; sync zainbox callbacks to `/webhooks/zainpay` |
-| Multi-bank Adaptive Bank/DVA Routing | You list more than one bank in `VA_BANK_CANDIDATES` |
+| Multi-bank Adaptive Bank/DVA Routing | You list more than one bank in `VA_BANK_CANDIDATES` (today’s catalog source; later → Zainpay available-banks API via `client`) |
 | Custom params / payer name / metadata | You send those fields in the request |
 | Merchant email destination | The zainbox has an `email_notification` address |
 | Direct Zainpay popup mode | You set `auth: "zainpay"` and supply an API key |

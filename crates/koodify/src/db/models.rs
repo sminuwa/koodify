@@ -86,7 +86,8 @@ pub struct Credential {
     /// `test` or `live`
     pub environment: String,
     pub public_key: String,
-    pub private_key: String,
+    /// Zainpay zainbox business id (`codeName`) used as Bearer — not a crypto key.
+    pub zainbox_code: String,
     pub metadata: Value,
     pub status: String,
     pub created_at: DateTime<Utc>,

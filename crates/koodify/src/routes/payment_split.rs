@@ -15,7 +15,8 @@ use crate::state::AppState;
 pub struct UpsertSplitPlanBody {
     pub id: String,
     pub name: String,
-    pub primary_zainbox: String,
+    #[serde(alias = "primaryZainbox", alias = "primary_zainbox")]
+    pub primary_zainbox_code: String,
     pub shares: Vec<ShareInput>,
     #[serde(default = "default_true")]
     pub is_active: bool,
@@ -30,7 +31,8 @@ fn default_true() -> bool {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListPlansQuery {
-    pub primary_zainbox: Option<String>,
+    #[serde(alias = "primaryZainbox", alias = "primary_zainbox")]
+    pub primary_zainbox_code: Option<String>,
 }
 
 /// `PUT /api/v1/split-plans` — create/update a reusable plan (secret key).
@@ -41,17 +43,17 @@ pub async fn upsert_plan(
 ) -> JsonResult {
     let id = body.id.trim();
     let name = body.name.trim();
-    let primary = body.primary_zainbox.trim();
+    let primary = body.primary_zainbox_code.trim();
     if id.is_empty() || name.is_empty() || primary.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
-            "id, name, and primaryZainbox are required".into(),
+            "id, name, and primaryZainboxCode are required".into(),
         ));
     }
 
     // Validate shape with a dummy positive amount (₦10,000).
     let input = PaymentSplitInput {
-        primary_zainbox: Some(primary.to_string()),
+        primary_zainbox_code: Some(primary.to_string()),
         shares: body.shares.clone(),
     };
     let plan = payment_split::resolve_plan(primary, "10000", &input)
@@ -119,14 +121,14 @@ pub async fn list_plans(
     Query(q): Query<ListPlansQuery>,
 ) -> JsonResult {
     let Some(primary) = q
-        .primary_zainbox
+        .primary_zainbox_code
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
     else {
         return Err((
             StatusCode::BAD_REQUEST,
-            "primaryZainbox query param is required".into(),
+            "primaryZainboxCode query param is required".into(),
         ));
     };
     match db::split_plans::list_for_primary(&state.pool, primary).await {

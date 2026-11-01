@@ -55,6 +55,7 @@ def endpoint(
     body: str | None = None,
     combines: list[str] | None = None,
     note: str | None = None,
+    sample_label: str = "Sample response",
 ):
     extra = ""
     if note:
@@ -94,7 +95,7 @@ def endpoint(
       {extra}
     </div>
     <div>
-      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Sample response</p>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">{sample_label}</p>
       <pre class="mt-3 max-h-[28rem] overflow-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-slate-100"><code>{j(sample)}</code></pre>
     </div>
   </div>
@@ -131,8 +132,9 @@ def main() -> None:
         "id": "2b018720-a714-4e9e-861f-488e7e795d9f",
         "customerId": 1,
         "environment": "live",
-        "publicKey": "eyJ0eXAiOiJKV1QiLCJhbGciOi…",
-        "privateKey": "charg_0atrmzL5qsMFKGYPrahj",
+        "publicKey": "pk_live_…",
+        "zainboxCode": "charg_0atrmzL5qsMFKGYPrahj",
+        "zainboxCodeSet": True,
         "status": "active",
     }
 
@@ -199,11 +201,11 @@ def main() -> None:
                 ],
             ),
             endpoint(
-                "api-zainbox-activity",
+                "api-zainbox-transactions",
                 "GET",
-                "/api/v1/zainbox/{zainboxCode}/activity",
-                "Zainbox activity",
-                "Transactions + deposit summary.",
+                "/api/v1/zainbox/{zainboxCode}/transactions",
+                "Zainbox transactions",
+                "Transactions + deposit summary. Alias: /api/v1/zainbox/{zainboxCode}/activity (deprecated).",
                 composite(
                     "composite: zainbox transactions + deposit summary",
                     transactions=[
@@ -278,9 +280,9 @@ def main() -> None:
             endpoint(
                 "api-va-wallet",
                 "GET",
-                "/api/v1/virtual-account/{accountNumber}",
-                "Virtual-account wallet",
-                "Balance + transactions for one VA.",
+                "/api/v1/va/{accountNumber}",
+                "VA wallet (composite)",
+                "Balance + transactions for one VA. Alias: /api/v1/virtual-account/{accountNumber} (deprecated).",
                 composite(
                     "composite: virtual-account balance + transactions",
                     balance={
@@ -298,9 +300,9 @@ def main() -> None:
             endpoint(
                 "api-bank-resolve",
                 "GET",
-                "/api/v1/bank/resolve",
+                "/api/v1/banks/resolve",
                 "Name resolve",
-                "Bank list + name enquiry.",
+                "Bank list + name enquiry. Alias: /api/v1/bank/resolve.",
                 composite(
                     "composite: bank list + name enquiry",
                     banks=[{"code": "000013", "name": "GTBank"}],
@@ -313,11 +315,11 @@ def main() -> None:
                 combines=["GET /bank/list", "GET /bank/name-enquiry"],
             ),
             endpoint(
-                "api-merchant-activity",
+                "api-merchant-transactions",
                 "GET",
-                "/api/v1/merchant/activity",
-                "Merchant activity",
-                "Merchant-wide summary + transaction list.",
+                "/api/v1/merchant/transactions",
+                "Merchant transactions",
+                "Merchant-wide summary + transaction list. Alias: /api/v1/merchant/activity (deprecated).",
                 composite(
                     "composite: merchant transactions summary + list",
                     summary={"totalCredit": "1000000", "totalDebit": "250000"},
@@ -367,19 +369,19 @@ def main() -> None:
                 ],
             ),
             endpoint(
-                "api-deposit",
+                "api-dva-verify",
                 "GET",
-                "/api/v1/deposit/{txnRef}",
-                "Dynamic deposit check",
-                "Dynamic deposit status + deposit verify.",
+                "/api/v1/dva/verify/{txnRef}",
+                "DVA deposit verify (composite)",
+                "Dynamic deposit status + deposit verify. Alias: /api/v1/deposit/{txnRef} (deprecated).",
                 composite(
                     "composite: dynamic deposit status + deposit verify",
                     depositStatus={"txnRef": "dep_001", "paid": True},
                     depositVerify={"txnRef": "dep_001", "verified": True},
                 ),
                 combines=[
-                    "GET …/dynamic/deposit/status/{txnRef}",
-                    "GET …/deposit/verify/v2/{txnRef}",
+                    "GET /virtual-account/dynamic/deposit/status/{txnRef}",
+                    "GET /virtual-account/wallet/deposit/verify/v2/{txnRef}",
                 ],
             ),
             endpoint(
@@ -405,6 +407,236 @@ def main() -> None:
                     "POST /zainbox/settlement",
                     "GET /zainbox/settlement/history/{zainboxCode}",
                 ],
+            ),
+        ],
+    )
+
+    sec(
+        "api-v1-va",
+        "API v1 · Static VA",
+        [
+            endpoint(
+                "api-va-create",
+                "POST",
+                "/api/v1/va/create",
+                "Create static VA",
+                "Stable wrapper. Talks to Zainpay create-request.",
+                zp({"accountNumber": "5006079921", "accountName": "KAMFANY LTD"}),
+                note="Talks to: POST /virtual-account/create/request",
+                body="Zainpay virtual-account create fields (+ optional metadata)",
+            ),
+            endpoint(
+                "api-va-balance",
+                "GET",
+                "/api/v1/va/balance/{accountNumber}",
+                "VA balance",
+                "Stable wrapper for wallet balance.",
+                zp({"accountNumber": "5006079921", "balanceAmount": "125000.00"}),
+                note="Talks to: GET /virtual-account/wallet/balance/v2/{accountNumber}",
+            ),
+            endpoint(
+                "api-va-txns",
+                "GET",
+                "/api/v1/va/transactions/{accountNumber}",
+                "VA transactions",
+                "Stable wrapper for wallet ledger.",
+                zp([{"txnRef": "txn_1", "amount": "5000"}]),
+                note="Talks to: GET /virtual-account/wallet/transactions/{accountNumber}",
+                query="count, txnType, paymentChannel, dateFrom, dateTo",
+            ),
+            endpoint(
+                "api-va-status",
+                "PATCH",
+                "/api/v1/va/status",
+                "Change VA status",
+                "Stable wrapper.",
+                zp({"accountNumber": "5006079921", "status": "active"}),
+                note="Talks to: PATCH /virtual-account/change/account/status",
+            ),
+            endpoint(
+                "api-va-bvn",
+                "POST",
+                "/api/v1/va/bvn",
+                "Update VA BVN",
+                "Stable wrapper.",
+                zp({"updated": True}),
+                note="Talks to: POST /virtual-account/update/bvn",
+            ),
+            endpoint(
+                "api-va-fund",
+                "POST",
+                "/api/v1/va/fund",
+                "Fund static VA (sandbox)",
+                "Mock-host fund helper.",
+                zp({"funded": True}),
+                note="Talks to: POST /virtual-account/static/fund (mock host)",
+            ),
+        ],
+    )
+
+    sec(
+        "api-v1-dva",
+        "API v1 · Dynamic VA",
+        [
+            endpoint(
+                "api-dva-create",
+                "POST",
+                "/api/v1/dva/create",
+                "Create dynamic VA",
+                "Stable wrapper for one-time / dynamic accounts.",
+                zp({"accountNumber": "9…", "txnRef": "LIVE_…"}),
+                note="Talks to: POST /virtual-account/dynamic/create/request",
+            ),
+            endpoint(
+                "api-dva-deposit",
+                "GET",
+                "/api/v1/dva/deposit/{txnRef}",
+                "DVA deposit status",
+                "Stable wrapper for dynamic deposit status.",
+                zp({"txnRef": "dep_001", "paid": True}),
+                note="Talks to: GET /virtual-account/dynamic/deposit/status/{txnRef}",
+            ),
+            endpoint(
+                "api-dva-fund",
+                "POST",
+                "/api/v1/dva/fund",
+                "Fund dynamic VA (sandbox)",
+                "Mock-host fund helper.",
+                zp({"funded": True}),
+                note="Talks to: POST /virtual-account/dynamic/fund (mock host)",
+            ),
+        ],
+    )
+
+    sec(
+        "api-v1-zainbox",
+        "API v1 · Zainbox",
+        [
+            endpoint(
+                "api-zainboxes-list",
+                "GET",
+                "/api/v1/zainboxes",
+                "List zainboxes",
+                "Stable wrapper.",
+                zp([{"codeName": "charg_…", "name": "Store"}]),
+                note="Talks to: GET /zainbox/list",
+            ),
+            endpoint(
+                "api-zainbox-create",
+                "POST",
+                "/api/v1/zainbox",
+                "Create zainbox",
+                "Stable wrapper.",
+                zp({"codeName": "charg_…", "name": "Store"}),
+                note="Talks to: POST /zainbox/create/request",
+            ),
+            endpoint(
+                "api-zainbox-update",
+                "PATCH",
+                "/api/v1/zainbox",
+                "Update zainbox",
+                "Stable wrapper.",
+                zp({"codeName": "charg_…", "callbackUrl": "https://…"}),
+                note="Talks to: PATCH /zainbox/update",
+            ),
+            endpoint(
+                "api-zainbox-vas",
+                "GET",
+                "/api/v1/zainbox/{zainboxCode}/vas",
+                "List VAs on a zainbox",
+                "Stable wrapper.",
+                zp([{"accountNumber": "5006079921"}]),
+                note="Talks to: GET /zainbox/virtual-accounts/{zainboxCode}",
+            ),
+            endpoint(
+                "api-zainbox-balances",
+                "GET",
+                "/api/v1/zainbox/{zainboxCode}/balances",
+                "Account balances",
+                "Stable wrapper.",
+                zp([{"accountNumber": "5006079921", "balance": "125000.00"}]),
+                note="Talks to: GET /zainbox/accounts/balance/{zainboxCode}",
+            ),
+            endpoint(
+                "api-zainbox-profile",
+                "GET",
+                "/api/v1/zainbox/{zainboxCode}/profile",
+                "Zainbox profile",
+                "Uses profile v2 under the hood.",
+                zp({"name": "kamfany", "codeName": "charg_…"}),
+                note="Talks to: GET /zainbox/profile/v2/{zainboxCode}",
+            ),
+            endpoint(
+                "api-zainbox-ledger",
+                "GET",
+                "/api/v1/zainbox/{zainboxCode}/ledger",
+                "Zainbox ledger",
+                "Single-box transaction list (not the composite).",
+                zp([{"txnRef": "txn_1", "amount": "5000"}]),
+                note="Talks to: GET /zainbox/transactions/{zainboxCode}",
+            ),
+            endpoint(
+                "api-zainbox-subscribe",
+                "POST",
+                "/api/v1/zainbox/subscribe",
+                "Subscribe service",
+                "Stable wrapper.",
+                zp({"status": "active"}),
+                note="Talks to: POST /zainbox/service-subscription/subscribe",
+            ),
+        ],
+    )
+
+    sec(
+        "api-v1-checkout",
+        "API v1 · Checkout",
+        [
+            endpoint(
+                "api-checkout-init",
+                "POST",
+                "/api/v1/checkout/initialize",
+                "Initialize payment",
+                "Stable wrapper for card/TVA session start.",
+                zp({"txnRef": "ORDER_1", "sessionId": "…"}),
+                note="Talks to: POST /zainbox/card/initialize/payment",
+            ),
+            endpoint(
+                "api-checkout-inline",
+                "POST",
+                "/api/v1/checkout/initialize/inline",
+                "Initialize inline checkout",
+                "Open browser checkout (publicKey). Prefer this for koodify-inline.",
+                zp({"txnRef": "LIVE_…", "accountNumber": "…"}),
+                note="Talks to: POST /zainbox/card/initialize/payment/inline",
+            ),
+            endpoint(
+                "api-checkout-account",
+                "GET",
+                "/api/v1/checkout/account",
+                "Generate temporary VA",
+                "Stable wrapper.",
+                zp({"accountNumber": "…", "bankName": "GTBank"}),
+                note="Talks to: GET /zainbox/card/generate-temporary-virtual-account",
+                query="bankType, e",
+            ),
+            endpoint(
+                "api-checkout-status",
+                "GET",
+                "/api/v1/checkout/status",
+                "Temporary VA payment status",
+                "Stable wrapper used by inline polling.",
+                zp({"paymentStatus": "success", "txnRef": "LIVE_…"}),
+                note="Talks to: GET /zainbox/card/temporary-virtual-account-payment-status",
+                query="txnRef",
+            ),
+            endpoint(
+                "api-checkout-recurring",
+                "POST",
+                "/api/v1/checkout/recurring",
+                "Recurring purchase",
+                "Stable wrapper.",
+                zp({"txnRef": "card_rec_1", "status": "success"}),
+                note="Talks to: POST /zainbox/card/recurring/purchase",
             ),
         ],
     )
@@ -519,9 +751,9 @@ def main() -> None:
                 "PUT",
                 "/credentials",
                 "Upsert credentials",
-                "One test + one live pair per customer. Seed sets privateKey = zainbox codeName.",
+                "One test + one live pair per customer. Seed sets zainboxCode = Zainpay codeName (Bearer id). Redacted unless ?revealZainboxCode=true (alias: revealPrivateKey).",
                 cred,
-                body="customerId, environment (test|live), publicKey, privateKey, metadata, status",
+                body="customerId, environment (test|live), publicKey, zainboxCode (alias privateKey), metadata, status",
             ),
             endpoint(
                 "credentials-list",
@@ -530,7 +762,7 @@ def main() -> None:
                 "List credentials",
                 "Filter by customer and environment.",
                 [cred],
-                query="customerId, environment",
+                query="customerId, environment, revealZainboxCode",
             ),
             endpoint(
                 "credentials-by-customer",
@@ -1105,6 +1337,37 @@ def main() -> None:
     )
 
     repush = zp({"txnRef": "dep_001", "repushed": True})
+    merchant_webhook_body = {
+        "event": "payment.success",
+        "status": "success",
+        "reference": "ORDER_1793402668162",
+        "description": "Payment was successful",
+        "amount": "500",
+        "currencyCode": "NGN",
+        "zainboxCode": "main_box",
+        "payer": {
+            "email": "customer@example.com",
+            "phone": "08012345678",
+            "name": "Ada Lovelace",
+        },
+        "customParam": {
+            "matric": "ND/12/2211",
+            "session": "2026",
+            "paymentType": "School Fees",
+            "studentId": "STU001",
+        },
+        "paymentSplit": {
+            "txnRef": "ORDER_1793402668162",
+            "primaryZainboxCode": "main_box",
+            "checkoutAmount": "500",
+            "totalKobo": 50000,
+            "status": "success",
+            "sourceAccount": "0123456789",
+            "sourceBankCode": "058",
+            "error": None,
+            "legs": [],
+        },
+    }
     sec(
         "webhooks",
         "Webhooks",
@@ -1117,6 +1380,21 @@ def main() -> None:
                 "Receive Zainpay webhook events.",
                 {"received": True},
                 note="HMAC Zainpay-Signature via ZAINPAY_WEBHOOK_SECRET. No X-Api-Key.",
+            ),
+            endpoint(
+                "wh-merchant-outbound",
+                "POST",
+                "{callBackUrl}",
+                "Outbound merchant webhook",
+                "On payment success Koodify POSTs a signed payment.success JSON body to checkout callBackUrl (or zainbox callback_url). Delivered once per txnRef — independent of the browser JS callback.",
+                merchant_webhook_body,
+                note=(
+                    "Headers: Content-Type application/json, User-Agent Koodify-Webhook/1.0, "
+                    "X-Koodify-Event payment.success, X-Koodify-Signature hex HMAC-SHA256 "
+                    "(MERCHANT_WEBHOOK_SECRET or GATEWAY_API_KEY). Directory URLs get a trailing slash. "
+                    "See docs/inline-checkout.html#merchant-webhook."
+                ),
+                sample_label="Sample POST body",
             ),
             endpoint(
                 "wh-repush-dep",
@@ -1221,6 +1499,7 @@ def main() -> None:
               <li>Most routes: <code class="font-mono text-sm">X-Api-Key: $GATEWAY_API_KEY</code></li>
               <li>Upstream Zainpay: server <code class="font-mono text-sm">ZAINPAY_API_KEY</code> (Bearer)</li>
               <li><code class="font-mono text-sm">POST /webhooks/zainpay</code>: HMAC <code class="font-mono text-sm">Zainpay-Signature</code></li>
+              <li>Outbound merchant <code class="font-mono text-sm">callBackUrl</code>: HMAC <code class="font-mono text-sm">X-Koodify-Signature</code></li>
               <li><code class="font-mono text-sm">GET /health</code> is open</li>
             </ul>
             <div>

@@ -43,7 +43,8 @@
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#quickstart">Quick start</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#config">Config fields</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#custom-param">customParam</a>
-        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#callback">Callback response</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#callback">Browser callback</a>
+        <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#merchant-webhook">Merchant webhook</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#flow">Payment flow</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#listening">Listening &amp; capacity</a>
         <a data-nav class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-white hover:text-accent" href="#gateway">Gateway routes</a>
@@ -185,7 +186,7 @@ npm run build
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">callBackUrl</td>
                   <td class="px-4 py-3">yes</td>
-                  <td class="px-4 py-3">Merchant webhook / return URL passed upstream.</td>
+                  <td class="px-4 py-3">Absolute <code class="font-mono text-xs">https://…</code> merchant endpoint. On success Koodify POSTs a signed <code class="font-mono text-xs">payment.success</code> JSON body (see <a class="text-accent underline" href="#merchant-webhook">Merchant webhook</a>). Directory URLs get a trailing <code class="font-mono text-xs">/</code> before POST.</td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">name</td>
@@ -264,8 +265,13 @@ npm run build
         </section>
 
         <section id="callback" class="scroll-mt-24 border-b border-slate-200 py-12">
-          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Callback response</h2>
-          <p class="mt-4 text-base leading-7 text-ink-700">Shape passed to the callback and Promise:</p>
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Browser callback</h2>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            Shape passed to the JS callback and Promise when the checkout tab stays open.
+            Independent of the server
+            <a class="text-accent underline" href="#merchant-webhook">merchant webhook</a>
+            POST to <code class="font-mono text-sm">callBackUrl</code>.
+          </p>
           <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>{
   "status": "success",
   "reference": "ORDER_1793402668162",
@@ -308,6 +314,117 @@ npm run build
           </div>
         </section>
 
+        <section id="merchant-webhook" class="scroll-mt-24 border-b border-slate-200 py-12">
+          <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Merchant webhook</h2>
+          <p class="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">Outbound · callBackUrl</p>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            On payment success, Koodify POSTs a signed JSON body to checkout
+            <code class="font-mono text-sm">callBackUrl</code>
+            (fallback: zainbox <code class="font-mono text-sm">callback_url</code> from seed) —
+            even if the browser closed. Merchants never see raw Zainpay webhook bodies.
+            Delivered once per <code class="font-mono text-sm">txnRef</code>.
+          </p>
+          <p class="mt-4 text-base leading-7 text-ink-700">
+            Directory-style URLs without a trailing slash are normalized to end with
+            <code class="font-mono text-sm">/</code> before POST (file-looking paths like
+            <code class="font-mono text-sm">….php</code> are left unchanged). Respond with
+            <strong>2xx</strong>; Koodify retries up to 3 times on failure.
+          </p>
+
+          <h3 class="mt-8 text-xl font-semibold text-ink-950">Request headers</h3>
+          <div class="mt-4 overflow-x-auto rounded-lg ring-1 ring-slate-200 bg-white/80">
+            <table class="min-w-full text-left text-sm">
+              <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.14em] text-ink-500">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">Header</th>
+                  <th class="px-4 py-3 font-semibold">Value</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-ink-700">
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">Content-Type</td>
+                  <td class="px-4 py-3 font-mono text-xs">application/json</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">User-Agent</td>
+                  <td class="px-4 py-3 font-mono text-xs">Koodify-Webhook/1.0</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">X-Koodify-Event</td>
+                  <td class="px-4 py-3 font-mono text-xs">payment.success</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-mono text-xs">X-Koodify-Signature</td>
+                  <td class="px-4 py-3">Hex HMAC-SHA256 of the <em>raw</em> body. Secret: <code class="font-mono text-xs">MERCHANT_WEBHOOK_SECRET</code>, else <code class="font-mono text-xs">GATEWAY_API_KEY</code>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="mt-8 text-xl font-semibold text-ink-950">POST body</h3>
+          <pre class="mt-4 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>{
+  "event": "payment.success",
+  "status": "success",
+  "reference": "ORDER_1793402668162",
+  "description": "Payment was successful",
+  "amount": "500",
+  "currencyCode": "NGN",
+  "zainboxCode": "main_box",
+  "payer": {
+    "email": "customer@example.com",
+    "phone": "08012345678",
+    "name": "Ada Lovelace"
+  },
+  "customParam": {
+    "matric": "ND/12/2211",
+    "session": "2026",
+    "paymentType": "School Fees",
+    "studentId": "STU001"
+  },
+  "paymentSplit": {
+    "txnRef": "ORDER_1793402668162",
+    "primaryZainbox": "main_box",
+    "checkoutAmount": "500",
+    "totalKobo": 50000,
+    "status": "success",
+    "sourceAccount": "0123456789",
+    "sourceBankCode": "058",
+    "error": null,
+    "legs": [
+      {
+        "index": 0,
+        "zainboxCode": "tutor_box",
+        "role": "secondary",
+        "amountKobo": 20000,
+        "percent": null,
+        "amount": "200",
+        "status": "success",
+        "destAccount": "9876543210",
+        "transferTxnRef": "split_ORDER_1793402668162_0",
+        "paymentRef": "…",
+        "error": null,
+        "attempts": 1
+      }
+    ]
+  }
+}</code></pre>
+          <p class="mt-4 text-sm text-ink-500">
+            Always present: <code class="font-mono text-xs">event</code>,
+            <code class="font-mono text-xs">status</code>,
+            <code class="font-mono text-xs">reference</code>,
+            <code class="font-mono text-xs">description</code>,
+            <code class="font-mono text-xs">currencyCode</code>.
+            Included when known:
+            <code class="font-mono text-xs">amount</code>,
+            <code class="font-mono text-xs">zainboxCode</code>,
+            <code class="font-mono text-xs">payer</code>,
+            <code class="font-mono text-xs">customParam</code>,
+            <code class="font-mono text-xs">paymentSplit</code>.
+            PHP sample receiver:
+            <code class="font-mono text-xs">samples/php/webhook/koodify/</code>.
+          </p>
+        </section>
+
         <section id="flow" class="scroll-mt-24 border-b border-slate-200 py-12">
           <h2 class="text-4xl font-semibold tracking-tight text-ink-950">Payment flow</h2>
           <ol class="mt-6 list-decimal space-y-3 pl-5 text-base leading-7 text-ink-700">
@@ -324,8 +441,10 @@ npm run build
               <code class="font-mono text-sm">…/temporary-virtual-account-payment-status</code>
               every <strong>3 seconds</strong> (see below).
             </li>
-            <li>On success: confirmation UI (~10s), then callback with status / payer / customParam.
-              Koodify also emails (Resend, once each per txn): a branded <strong>payer receipt</strong>,
+            <li>On success: confirmation UI (~10s), then browser callback with status / payer / customParam.
+              Koodify also POSTs the
+              <a class="text-accent underline" href="#merchant-webhook">merchant webhook</a>
+              to <code class="font-mono text-sm">callBackUrl</code>, and emails (Resend, once each per txn): a branded <strong>payer receipt</strong>,
               and a <strong>merchant notice</strong> to the zainbox <code class="font-mono text-sm">email_notification</code> address when set.</li>
           </ol>
         </section>
