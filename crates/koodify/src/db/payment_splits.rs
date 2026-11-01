@@ -132,12 +132,21 @@ pub async fn insert_pending(
     Ok(split)
 }
 
+/// How long a `running` claim is exclusive before another worker may reclaim it.
+/// Prevents crash mid-`execute_split` from leaving funds stuck forever.
+pub const RUNNING_LEASE_SECS: i64 = 600;
+
 /// Atomically claim a pending split for execution. Returns the row if this caller won.
 pub async fn claim_pending(pool: &PgPool, txn_ref: &str) -> Result<Option<PaymentSplit>, sqlx::Error> {
     claim_for_run(pool, txn_ref, false).await
 }
 
-/// Claim for execution. When `allow_retry` is true, also reclaims `failed` / `partial`.
+/// Claim for execution.
+///
+/// - Always claims `pending`.
+/// - When `allow_retry` is true, also reclaims `failed` / `partial`.
+/// - Always reclaims `running` whose lease (`claimed_at`) is older than
+///   [`RUNNING_LEASE_SECS`] (crash recovery).
 pub async fn claim_for_run(
     pool: &PgPool,
     txn_ref: &str,
@@ -149,7 +158,7 @@ pub async fn claim_for_run(
         r#"
         UPDATE payment_splits
         SET status = 'running',
-            claimed_at = COALESCE(claimed_at, now()),
+            claimed_at = now(),
             completed_at = NULL,
             updated_at = now(),
             error = NULL
@@ -157,6 +166,11 @@ pub async fn claim_for_run(
           AND (
             status = 'pending'
             OR ($2 AND status IN ('failed', 'partial'))
+            OR (
+              status = 'running'
+              AND COALESCE(claimed_at, updated_at)
+                  < now() - make_interval(secs => $3::double precision)
+            )
           )
         RETURNING
             txn_ref, primary_zainbox, checkout_amount, total_kobo, plan_snapshot,
@@ -166,10 +180,11 @@ pub async fn claim_for_run(
     )
     .bind(txn_ref)
     .bind(allow_retry)
+    .bind(RUNNING_LEASE_SECS as f64)
     .fetch_optional(&mut *tx)
     .await?;
 
-    if split.is_some() && allow_retry {
+    if split.is_some() {
         // Re-queue transfer legs that did not succeed; keep successful ones.
         // Preserve transfer_txn_ref / payment_ref so retries verify the same
         // idempotency key instead of minting a new one (avoids double-pay).

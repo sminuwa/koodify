@@ -679,9 +679,10 @@ pub async fn force_run(
                     "summary": summary,
                 }))
             }
-            Some(s) if s.status == "running" => Err(
-                "split is already running — wait a moment and fetch status".into(),
-            ),
+            Some(s) if s.status == "running" => Err(format!(
+                "split is already running (lease {}s) — wait for it to finish or expire, then retry",
+                db::payment_splits::RUNNING_LEASE_SECS
+            )),
             Some(s) => Err(format!(
                 "cannot run split in status `{}`",
                 s.status

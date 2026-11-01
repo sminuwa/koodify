@@ -196,7 +196,7 @@ koodifyInitPayment({
 3. Customer pays once into the primary box’s temporary account (same as normal checkout). Open checkout requires `publicKey`.
 4. On explicit payment success (status string `success`/`paid`/… — not API `code=00` alone) via webhook (preferred) or status poll → Koodify claims the run once, pins the deposit source account, then transfers each secondary leg with a stable idempotent `transfer_txn_ref`.
 5. Primary keep needs no transfer. Status / admin APIs show `data.paymentSplit` with per-leg results.
-6. Ops can force a pending/failed run: `POST /api/v1/payment-splits/{txnRef}` (secret `X-Api-Key`). Force-run may use a funded-VA fallback when source was never recorded.
+6. Ops can force a pending/failed/partial run: `POST /api/v1/payment-splits/{txnRef}` (secret `X-Api-Key`). Force-run may use a funded-VA fallback when source was never recorded. A `running` claim expires after **10 minutes** (`claimed_at` lease) so a crashed worker can be reclaimed automatically or via force-run.
 
 **Share rules:**
 | Field | Meaning |
