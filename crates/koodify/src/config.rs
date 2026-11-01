@@ -59,7 +59,10 @@ impl Config {
                 .unwrap_or_else(|_| "https://sandbox.zainpay.ng".into()),
             zainpay_api_key: env::var("ZAINPAY_API_KEY").context("ZAINPAY_API_KEY is required")?,
             gateway_api_key: env::var("GATEWAY_API_KEY").context("GATEWAY_API_KEY is required")?,
-            zainpay_webhook_secret: env::var("ZAINPAY_WEBHOOK_SECRET").ok().filter(|s| !s.is_empty()),
+            zainpay_webhook_secret: env::var("ZAINPAY_WEBHOOK_SECRET")
+                .ok()
+                .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
+                .filter(|s| !s.is_empty()),
             resend_api_key: env::var("RESEND_API_KEY").ok().filter(|s| !s.trim().is_empty()),
             resend_from: env::var("RESEND_FROM")
                 .ok()

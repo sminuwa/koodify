@@ -66,6 +66,7 @@ pub async fn inbound(
         .unwrap_or("");
 
     if !verify_webhook_signature(secret.as_bytes(), &body, signature) {
+        let sig_trim = signature.trim();
         activity::record(
             &state,
             "inbound.webhook.rejected_signature",
@@ -73,7 +74,14 @@ pub async fn inbound(
             None,
             None,
             "Inbound Zainpay webhook rejected — invalid signature",
-            json!({ "bodyBytes": body.len() }),
+            json!({
+                "bodyBytes": body.len(),
+                "signaturePresent": !sig_trim.is_empty(),
+                "signatureLen": sig_trim.len(),
+                "secretLen": secret.len(),
+                // Help ops confirm header shape without leaking the digest.
+                "signaturePrefix": sig_trim.chars().take(8).collect::<String>(),
+            }),
         )
         .await;
         return Err((StatusCode::UNAUTHORIZED, "invalid Zainpay-Signature".into()));
