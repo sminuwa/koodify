@@ -5,6 +5,10 @@ use koodify::config::Config;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load `.env` from CWD when present. Does not override vars already set
+    // by systemd / docker / the shell — those win.
+    let _ = dotenvy::dotenv();
+
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse()?))
         .init();

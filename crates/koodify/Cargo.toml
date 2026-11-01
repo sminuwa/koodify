@@ -30,8 +30,8 @@ sha2 = { workspace = true }
 subtle = { workspace = true }
 hex = { workspace = true }
 hmac = { workspace = true }
+dotenvy = "0.15"
 
 [dev-dependencies]
-dotenvy = "0.15"
 tower = { workspace = true, features = ["util"] }
 wiremock = { workspace = true }
