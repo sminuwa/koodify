@@ -7,6 +7,7 @@ pub mod helpers;
 pub mod kyc;
 pub mod operations;
 pub mod payment_split;
+pub mod reconcile;
 pub mod reconciliation;
 pub mod settlement;
 pub mod transfer;
@@ -79,6 +80,10 @@ pub fn router() -> Router<AppState> {
         .route(
             "/api/v1/payment-splits/{txn_ref}/run",
             post(payment_split::run_payment_split),
+        )
+        .route(
+            "/api/v1/reconcile/pending",
+            post(reconcile::run_pending),
         )
         // Local lookups
         .route(

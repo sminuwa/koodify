@@ -26,6 +26,18 @@ pub struct Config {
     /// HMAC secret for outbound merchant webhooks (`MERCHANT_WEBHOOK_SECRET`).
     /// When unset, `GATEWAY_API_KEY` is used so merchants can verify with the same secret.
     pub merchant_webhook_secret: Option<String>,
+    /// Background pending-checkout reconciler (`RECONCILE_ENABLED`, default true).
+    pub reconcile_enabled: bool,
+    /// Seconds between reconcile passes (`RECONCILE_INTERVAL_SECS`, default 60, min 15).
+    pub reconcile_interval_secs: u64,
+    /// How far back to scan unpaid checkouts (`RECONCILE_LOOKBACK_HOURS`, default 48).
+    pub reconcile_lookback_hours: u64,
+    /// Ignore checkouts newer than this (`RECONCILE_GRACE_SECS`, default 45) so webhook/status win first.
+    pub reconcile_grace_secs: u64,
+    /// Min seconds between polls of the same pending txn (`RECONCILE_POLL_COOLDOWN_SECS`, default 120).
+    pub reconcile_poll_cooldown_secs: u64,
+    /// Max pending txns polled per pass (`RECONCILE_BATCH_SIZE`, default 40).
+    pub reconcile_batch_size: u32,
 }
 
 impl Config {
@@ -58,6 +70,35 @@ impl Config {
             merchant_webhook_secret: env::var("MERCHANT_WEBHOOK_SECRET")
                 .ok()
                 .filter(|s| !s.trim().is_empty()),
+            reconcile_enabled: env::var("RECONCILE_ENABLED")
+                .ok()
+                .map(|s| !matches!(s.trim().to_ascii_lowercase().as_str(), "0" | "false" | "no" | "off"))
+                .unwrap_or(true),
+            reconcile_interval_secs: env::var("RECONCILE_INTERVAL_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(60)
+                .max(15),
+            reconcile_lookback_hours: env::var("RECONCILE_LOOKBACK_HOURS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(48)
+                .max(1),
+            reconcile_grace_secs: env::var("RECONCILE_GRACE_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(45)
+                .max(5),
+            reconcile_poll_cooldown_secs: env::var("RECONCILE_POLL_COOLDOWN_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(120)
+                .max(30),
+            reconcile_batch_size: env::var("RECONCILE_BATCH_SIZE")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(40)
+                .clamp(1, 200),
         })
     }
 
@@ -89,6 +130,12 @@ impl Config {
             va_bank_candidates: vec!["gtBank".into()],
             va_bank_sticky_secs: 600,
             merchant_webhook_secret: None,
+            reconcile_enabled: false,
+            reconcile_interval_secs: 60,
+            reconcile_lookback_hours: 48,
+            reconcile_grace_secs: 45,
+            reconcile_poll_cooldown_secs: 120,
+            reconcile_batch_size: 40,
         }
     }
 

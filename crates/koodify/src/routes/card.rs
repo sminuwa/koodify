@@ -9,7 +9,7 @@ use tracing::warn;
 use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
-use crate::services::{merchant_webhook, payer, payment_split, proxy, receipt};
+use crate::services::{payer, payment_split, payment_success, proxy};
 use crate::state::AppState;
 
 fn take_str_field(body: &mut Value, keys: &[&str]) -> Option<String> {
@@ -343,16 +343,9 @@ pub async fn temporary_virtual_account_payment_status(
         .map(|r| serde_json::to_value(r).unwrap_or(Value::Null))
         .map_err(map_upstream)?;
     let enriched = payer::enrich_response_from_db(&state.pool, &q.txn_ref, response).await;
-    receipt::maybe_send_on_success(&state, &q.txn_ref, &enriched).await;
-    let deposit_account = enriched
-        .pointer("/data/accountNumber")
-        .or_else(|| enriched.pointer("/data/bankAccount"))
-        .and_then(|v| v.as_str());
-    let deposit_bank = enriched
-        .pointer("/data/bankCode")
-        .or_else(|| enriched.pointer("/data/beneficiaryBankCode"))
-        .and_then(|v| v.as_str());
-    payment_split::maybe_run_on_success(
+    let deposit_account = payment_success::deposit_account_from(&enriched);
+    let deposit_bank = payment_success::deposit_bank_from(&enriched);
+    let enriched = payment_success::apply_side_effects(
         &state,
         &q.txn_ref,
         &enriched,
@@ -360,8 +353,5 @@ pub async fn temporary_virtual_account_payment_status(
         deposit_bank,
     )
     .await;
-    let enriched = payment_split::enrich_response(&state.pool, &q.txn_ref, enriched).await;
-    // After split enrichment so payload can include paymentSplit summary.
-    merchant_webhook::maybe_deliver_on_success(&state, &q.txn_ref, &enriched).await;
     Ok(Json(enriched))
 }

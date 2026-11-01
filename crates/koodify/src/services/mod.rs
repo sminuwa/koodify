@@ -3,6 +3,8 @@ pub mod mail;
 pub mod merchant_webhook;
 pub mod payer;
 pub mod payment_split;
+pub mod payment_success;
 pub mod proxy;
 pub mod receipt;
+pub mod reconcile;
 pub mod virtual_account;

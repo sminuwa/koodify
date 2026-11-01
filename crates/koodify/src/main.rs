@@ -11,7 +11,8 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env()?;
     let bind = config.bind.clone();
-    let (app, _state) = build_app(config).await?;
+    let (app, state) = build_app(config).await?;
+    koodify::services::reconcile::spawn_loop(state);
 
     let listener = tokio::net::TcpListener::bind(&bind)
         .await

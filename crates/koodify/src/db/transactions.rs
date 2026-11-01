@@ -147,3 +147,103 @@ pub async fn claim_merchant_notice(pool: &PgPool, resource_key: &str) -> Result<
 pub async fn claim_merchant_webhook(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
     claim_metadata_flag(pool, resource_key, "merchantWebhookSent").await
 }
+
+/// Marks that success side effects were applied (emails / split / webhook attempts).
+/// Used by the reconciler to stop re-polling confirmed payments.
+pub async fn mark_payment_success_handled(
+    pool: &PgPool,
+    resource_key: &str,
+) -> Result<bool, sqlx::Error> {
+    claim_metadata_flag(pool, resource_key, "paymentSuccessHandled").await
+}
+
+/// Checkout init row used by the pending reconciler.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct PendingCheckout {
+    pub resource_key: String,
+    pub zainbox_code: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Recent unpaid checkouts that still need a status poll.
+///
+/// Skips txns already covered by an inbound Zainpay `deposit.success` webhook,
+/// already notified via merchant webhook, or polled within `poll_cooldown`.
+pub async fn list_pending_checkouts(
+    pool: &PgPool,
+    lookback: chrono::Duration,
+    grace: chrono::Duration,
+    poll_cooldown: chrono::Duration,
+    limit: i64,
+) -> Result<Vec<PendingCheckout>, sqlx::Error> {
+    let now = chrono::Utc::now();
+    let oldest = now - lookback;
+    let newest = now - grace;
+    let cooldown_secs = poll_cooldown.num_seconds().max(0);
+
+    sqlx::query_as::<_, PendingCheckout>(
+        r#"
+        SELECT DISTINCT ON (t.resource_key)
+            t.resource_key,
+            t.zainbox_code,
+            t.created_at
+        FROM transactions t
+        WHERE t.operation IN ('card.initialize', 'card.initialize_inline')
+          AND t.resource_key IS NOT NULL
+          AND t.created_at >= $1
+          AND t.created_at <= $2
+          AND COALESCE(t.metadata->>'merchantWebhookSent', 'false') <> 'true'
+          AND COALESCE(t.metadata->>'paymentSuccessHandled', 'false') <> 'true'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM webhook_deliveries w
+              WHERE w.resource_key = t.resource_key
+                AND w.event_name = 'deposit.success'
+          )
+          AND (
+              COALESCE(t.metadata->>'reconcileLastPolledAt', '') = ''
+              OR (t.metadata->>'reconcileLastPolledAt')::timestamptz
+                 < now() - ($3 * INTERVAL '1 second')
+          )
+        ORDER BY t.resource_key, t.created_at DESC
+        LIMIT $4
+        "#,
+    )
+    .bind(oldest)
+    .bind(newest)
+    .bind(cooldown_secs)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+}
+
+/// Stamp `metadata.reconcileLastPolledAt` on the oldest matching txn row.
+pub async fn touch_reconcile_polled(
+    pool: &PgPool,
+    resource_key: &str,
+) -> Result<(), sqlx::Error> {
+    let now = chrono::Utc::now().to_rfc3339();
+    sqlx::query(
+        r#"
+        UPDATE transactions
+        SET metadata = jsonb_set(
+            COALESCE(metadata, '{}'::jsonb),
+            '{reconcileLastPolledAt}',
+            to_jsonb($2::text),
+            true
+        )
+        WHERE id = (
+            SELECT id
+            FROM transactions
+            WHERE resource_key = $1
+            ORDER BY created_at ASC
+            LIMIT 1
+        )
+        "#,
+    )
+    .bind(resource_key)
+    .bind(now)
+    .execute(pool)
+    .await?;
+    Ok(())
+}

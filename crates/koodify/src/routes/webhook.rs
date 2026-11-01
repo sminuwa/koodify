@@ -10,7 +10,7 @@ use client::WebhookEventType;
 use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_upstream, JsonResult};
-use crate::services::{merchant_webhook, payment_split, receipt};
+use crate::services::payment_success;
 use crate::state::AppState;
 
 pub async fn repush_deposit(
@@ -134,19 +134,6 @@ pub async fn inbound(
                 .payment_date
                 .as_deref()
                 .or(event.data.txn_date.as_deref());
-            receipt::maybe_send_on_deposit_webhook(
-                &state,
-                txn_ref,
-                amount,
-                paid_at,
-                event.data.narration.as_deref(),
-                event.data.bank_name.as_deref(),
-                event.data.sender.as_deref(),
-                event.data.sender_name.as_deref(),
-                event.data.zainbox_name.as_deref(),
-            )
-            .await;
-
             let deposit_account = event
                 .data
                 .account_number
@@ -160,15 +147,39 @@ pub async fn inbound(
                     s.chars().all(|c| c.is_ascii_digit())
                 }));
 
-            let synthetic = json!({
-                "data": {
-                    "paymentStatus": "success",
-                    "depositedAmount": amount,
-                    "accountNumber": deposit_account,
-                }
-            });
+            let mut data = serde_json::Map::new();
+            data.insert("paymentStatus".into(), json!("success"));
+            if let Some(a) = amount {
+                data.insert("depositedAmount".into(), json!(a));
+                data.insert("amount".into(), json!(a));
+            }
+            if let Some(d) = paid_at {
+                data.insert("paymentDate".into(), json!(d));
+            }
+            if let Some(n) = event.data.narration.as_deref() {
+                data.insert("narration".into(), json!(n));
+            }
+            if let Some(b) = event.data.bank_name.as_deref() {
+                data.insert("bankName".into(), json!(b));
+            }
+            if let Some(s) = event.data.sender.as_deref() {
+                data.insert("sender".into(), json!(s));
+            }
+            if let Some(n) = event.data.sender_name.as_deref() {
+                data.insert("senderName".into(), json!(n));
+            }
+            if let Some(name) = event.data.zainbox_name.as_deref() {
+                data.insert("zainboxName".into(), json!(name));
+            }
+            if let Some(a) = deposit_account {
+                data.insert("accountNumber".into(), json!(a));
+            }
+            if let Some(b) = deposit_bank {
+                data.insert("bankCode".into(), json!(b));
+            }
 
-            payment_split::maybe_run_on_success(
+            let synthetic = json!({ "data": data });
+            payment_success::apply_side_effects(
                 &state,
                 txn_ref,
                 &synthetic,
@@ -176,14 +187,6 @@ pub async fn inbound(
                 deposit_bank,
             )
             .await;
-
-            let enriched = payment_split::enrich_response(
-                &state.pool,
-                txn_ref,
-                synthetic.clone(),
-            )
-            .await;
-            merchant_webhook::maybe_deliver_on_success(&state, txn_ref, &enriched).await;
         }
     }
 

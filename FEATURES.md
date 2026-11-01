@@ -405,13 +405,17 @@ RESEND_FROM=Koodify <receipts@yourdomain.com>
 4. If missing → skip; if present → send merchant template with payer + settlement details.
 
 ### Merchant outbound webhook (`callBackUrl`)
-**What it is:** On payment success, Koodify POSTs a signed JSON payload to the merchant’s server URL — even if the browser tab closed and the JS callback never ran.
+**What it is:** On payment success, Koodify POSTs a signed JSON payload to the merchant’s server URL — even if the browser tab closed and the JS callback never ran. Merchants never receive raw Zainpay webhook bodies; they get Koodify’s enriched event (`payer`, `customParam`, `paymentSplit`, …).
 
 **Example:** Parent pays and closes the phone; the school backend still gets `payment.success` and marks fees paid.
 
-**Process flow:**
+**Architecture (two inbound paths → one customer event):**
+1. **Path 1 — Zainpay push:** Every zainbox’s Zainpay webhook URL should point at Koodify (`POST /webhooks/zainpay`). Koodify verifies, de-dupes, enriches, then POSTs the custom customer event.
+2. **Path 2 — Koodify reconcile:** A background sweeper polls Zainpay for recent unpaid checkouts that never got a `deposit.success` webhook, and on success runs the **same** side effects (so a missed Zainpay delivery still notifies the customer once).
+
+**Process flow (customer delivery):**
 1. Checkout stores `callBackUrl` on init (required by the inline widget). Fallback: zainbox `callback_url` from seed.
-2. Success trigger (status poll *or* inbound deposit webhook) → same path as receipts / split.
+2. Success trigger (inbound webhook, browser status poll, *or* reconciler) → shared side effects (receipts / split / merchant POST).
 3. Koodify claims once per `txnRef` (`metadata.merchantWebhookSent`).
 4. Builds JSON (`event`, `status`, `reference`, `amount`, `payer`, `customParam`, `paymentSplit` when present).
 5. POSTs with `X-Koodify-Signature` = hex HMAC-SHA256 of the raw body (same algorithm as inbound Zainpay webhooks).
@@ -446,7 +450,33 @@ koodifyInitPayment({
 }
 ```
 
-**Notes:** Use a real API route, not a marketing page URL. The browser JS callback and this HTTP POST are independent. Direct Zainpay popup mode does not get this delivery.
+**Notes:** Use a real API route, not a marketing page URL. The browser JS callback and this HTTP POST are independent. Direct Zainpay popup mode does not get this delivery. Point all zainbox webhook addresses at Koodify so Path 1 works.
+
+### Pending checkout reconciler
+**What it is:** Koodify’s own safety net: periodically ask Zainpay “is this pending checkout paid?” and, if yes and Path 1 never fired, push the same custom customer webhook / receipts / split.
+
+**Example:** Zainpay webhook is delayed; within ~1–2 minutes Koodify notices the payment is successful and notifies the school anyway (once).
+
+**Process flow:**
+1. Background loop (or `POST /api/v1/reconcile/pending` with secret key) lists recent `card.initialize*` txns.
+2. Skips txns that already have inbound `deposit.success`, `merchantWebhookSent`, or `paymentSuccessHandled`.
+3. Respects grace period (let webhook/status win first) and per-txn poll cooldown.
+4. Polls Zainpay temporary VA payment status.
+5. On success → same shared side effects as Path 1 / status poll.
+
+```env
+RECONCILE_ENABLED=true
+RECONCILE_INTERVAL_SECS=60
+RECONCILE_LOOKBACK_HOURS=48
+RECONCILE_GRACE_SECS=45
+RECONCILE_POLL_COOLDOWN_SECS=120
+RECONCILE_BATCH_SIZE=40
+```
+
+```bash
+curl -X POST "https://api.koodify.ng/api/v1/reconcile/pending" \
+  -H "X-Api-Key: $GATEWAY_API_KEY"
+```
 
 ### Branded templates
 **What it is:** Ready-made email layouts (logo, amount panel, details) for payer and merchant.
@@ -511,15 +541,15 @@ curl "https://api.koodify.ng/api/v1/zainbox/main_box" \
 ```
 
 ### Inbound webhooks
-**What it is:** Zainpay pings Koodify when a deposit lands. Koodify verifies the signature, stores the event, and can email receipts.
+**What it is:** Zainpay pings Koodify when a deposit lands. Koodify verifies the signature, stores the event, and runs enriched side effects (emails, split, customer webhook). This is Path 1 — configure **every** zainbox’s Zainpay callback URL to Koodify.
 
-**Example:** Parent pays at 2:01; by 2:02 both emails can fire even if the browser tab closed.
+**Example:** Parent pays at 2:01; by 2:02 emails + merchant `payment.success` can fire even if the browser tab closed.
 
 **Process flow:**
 1. Zainpay POSTs to `/webhooks/zainpay` with a signature header.
 2. Koodify verifies HMAC using `ZAINPAY_WEBHOOK_SECRET` (required).
-3. Event is persisted.
-4. On deposit success → trigger payer/merchant email flow (same as status success).
+3. Delivery is de-duped (`webhook_deliveries`) and persisted.
+4. On `deposit.success` → shared success side effects (not a raw forward of Zainpay’s body).
 5. Invalid signature → rejected.
 
 ### Local ops lookups
@@ -675,7 +705,8 @@ Automated checks for the Rust client and gateway logic.
 |---------|------------------|
 | Receipt & merchant emails | You set a Resend API key |
 | Merchant outbound webhook | Checkout `callBackUrl` (or zainbox `callback_url`) is an absolute http(s) URL; signed with `MERCHANT_WEBHOOK_SECRET` or `GATEWAY_API_KEY` |
-| Inbound webhooks | You set the Zainpay webhook secret |
+| Pending checkout reconciler | On by default (`RECONCILE_ENABLED`); disable with `false`. Force: `POST /api/v1/reconcile/pending` |
+| Inbound webhooks | You set the Zainpay webhook secret; point every zainbox webhook at Koodify `/webhooks/zainpay` |
 | Multi-bank Adaptive Bank/DVA Routing | You list more than one bank in `VA_BANK_CANDIDATES` |
 | Custom params / payer name / metadata | You send those fields in the request |
 | Merchant email destination | The zainbox has an `email_notification` address |
