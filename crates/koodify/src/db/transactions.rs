@@ -133,14 +133,42 @@ async fn claim_metadata_flag(
     Ok(result.rows_affected() > 0)
 }
 
+/// Clear a metadata boolean flag (e.g. after a failed send so retries can claim again).
+async fn clear_metadata_flag(
+    pool: &PgPool,
+    resource_key: &str,
+    flag: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE transactions
+        SET metadata = COALESCE(metadata, '{}'::jsonb) - $2
+        WHERE resource_key = $1
+        "#,
+    )
+    .bind(resource_key)
+    .bind(flag)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 /// Payer receipt — once per txn.
 pub async fn claim_receipt_email(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
     claim_metadata_flag(pool, resource_key, "receiptEmailSent").await
 }
 
+pub async fn clear_receipt_email(pool: &PgPool, resource_key: &str) -> Result<(), sqlx::Error> {
+    clear_metadata_flag(pool, resource_key, "receiptEmailSent").await
+}
+
 /// Merchant / zainbox notification — once per txn.
 pub async fn claim_merchant_notice(pool: &PgPool, resource_key: &str) -> Result<bool, sqlx::Error> {
     claim_metadata_flag(pool, resource_key, "merchantNoticeSent").await
+}
+
+pub async fn clear_merchant_notice(pool: &PgPool, resource_key: &str) -> Result<(), sqlx::Error> {
+    clear_metadata_flag(pool, resource_key, "merchantNoticeSent").await
 }
 
 /// Outbound merchant HTTP webhook — once per txn.

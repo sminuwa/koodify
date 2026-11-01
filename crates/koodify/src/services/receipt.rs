@@ -316,21 +316,6 @@ async fn build_context(
     response: &Value,
 ) -> PaymentMailContext {
     let payer_val = payer::load_payer(&state.pool, txn_ref).await;
-    let payer_email = payer_val.as_ref().and_then(|p| {
-        p.get("email")
-            .and_then(|v| v.as_str())
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string)
-    });
-    let payer_name = payer_val.as_ref().and_then(|p| {
-        p.get("name")
-            .and_then(|v| v.as_str())
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string)
-    });
-
     let records = db::transactions::find_by_resource_key(&state.pool, txn_ref)
         .await
         .unwrap_or_default();
@@ -340,6 +325,25 @@ async fn build_context(
         Some(overlay) => merge_data_overlay(response, &overlay),
         None => response.clone(),
     };
+
+    let payer_email = payer_val
+        .as_ref()
+        .and_then(|p| {
+            p.get("email")
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+        })
+        .or_else(|| first_data_str(&enriched, &["email", "emailAddress"]))
+        .or_else(|| first_req_str(init_req.as_ref(), &["emailAddress", "email"]));
+    let payer_name = payer_val.as_ref().and_then(|p| {
+        p.get("name")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    });
 
     let custom = payer::load_custom_param(&state.pool, txn_ref).await;
     let narration = narration_from(&enriched, init_req.as_ref(), custom.as_ref());
@@ -413,6 +417,10 @@ pub async fn maybe_send_on_success(state: &AppState, txn_ref: &str, response: &V
         return;
     }
     if state.config.resend_api_key.is_none() {
+        warn!(
+            txn_ref,
+            "RESEND_API_KEY unset on this server — skipping payer/merchant emails"
+        );
         return;
     }
 
@@ -424,10 +432,12 @@ pub async fn maybe_send_on_success(state: &AppState, txn_ref: &str, response: &V
             if let Some(email) = ctx.payer_email.clone() {
                 let receipt = to_mail(&ctx, email, txn_ref);
                 if let Err(err) = mail::send_payment_receipt(&state.config, receipt).await {
-                    warn!(error = %err, txn_ref, "payer receipt email failed");
+                    warn!(error = %err, txn_ref, "payer receipt email failed — clearing claim for retry");
+                    let _ = db::transactions::clear_receipt_email(&state.pool, txn_ref).await;
                 }
             } else {
-                warn!(txn_ref, "no payer email — skipping receipt");
+                warn!(txn_ref, "no payer email — clearing claim so a later poll can retry");
+                let _ = db::transactions::clear_receipt_email(&state.pool, txn_ref).await;
             }
         }
         Ok(false) => {}
@@ -442,9 +452,11 @@ pub async fn maybe_send_on_success(state: &AppState, txn_ref: &str, response: &V
             if let Some(email) = ctx.merchant_email.clone() {
                 let notice = to_mail(&ctx, email, txn_ref);
                 if let Err(err) = mail::send_merchant_notice(&state.config, notice).await {
-                    warn!(error = %err, txn_ref, "merchant notice email failed");
+                    warn!(error = %err, txn_ref, "merchant notice email failed — clearing claim for retry");
+                    let _ = db::transactions::clear_merchant_notice(&state.pool, txn_ref).await;
                 }
             } else {
+                // No destination configured — keep claim so we don't log forever.
                 warn!(
                     txn_ref,
                     "zainbox has no email_notification — skipping merchant notice"
