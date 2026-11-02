@@ -48,6 +48,9 @@ pub struct Customer {
     pub zainbox_code: Option<String>,
     pub metadata: Value,
     pub status: String,
+    /// Present when a login password was stored; never serialized in API responses.
+    #[serde(skip)]
+    pub password_hash: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

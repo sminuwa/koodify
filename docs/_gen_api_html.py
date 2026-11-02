@@ -641,6 +641,22 @@ def main() -> None:
         ],
     )
 
+    customer_detail = {
+        **customer,
+        "hasPassword": False,
+        "zainbox": {
+            "zainboxCode": "charg_…",
+            "name": "Acme School",
+            "publicKey": "pk_live_…",
+            "isActive": True,
+        },
+        "publicKey": "pk_live_…",
+        "kyc": {"id": "…", "status": "approved", "firstName": "Ada", "surname": "Lovelace"},
+        "credentials": [
+            {"environment": "live", "publicKey": "pk_live_…", "zainboxCodeSet": True, "status": "active"}
+        ],
+    }
+
     sec(
         "customers",
         "Customers",
@@ -650,7 +666,7 @@ def main() -> None:
                 "POST",
                 "/customers",
                 "Create customer",
-                "Assigns integer id and UUID uuid.",
+                "Assigns integer id and UUID uuid. Also at /api/v1/customers. Use status pending for self-register.",
                 customer,
                 body="displayName (required), email, mobileNumber, zainboxCode, metadata, status",
             ),
@@ -659,17 +675,52 @@ def main() -> None:
                 "GET",
                 "/customers",
                 "List customers",
-                "Optionally filter by status.",
+                "Filter by status, or pass email for a single dashboard detail (login prep).",
                 [customer],
-                query="status",
+                query="status | email",
             ),
             endpoint(
                 "customers-get",
                 "GET",
                 "/customers/{id}",
-                "Get customer",
-                "Fetch by integer id.",
-                customer,
+                "Get customer dashboard",
+                "Profile + zainbox + publicKey + KYC + credentials. Alias: /api/v1/customers/{id}.",
+                customer_detail,
+                query="revealZainboxCode",
+            ),
+            endpoint(
+                "customers-by-uuid",
+                "GET",
+                "/customers/by-uuid/{uuid}",
+                "Get customer by UUID",
+                "Same dashboard payload as GET by id.",
+                customer_detail,
+                query="revealZainboxCode",
+            ),
+            endpoint(
+                "customers-zainbox",
+                "GET",
+                "/customers/{id}/zainbox",
+                "Customer zainbox",
+                "Assigned zainbox and publishable publicKey.",
+                {"customerId": 1, "zainbox": customer_detail["zainbox"], "publicKey": "pk_live_…"},
+            ),
+            endpoint(
+                "customers-provision",
+                "POST",
+                "/customers/{id}/provision",
+                "Provision / sync zainbox",
+                "Creates Zainpay zainbox if missing, assigns publicKey, mirrors credentials. Retry after KYC approve failures.",
+                {
+                    "code": "00",
+                    "description": "zainbox created and credentials synced",
+                    "data": {
+                        "customerId": 1,
+                        "zainboxCode": "charg_…",
+                        "publicKey": "pk_live_…",
+                        "createdNewZainbox": True,
+                    },
+                },
             ),
             endpoint(
                 "customers-update",
@@ -679,6 +730,15 @@ def main() -> None:
                 "Replace customer fields.",
                 customer,
                 body="displayName, email, mobileNumber, zainboxCode, metadata, status",
+            ),
+            endpoint(
+                "customers-patch",
+                "PATCH",
+                "/customers/{id}",
+                "Patch customer",
+                "Partial profile update for merchant UI.",
+                customer,
+                body="any of: displayName, email, mobileNumber, zainboxCode, metadata, status",
             ),
             endpoint(
                 "customers-status",
@@ -701,9 +761,9 @@ def main() -> None:
                 "PUT",
                 "/kyc",
                 "Upsert KYC",
-                "Linked by customerId → customers.id.",
+                "Linked by customerId → customers.id. status=approved provisions zainbox + publicKey.",
                 kyc,
-                body="customerId, title, firstName, surname, email, mobileNumber, bvn, dob, gender, address, state, …",
+                body="customerId, title, firstName, surname, email, mobileNumber, bvn, dob, gender, address, state, status (pending|approved|…)",
             ),
             endpoint(
                 "kyc-list",
@@ -735,8 +795,8 @@ def main() -> None:
                 "PATCH",
                 "/kyc/{id}/status",
                 "Update KYC status",
-                "Patch status only.",
-                kyc,
+                "Patch status only. status=approved provisions merchant zainbox + publicKey (see provision field).",
+                {**kyc, "status": "approved", "provision": {"zainboxCode": "charg_…", "publicKey": "pk_live_…", "createdNewZainbox": True}},
                 body='{ "status": "active" }',
             ),
         ],

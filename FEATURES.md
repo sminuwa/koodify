@@ -44,15 +44,15 @@ Technical how-tos live under `docs/`.
 Docs: [docs/inline-checkout.html](docs/inline-checkout.html) · Script: `https://js.koodify.ng/v1/koodify-inline.js`
 
 ### Publishable public keys
-**What it is:** A safe “shop ID” for the browser (`pk_live_…`). It tells Koodify *which business* is collecting money, without exposing secret API keys on the website.
+**What it is:** A safe “shop ID” for the browser (`pk_live_…`). It tells Koodify *which business* is collecting money, without exposing secret API keys on the website. Source of truth is `zainboxes.public_key` (credentials mirror it for dashboards).
 
 **Example:** Like a storefront address on a map — public enough to find the shop, not the keys to the safe.
 
 **Process flow:**
-1. Seed / admin assigns a `pk_live_…` to a zainbox in Koodify’s database.
-2. Merchant puts that key in their website checkout config.
+1. Seed, KYC approval provision, or admin assigns a `pk_live_…` to a zainbox in Koodify’s database.
+2. Merchant puts that key in their website checkout config (same as demo.koodify.ng inline samples).
 3. On pay, the popup sends the public key to Koodify.
-4. Koodify looks up the matching zainbox and uses its secret Zainpay identity server-side.
+4. Koodify looks up the matching zainbox and uses its secret Zainpay identity (`zainbox_code`) server-side.
 5. Unknown or inactive keys are rejected.
 
 ### Open checkout routes
@@ -739,37 +739,40 @@ curl -X POST "https://api.koodify.ng/api/v1/zainboxes/sync-webhook-callbacks" \
 3. Checkout / emails resolve business identity from this cache.
 4. Inactive boxes are refused for checkout.
 
-### Customers
-**What it is:** Merchant/customer registry (id, contacts, optional zainbox link).
+### Customers (merchants)
+**What it is:** Merchant registry (id, contacts, optional zainbox link) used for register → KYC → dashboard.
 
-**Example:** Seed creates one customer per zainbox so credentials and KYC have a home.
+**Example:** A school registers as a customer (`status: pending`, no zainbox yet). After KYC approval they receive a zainbox + `pk_live_…` and can embed that key like the demo inline checkout samples.
 
 **Process flow:**
-1. Create/update customer via admin API (secret key) or seed.
-2. Record gets UUID + integer id.
-3. Optional `zainboxCode` links them to a box.
-4. Credentials and KYC attach to that customer id.
+1. `POST /customers` (or `/api/v1/customers`) creates the merchant (UUID + integer id). API create/update rejects duplicate emails; seed may still share notification emails across boxes.
+2. Optional `zainboxCode` may be set by seed/admin; self-register leaves it empty until KYC approval.
+3. `GET /customers/{id}` returns dashboard detail: profile, `hasPassword`, assigned zainbox, publishable `publicKey`, KYC summary, credentials.
+4. Lookups: `GET /customers?email=`, `GET /customers/by-uuid/{uuid}`, `GET /customers/{id}/zainbox`.
+5. `PATCH /customers/{id}` for partial profile edits; `POST /customers/{id}/provision` retries zainbox create/sync.
+6. Credentials and KYC attach to that customer id. Login auth UI comes later (`password_hash` column is ready, never exposed).
 
 ### KYC
-**What it is:** Identity profile (name, BVN, address, …) linked to a customer.
+**What it is:** Identity profile (name, BVN, address, …) linked to a customer. Approving KYC provisions the merchant zainbox.
 
-**Example:** Compliance stores KYC against customer `#42`.
+**Example:** Compliance sets KYC for customer `#42` to `approved` → Koodify creates a Zainpay zainbox named after their business (`displayName`), mints `pk_live_…`, links the customer, and mirrors credentials.
 
 **Process flow:**
-1. Admin upserts KYC for a `customerId`.
-2. Fields saved with status (e.g. active / pending).
+1. Admin upserts KYC for a `customerId` (typically `pending` while under review).
+2. Fields saved with status (`pending` / `approved` / `rejected`; legacy `active` still accepted and does **not** auto-provision).
 3. Later fetch by KYC id or by customer.
-4. Status can be patched without rewriting the whole profile.
+4. `PATCH /kyc/{id}/status` with `approved` (or upsert with that status) triggers merchant provisioning.
+5. Response may include a `provision` object (`zainboxCode`, `publicKey`). On Zainpay failure, retry `POST /customers/{id}/provision`.
 
 ### Credentials
-**What it is:** Test and live key pairs per customer (public + private).
+**What it is:** Test and live key pairs per customer. Publishable key mirrors the assigned zainbox; “private key” is the zainbox `codeName` (Bearer id).
 
-**Example:** After seed, each school has a browser public key and a private key matching the Zainpay zainbox id.
+**Example:** After seed or KYC approval, each school has a browser public key (`pk_live_…`) and a server-side zainbox code matching Zainpay.
 
 **Process flow:**
-1. Upsert credentials for `(customerId, environment)`.
-2. Public key used in browser checkout; private key stays server-side / for ops.
-3. Lookup by customer (both envs) or by customer + environment.
+1. Upsert credentials for `(customerId, environment)` — or let provisioning sync them from the zainbox.
+2. Checkout resolves identity from `zainboxes.public_key` only; credentials mirror that key for dashboard/API compatibility.
+3. `zainboxCode` stays server-side / for ops (reveal with `?revealZainboxCode=true`).
 4. Status can disable a key pair without deleting history.
 
 ### Virtual accounts table

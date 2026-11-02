@@ -32,8 +32,13 @@ fn default_active() -> bool {
 /// Sync Zainpay zainboxes into local DB, then create one customer per box.
 ///
 /// Each zainbox gets a browser-safe `public_key` (`pk_live_…`) stored on
-/// `zainboxes` (and mirrored on credentials). Credential `zainbox_code` is the
-/// Zainpay zainbox `codeName` (Bearer identity) — never sent to the browser by default.
+/// `zainboxes` (source of truth for checkout). The same key is mirrored onto
+/// credentials for dashboard/API compatibility. Credential `zainbox_code` is the
+/// Zainpay zainbox `codeName` (Bearer / private identity) — never sent to the
+/// browser by default.
+///
+/// New merchants (register → KYC approve) are provisioned by
+/// `services::merchant_provision` instead of this seed path.
 pub async fn run(pool: &PgPool) -> Result<()> {
     let api_key = std::env::var("ZAINPAY_API_KEY")
         .context("ZAINPAY_API_KEY is required to seed from live zainboxes")?;

@@ -9,6 +9,7 @@ use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::db::kyc::UpsertKyc;
 use crate::db::models::KycProfile;
+use crate::services::merchant_provision;
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +35,7 @@ pub struct UpsertKycRequest {
     pub zainbox_code: Option<String>,
     #[serde(default)]
     pub metadata: Value,
+    /// Use `pending` while under review; set `approved` to provision the merchant zainbox.
     #[serde(default = "default_status")]
     pub status: String,
 }
@@ -58,12 +60,60 @@ fn map_db(err: sqlx::Error) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
 }
 
+async fn after_kyc_write(
+    state: &AppState,
+    kyc: KycProfile,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    let provision = if db::kyc::is_approved_status(&kyc.status) {
+        match merchant_provision::maybe_provision_after_kyc(
+            &state.pool,
+            &state.zainpay,
+            &state.config,
+            &kyc,
+        )
+        .await
+        {
+            Ok(Some(result)) => Some(json!({
+                "zainboxCode": result.zainbox.zainbox_code,
+                "publicKey": result.public_key,
+                "createdNewZainbox": result.created_new_zainbox,
+            })),
+            Ok(None) => None,
+            Err(err) => {
+                // KYC row is already saved/approved — surface provision failure for retry.
+                return Err((
+                    StatusCode::BAD_GATEWAY,
+                    format!(
+                        "KYC saved as approved but zainbox provision failed: {err}. \
+                         Retry POST /customers/{}/provision",
+                        kyc.customer_id
+                    ),
+                ));
+            }
+        }
+    } else {
+        None
+    };
+
+    let mut body = serde_json::to_value(&kyc).unwrap_or(Value::Null);
+    if let Some(obj) = body.as_object_mut() {
+        if let Some(p) = provision {
+            obj.insert("provision".into(), p);
+        }
+    }
+    Ok(Json(body))
+}
+
 /// `PUT /kyc` — create or replace KYC for a customer.
+///
+/// When `status` is `approved`, Koodify creates (or syncs) a zainbox named after
+/// the customer's `displayName`, assigns a publishable `publicKey`, and mirrors
+/// credentials. Existing integrations that use other statuses are unchanged.
 pub async fn upsert(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
     Json(body): Json<UpsertKycRequest>,
-) -> Result<Json<KycProfile>, (StatusCode, String)> {
+) -> Result<Json<Value>, (StatusCode, String)> {
     if body.bvn.trim().is_empty() || body.email.trim().is_empty() {
         return Err((StatusCode::BAD_REQUEST, "bvn and email are required".into()));
     }
@@ -87,7 +137,7 @@ pub async fn upsert(
         other => other,
     };
 
-    db::kyc::upsert(
+    let kyc = db::kyc::upsert(
         &state.pool,
         UpsertKyc {
             customer_id: body.customer_id,
@@ -109,8 +159,9 @@ pub async fn upsert(
         },
     )
     .await
-    .map(Json)
-    .map_err(map_db)
+    .map_err(map_db)?;
+
+    after_kyc_write(&state, kyc).await
 }
 
 /// `GET /kyc?status=`
@@ -152,18 +203,21 @@ pub async fn get_one(
 }
 
 /// `PATCH /kyc/{id}/status`
+///
+/// Setting `status` to `approved` provisions the merchant zainbox + public key.
 pub async fn update_status(
     _auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateStatusRequest>,
-) -> Result<Json<KycProfile>, (StatusCode, String)> {
+) -> Result<Json<Value>, (StatusCode, String)> {
     if body.status.trim().is_empty() {
         return Err((StatusCode::BAD_REQUEST, "status is required".into()));
     }
-    match db::kyc::set_status(&state.pool, id, body.status.trim()).await {
-        Ok(Some(row)) => Ok(Json(row)),
-        Ok(None) => Err((StatusCode::NOT_FOUND, "kyc profile not found".into())),
-        Err(err) => Err(map_db(err)),
-    }
+    let kyc = match db::kyc::set_status(&state.pool, id, body.status.trim()).await {
+        Ok(Some(row)) => row,
+        Ok(None) => return Err((StatusCode::NOT_FOUND, "kyc profile not found".into())),
+        Err(err) => return Err(map_db(err)),
+    };
+    after_kyc_write(&state, kyc).await
 }

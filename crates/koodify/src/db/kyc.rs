@@ -150,3 +150,27 @@ pub async fn set_status(
     .fetch_optional(pool)
     .await
 }
+
+pub async fn set_zainbox_code(
+    pool: &PgPool,
+    id: Uuid,
+    zainbox_code: &str,
+) -> Result<Option<KycProfile>, sqlx::Error> {
+    sqlx::query_as::<_, KycProfile>(&format!(
+        r#"
+        UPDATE kyc_profiles
+        SET zainbox_code = $2, updated_at = now()
+        WHERE id = $1
+        RETURNING {COLUMNS}
+        "#
+    ))
+    .bind(id)
+    .bind(zainbox_code)
+    .fetch_optional(pool)
+    .await
+}
+
+/// True when KYC status should trigger merchant zainbox provisioning.
+pub fn is_approved_status(status: &str) -> bool {
+    status.eq_ignore_ascii_case("approved")
+}

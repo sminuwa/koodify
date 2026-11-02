@@ -273,14 +273,55 @@ pub fn router() -> Router<AppState> {
             "/transactions/by-zainbox/{zainbox_code}",
             get(operations::by_zainbox_code),
         )
-        // Customers (`uuid` + integer `id` = 1, 2, 3, …)
+        // Customers / merchants (`uuid` + integer `id` = 1, 2, 3, …)
+        // Stable aliases under `/api/v1/customers` for future merchant UI.
         .route("/customers", post(customers::create).get(customers::list))
         .route(
+            "/api/v1/customers",
+            post(customers::create).get(customers::list),
+        )
+        .route(
+            "/customers/by-uuid/{uuid}",
+            get(customers::by_uuid),
+        )
+        .route(
+            "/api/v1/customers/by-uuid/{uuid}",
+            get(customers::by_uuid),
+        )
+        .route(
             "/customers/{id}",
-            get(customers::get_one).put(customers::update),
+            get(customers::get_one)
+                .put(customers::update)
+                .patch(customers::patch),
+        )
+        .route(
+            "/api/v1/customers/{id}",
+            get(customers::get_one)
+                .put(customers::update)
+                .patch(customers::patch),
+        )
+        .route(
+            "/customers/{id}/zainbox",
+            get(customers::zainbox),
+        )
+        .route(
+            "/api/v1/customers/{id}/zainbox",
+            get(customers::zainbox),
+        )
+        .route(
+            "/customers/{id}/provision",
+            post(customers::provision),
+        )
+        .route(
+            "/api/v1/customers/{id}/provision",
+            post(customers::provision),
         )
         .route(
             "/customers/{id}/status",
+            patch(customers::update_status),
+        )
+        .route(
+            "/api/v1/customers/{id}/status",
             patch(customers::update_status),
         )
         // KYC profiles (FK → customers.id)
