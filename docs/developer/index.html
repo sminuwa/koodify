@@ -1,0 +1,1816 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#06182c">
+<meta name="description" content="Merchant integration docs for Koodify: checkout, keys (pk_/sk_), webhooks, payment splits, transfers, and /api/v1 guides.">
+<meta name="color-scheme" content="light">
+<title>Koodify — Merchant Integration</title>
+<link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
+<link rel="apple-touch-icon" href="assets/favicon/apple-touch-icon.png">
+<link rel="manifest" href="assets/favicon/site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#overview">Skip to integration guides</a>
+<div class="progress" id="readProgress" role="presentation" aria-hidden="true"></div>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <img class="brand-logo" src="assets/logo/koodify-logo-white-wordmark-transparent.png" width="148" height="36" alt="Koodify">
+  </a>
+  <nav class="toplinks" aria-label="Primary">
+    <a href="#quickstart">Get started</a>
+    <a href="#api-guides">API Guides</a>
+    <a href="#security">Security</a>
+  </nav>
+  <div class="top-actions">
+    <a class="btn" href="#api-accept">Accept payments ↗</a>
+    <a class="btn primary" href="#quickstart">Get started →</a>
+  </div>
+</header>
+
+
+
+
+<main class="layout" id="top">
+  <aside class="sidebar" id="docsNavigation" role="navigation" aria-label="Integration navigation">
+    <label class="mobile-jump-label sr-only" for="mobileJump">Jump to a documentation topic</label>
+    <select id="mobileJump" class="mobile-jump" aria-label="Jump to a documentation topic">
+      <option value="">Jump to a topic…</option>
+      <optgroup label="Get started">
+        <option value="#overview">Overview</option>
+        <option value="#quickstart">Quickstart</option>
+        <option value="#authentication">Authentication</option>
+        <option value="#environments">Environments</option>
+      </optgroup>
+      <optgroup label="Accept payments">
+        <option value="#api-guides">Overview</option>
+        <option value="#checkout">Inline checkout</option>
+        <option value="#virtual-accounts">Virtual accounts</option>
+        <option value="#payment-splits">Payment splits</option>
+        <option value="#webhooks">Webhooks</option>
+        <option value="#api-accept-checkout">Checkout routes</option>
+        <option value="#api-accept-va">VA routes</option>
+        <option value="#api-accept-splits">Split routes</option>
+      </optgroup>
+      <optgroup label="API Guides">
+        <option value="#api-transfers-group">Transfers</option>
+        <option value="#api-settlements">Settlements</option>
+        <option value="#api-transactions">Transactions</option>
+      </optgroup>
+      <optgroup label="Resources">
+        <option value="#errors">Error handling</option>
+        <option value="#security">Security</option>
+      </optgroup>
+    </select>
+
+    <div class="docs-search">
+      <span aria-hidden="true">⌕</span>
+      <input id="docsSearch" type="search" placeholder="Search topics and guides…" aria-label="Search documentation" aria-controls="docsNavigation" aria-describedby="searchStatus" autocomplete="off">
+      <kbd aria-hidden="true">/</kbd>
+    </div>
+    <p class="search-status" id="searchStatus" aria-live="polite"></p>
+
+    <div class="side-group">
+      <div class="side-label">Get started</div>
+      <a class="side-link active" href="#overview"><span class="ico">◈</span> Overview</a>
+      <a class="side-link" href="#quickstart"><span class="ico">⌘</span> Quickstart</a>
+      <a class="side-link" href="#authentication"><span class="ico">▣</span> Authentication</a>
+      <a class="side-link" href="#environments"><span class="ico">◎</span> Environments</a>
+    </div>
+
+
+    <div class="side-group">
+      <div class="side-label">API Guides</div>
+
+      <details class="side-tree" data-nav-cluster="accept" open>
+        <summary class="side-tree-sum"><span class="side-tree-chevron" aria-hidden="true"></span><span class="side-tree-label">Accept payments</span><span class="side-tree-count">8</span></summary>
+        <div class="side-sub">
+          <a class="side-link" href="#api-guides">Overview</a>
+          <a class="side-link" href="#checkout">Inline checkout</a>
+          <a class="side-link" href="#virtual-accounts">Virtual accounts</a>
+          <a class="side-link" href="#payment-splits">Payment splits</a>
+          <a class="side-link" href="#webhooks">Webhooks</a>
+          <a class="side-link" href="#api-accept-checkout">Checkout routes</a>
+          <a class="side-link" href="#api-accept-va">VA routes</a>
+          <a class="side-link" href="#api-accept-splits">Split routes</a>
+        </div>
+      </details>
+
+      <details class="side-tree" data-nav-cluster="transfers">
+        <summary class="side-tree-sum"><span class="side-tree-chevron" aria-hidden="true"></span><span class="side-tree-label">Transfers</span><span class="side-tree-count">4</span></summary>
+        <div class="side-sub">
+          <a class="side-link" href="#api-banks">Bank list</a>
+          <a class="side-link" href="#api-banks-enquiry">Bank enquiry</a>
+          <a class="side-link" href="#api-transfers">Funds transfer</a>
+          <a class="side-link" href="#api-transfers-verify">Verify transfer</a>
+        </div>
+      </details>
+
+      <details class="side-tree" data-nav-cluster="settlements">
+        <summary class="side-tree-sum"><span class="side-tree-chevron" aria-hidden="true"></span><span class="side-tree-label">Settlements</span><span class="side-tree-count">3</span></summary>
+        <div class="side-sub">
+          <a class="side-link" href="#api-settlements-crud">Create / get</a>
+          <a class="side-link" href="#api-settlements-history">History</a>
+          <a class="side-link" href="#api-settlements-internal">Settlement account</a>
+        </div>
+      </details>
+
+      <details class="side-tree" data-nav-cluster="transactions">
+        <summary class="side-tree-sum"><span class="side-tree-chevron" aria-hidden="true"></span><span class="side-tree-label">Transactions</span><span class="side-tree-count">5</span></summary>
+        <div class="side-sub">
+          <a class="side-link" href="#api-tx-confirm">Confirm payment</a>
+          <a class="side-link" href="#api-activity">Activity</a>
+          <a class="side-link" href="#api-merchant-txns">Transactions</a>
+          <a class="side-link" href="#api-zainbox">Zainbox</a>
+          <a class="side-link" href="#api-zainbox-wallet">Wallet</a>
+        </div>
+      </details>
+    </div>
+
+    <div class="side-group">
+      <div class="side-label">Resources</div>
+      <a class="side-link" href="#errors"><span class="ico">⚑</span> Errors</a>
+      <a class="side-link" href="#security"><span class="ico">⬡</span> Security</a>
+    </div>
+
+    </aside>
+
+  <article class="article">
+    <div class="crumb">Integration&nbsp; / &nbsp;<span>Getting started</span></div>
+
+    <section id="overview">
+      <h2>Build on Koodify.</h2>
+      <p class="lead">Integrate once against Koodify: embed bank-transfer checkout, verify signed webhooks, split payments across zainboxes, and call stable <code>/api/v1</code> routes with your merchant keys.</p>
+      <div class="callout callout--nutshell">
+        <div class="callout-icon" aria-hidden="true">✦</div>
+        <p><strong>In a nutshell</strong><br>Use <code>pk_…</code> in the browser for checkout. Use <code>sk_…</code> as <code>X-Api-Key</code> on your server for wallet, transactions, settlements, and billing. Prefer the <code>/api/v1/…</code> paths in these guides.</p>
+      </div>
+
+      <h3 id="quickstart">Quickstart</h3>
+      <p class="body">Collect money with inline checkout (<code>pk_…</code>), or read your zainbox from the server with a merchant secret (<code>sk_…</code>). Never put <code>sk_…</code> in client-side code.</p>
+      <div class="steps">
+        <div class="step">
+          <span class="step-no">01 / CREDENTIALS</span>
+          <h4>Get your keys</h4>
+          <p>After onboarding you receive <code>pk_live_…</code> (browser) and <code>sk_live_…</code> (server). Keep the secret on your backend only.</p>
+        </div>
+        <div class="step">
+          <span class="step-no">02 / BASE URL</span>
+          <h4>Point at the API</h4>
+          <p>API host: <code>https://api.koodify.ng</code>. Checkout script: <code>https://js.koodify.ng/v1/koodify-inline.js</code>.</p>
+        </div>
+        <div class="step">
+          <span class="step-no">03 / INTEGRATE</span>
+          <h4>Checkout and/or server APIs</h4>
+          <p>Browser: <code>koodifyInitPayment</code> with <code>publicKey</code>. Server: <code>X-Api-Key: sk_live_…</code> for wallet, transactions, settlements, and billing.</p>
+        </div>
+      </div>
+
+      <div class="tabs" id="languageTabs" role="tablist" aria-label="Quickstart language">
+        <button class="tab active" type="button" role="tab" aria-selected="true" data-lang="nodejs" aria-controls="snippetCode">Node.js</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" data-lang="php" aria-controls="snippetCode">PHP</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" data-lang="python" aria-controls="snippetCode">Python</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" data-lang="rust" aria-controls="snippetCode">Rust</button>
+      </div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span id="snippetLabel">NODE.JS · ZAINBOX WALLET</span>
+          <button class="copy" id="copyCode" type="button">Copy code</button>
+        </div>
+        <pre id="snippetCode" role="tabpanel" aria-live="polite" aria-label="Selected code example">const zainboxCode = process.env.KOODIFY_ZAINBOX_CODE;
+
+const response = await fetch(
+  `https://api.koodify.ng/api/v1/zainbox/${zainboxCode}/wallet`,
+  {
+    headers: {
+      "X-Api-Key": process.env.KOODIFY_SECRET_KEY // sk_live_…
+    }
+  }
+);
+
+const data = await response.json();
+// data.data.balances / data.data.virtualAccounts</pre>
+      </div>
+    </section>
+
+    <section id="authentication">
+      <h3>Authentication</h3>
+      <p class="body">You authenticate with two merchant credentials: a publishable public key for checkout, and a secret key for server APIs.</p>
+      <div class="endpoint">
+        <span class="method">AUTH</span>
+        <span class="path">publicKey: pk_live_… / pk_test_…</span>
+        <small>Browser checkout</small>
+      </div>
+      <div class="endpoint">
+        <span class="method">AUTH</span>
+        <span class="path">X-Api-Key: sk_live_… / sk_test_…</span>
+        <small>Server APIs</small>
+      </div>
+      <div class="endpoint">
+        <span class="method">HMAC</span>
+        <span class="path">X-Koodify-Signature</span>
+        <small>Webhook verification</small>
+      </div>
+    </section>
+
+    <section id="environments">
+      <h3>Environments</h3>
+      <p class="body">Build with test keys (<code>sk_test_…</code> / <code>pk_test_…</code>), then switch to live keys after checkout, webhooks, and (if used) payment splits work end-to-end. Production API host: <code>https://api.koodify.ng</code>.</p>
+      <div class="feature-grid">
+        <div class="feature">
+          <div class="feature-icon" aria-hidden="true">⌁</div>
+          <h4>Test</h4>
+          <p>Use <code>sk_test_…</code> / test data to validate request handling, webhooks, and error paths.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon" aria-hidden="true">◉</div>
+          <h4>Live</h4>
+          <p>Use <code>sk_live_…</code> and <code>pk_live_…</code> after your integration is verified.</p>
+        </div>
+      </div>
+    </section>
+
+    
+
+    <section id="api-guides">
+      <h2>API Guides</h2>
+      <p class="lead">Step-by-step integration guides and request samples for the APIs you will call from your app.</p>
+    </section>
+
+<section id="checkout">
+      <div class="guide-banner">
+        <div class="guide-banner-copy">
+          <h3>Inline bank-transfer checkout</h3>
+          <p class="guide-banner-note">Bank transfer popup · publishable public key · temporary VA</p>
+        </div>
+        <div class="guide-banner-media">
+          <img src="assets/art/art-payment-card.jpg" width="720" height="720" alt="" loading="lazy" decoding="async">
+        </div>
+      </div>
+      <p class="body">Load <code>https://js.koodify.ng/v1/koodify-inline.js</code> and call <code>koodifyInitPayment</code> with amount, <code>txnRef</code>, contact details, <code>callBackUrl</code>, and a publishable public key. Koodify opens a session, shows a one-time virtual account, waits for the transfer, then returns status to your browser callback—and POSTs a signed <code>payment.success</code> event to your <code>callBackUrl</code> even if the tab closed.</p>
+      <div class="endpoint"><span class="method">JS</span><span class="path">koodifyInitPayment(payload, callback)</span><small>Browser</small></div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>REQUEST · INLINE CHECKOUT</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre><span class="cm">&lt;script src="https://js.koodify.ng/v1/koodify-inline.js"&gt;&lt;/script&gt;</span>
+&lt;script&gt;
+  koodifyInitPayment({
+    publicKey: <span class="str">"pk_live_…"</span>,
+    amount: <span class="str">"50000"</span>,
+    txnRef: <span class="str">"FEES_"</span> + Date.now(),
+    mobileNumber: <span class="str">"08012345678"</span>,
+    emailAddress: <span class="str">"parent@example.com"</span>,
+    callBackUrl: <span class="str">"https://school.example/webhooks/koodify"</span>,
+    name: <span class="str">"Ada Lovelace"</span>,
+    customParam: { matric: <span class="str">"ND/12/2211"</span>, session: <span class="str">"2026"</span> }
+  }, function (response) {
+    console.log(response.status, response.reference, response.customParam);
+  });
+&lt;/script&gt;</pre>
+      </div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>RESPONSE · BROWSER CALLBACK</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>{
+  <span class="key">"status"</span>: <span class="str">"success"</span>,
+  <span class="key">"reference"</span>: <span class="str">"FEES_1730544000000"</span>,
+  <span class="key">"description"</span>: <span class="str">"Payment was successful"</span>,
+  <span class="key">"payer"</span>: {
+    <span class="key">"email"</span>: <span class="str">"parent@example.com"</span>,
+    <span class="key">"phone"</span>: <span class="str">"08012345678"</span>,
+    <span class="key">"name"</span>: <span class="str">"Ada Lovelace"</span>
+  },
+  <span class="key">"customParam"</span>: {
+    <span class="key">"matric"</span>: <span class="str">"ND/12/2211"</span>,
+    <span class="key">"session"</span>: <span class="str">"2026"</span>
+  }
+}</pre>
+      </div>
+    </section>
+
+    <section id="virtual-accounts">
+      <h3>Virtual accounts</h3>
+      <p class="body">Create static virtual accounts with <code>POST /api/v1/va/create</code> and one-time / dynamic accounts with <code>POST /api/v1/dva/create</code>. Inline checkout also creates a temporary account for the payer. Persist the account number and your own customer reference. Optional <code>metadata</code> is stored by Koodify and returned to you—it is not required for the payment rail. Check balances and history with <code>/api/v1/va/…</code> helpers such as <code>GET /api/v1/va/{accountNumber}</code>.</p>
+      <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/va/create</span><small>Create static VA</small></div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>REQUEST · CREATE STATIC VA</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>curl -X POST <span class="str">"https://api.koodify.ng/api/v1/va/create"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-Api-Key: $KOODIFY_SECRET_KEY"</span> \
+  -d <span class="str">'{
+  "bankType": "gtBank",
+  "title": "Ms",
+  "firstName": "Ada",
+  "surname": "Lovelace",
+  "email": "ada@example.com",
+  "mobileNumber": "08012345678",
+  "bvn": "12345678901",
+  "dob": "10-12-1815",
+  "gender": "F",
+  "address": "12 Computing Lane, Lagos",
+  "state": "Lagos",
+  "zainboxCode": "main_box",
+  "metadata": { "customerId": "cus_demo_001" }
+}'</span></pre>
+      </div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>RESPONSE · 200 OK</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>{
+  <span class="key">"code"</span>: <span class="str">"00"</span>,
+  <span class="key">"status"</span>: <span class="str">"200 OK"</span>,
+  <span class="key">"description"</span>: <span class="str">"successful"</span>,
+  <span class="key">"data"</span>: {
+    <span class="key">"accountNumber"</span>: <span class="str">"5006079921"</span>,
+    <span class="key">"accountName"</span>: <span class="str">"Ada Lovelace"</span>,
+    <span class="key">"bankName"</span>: <span class="str">"gtBank"</span>,
+    <span class="key">"email"</span>: <span class="str">"ada@example.com"</span>,
+    <span class="key">"metadata"</span>: { <span class="key">"customerId"</span>: <span class="str">"cus_demo_001"</span> }
+  }
+}</pre>
+      </div>
+      <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/dva/create</span><small>Create dynamic VA</small></div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>REQUEST · CREATE DYNAMIC VA</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>curl -X POST <span class="str">"https://api.koodify.ng/api/v1/dva/create"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-Api-Key: $KOODIFY_SECRET_KEY"</span> \
+  -d <span class="str">'{
+  "bankType": "gtBank",
+  "email": "payer@example.com",
+  "amount": "5000000",
+  "zainboxCode": "main_box",
+  "txnRef": "ORDER_889",
+  "duration": "30",
+  "accountName": "School Fees",
+  "callBackUrl": "https://school.example/webhooks/koodify"
+}'</span></pre>
+      </div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>RESPONSE · 200 OK</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>{
+  <span class="key">"code"</span>: <span class="str">"00"</span>,
+  <span class="key">"status"</span>: <span class="str">"200 OK"</span>,
+  <span class="key">"description"</span>: <span class="str">"successful"</span>,
+  <span class="key">"data"</span>: {
+    <span class="key">"accountNumber"</span>: <span class="str">"9123456789"</span>,
+    <span class="key">"txnRef"</span>: <span class="str">"ORDER_889"</span>
+  }
+}</pre>
+      </div>
+    </section>
+
+    
+
+    <section id="payment-splits">
+      <h3>Payment split</h3>
+      <p class="body">After the customer pays the full amount into a primary zainbox, Koodify can redistribute value to secondary zainboxes. Pick <strong>one</strong> integration pattern per payment — you do not call both flows for the same checkout. Each share uses either a fixed <code>amount</code> or a <code>percent</code> of the remainder (percents must total 100%). The primary (collector) zainbox must have auto settlement disabled.</p>
+      <div class="callout">
+        <div class="callout-icon" aria-hidden="true">i</div>
+        <p><strong>Two patterns — choose one</strong><br>
+        <strong>A · Ad-hoc split</strong> (server-side): send <code>paymentSplit.shares</code> when you initialize payment — no plan endpoint.<br>
+        <strong>B · Reusable plan</strong> (browser checkout): create a plan once, then start each payment with only <code>splitPlanId</code> (inline checkout does not accept ad-hoc shares).</p>
+      </div>
+
+      <h4 class="sample-subhead">Option A — Ad-hoc split on initialize</h4>
+      <p class="body">No plan call. Your backend starts the payment and includes shares in the same request. Use this when shares change per transaction; browser checkout cannot use this path.</p>
+      <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/checkout/initialize</span><small>Server-side only</small></div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>REQUEST · CHECKOUT WITH AD-HOC SPLIT</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>curl -X POST <span class="str">"https://api.koodify.ng/api/v1/checkout/initialize"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-Api-Key: $KOODIFY_SECRET_KEY"</span> \
+  -d <span class="str">'{
+  "zainboxCode": "main_box",
+  "amount": "1000",
+  "txnRef": "ORDER_889",
+  "mobileNumber": "08012345678",
+  "emailAddress": "payer@example.com",
+  "callBackUrl": "https://merchant.example/paid",
+  "paymentSplit": {
+    "shares": [
+      { "zainboxCode": "tutor_box", "amount": "200" },
+      { "zainboxCode": "agent_box", "amount": "50" },
+      { "zainboxCode": "main_box", "percent": 100 }
+    ]
+  }
+}'</span></pre>
+      </div>
+
+      <h4 class="sample-subhead">Option B — Reusable plan + checkout</h4>
+      <p class="body">Call the plan API when you create or update the share recipe. For every payment after that, only start checkout with <code>splitPlanId</code> — do not call <code>PUT /api/v1/split-plans</code> again unless the plan changes.</p>
+      <div class="endpoint"><span class="method">PUT</span><span class="path">/api/v1/split-plans</span><small>Once (or when plan changes)</small></div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>REQUEST · CREATE SPLIT PLAN</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>curl -X PUT <span class="str">"https://api.koodify.ng/api/v1/split-plans"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-Api-Key: $KOODIFY_SECRET_KEY"</span> \
+  -d <span class="str">'{
+  "id": "split_school_fees_v1",
+  "name": "School fees — tutor + agent",
+  "primaryZainboxCode": "main_box",
+  "isActive": true,
+  "shares": [
+    { "zainboxCode": "tutor_box", "amount": "200" },
+    { "zainboxCode": "agent_box", "amount": "50" },
+    { "zainboxCode": "main_box", "percent": 100 }
+  ]
+}'</span></pre>
+      </div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>BROWSER · USE PLAN ID</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>koodifyInitPayment({
+  publicKey: <span class="str">"pk_live_…"</span>,
+  amount: <span class="str">"1000"</span>,
+  txnRef: <span class="str">"ORDER_890"</span>,
+  mobileNumber: <span class="str">"08012345678"</span>,
+  emailAddress: <span class="str">"payer@example.com"</span>,
+  callBackUrl: <span class="str">"https://merchant.example/paid"</span>,
+  splitPlanId: <span class="str">"split_school_fees_v1"</span>
+}, cb);</pre>
+      </div>
+
+      <h4 class="sample-subhead">After payment succeeds</h4>
+      <p class="body">Either pattern stores a split run for the <code>txnRef</code>. Inspect it anytime:</p>
+      <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/payment-splits/{txnRef}</span><small>Inspect run</small></div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>RESPONSE · data.paymentSplit</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>{
+  <span class="key">"code"</span>: <span class="str">"00"</span>,
+  <span class="key">"data"</span>: {
+    <span class="key">"paymentSplit"</span>: {
+      <span class="key">"txnRef"</span>: <span class="str">"ORDER_889"</span>,
+      <span class="key">"primaryZainboxCode"</span>: <span class="str">"main_box"</span>,
+      <span class="key">"checkoutAmount"</span>: <span class="str">"1000"</span>,
+      <span class="key">"status"</span>: <span class="str">"success"</span>,
+      <span class="key">"legs"</span>: [
+        {
+          <span class="key">"index"</span>: 0,
+          <span class="key">"zainboxCode"</span>: <span class="str">"tutor_box"</span>,
+          <span class="key">"role"</span>: <span class="str">"transfer"</span>,
+          <span class="key">"amount"</span>: <span class="str">"200"</span>,
+          <span class="key">"status"</span>: <span class="str">"success"</span>
+        },
+        {
+          <span class="key">"index"</span>: 1,
+          <span class="key">"zainboxCode"</span>: <span class="str">"agent_box"</span>,
+          <span class="key">"role"</span>: <span class="str">"transfer"</span>,
+          <span class="key">"amount"</span>: <span class="str">"50"</span>,
+          <span class="key">"status"</span>: <span class="str">"success"</span>
+        },
+        {
+          <span class="key">"index"</span>: 2,
+          <span class="key">"zainboxCode"</span>: <span class="str">"main_box"</span>,
+          <span class="key">"role"</span>: <span class="str">"keep"</span>,
+          <span class="key">"percent"</span>: 100,
+          <span class="key">"status"</span>: <span class="str">"success"</span>
+        }
+      ]
+    }
+  }
+}</pre>
+      </div>
+    </section>
+
+    <section id="webhooks">
+      <div class="guide-banner">
+        <div class="guide-banner-copy">
+          <h3>Webhooks</h3>
+          <p class="guide-banner-note">Signed events · payment.success · verify on raw body</p>
+        </div>
+        <div class="guide-banner-media">
+          <img src="assets/art/art-payment-success.jpg" width="720" height="720" alt="" loading="lazy" decoding="async">
+        </div>
+      </div>
+      <p class="body">On payment success, Koodify POSTs a signed JSON event to the <code>callBackUrl</code> you set at checkout—even if the browser tab closed. Verify <code>X-Koodify-Signature</code> (hex HMAC-SHA256 of the raw body) using your webhook signing secret, respond with HTTP 2xx quickly, and process the event asynchronously. Duplicate deliveries are safe to ignore when you key on <code>reference</code>.</p>
+      <div class="endpoint"><span class="method">POST</span><span class="path">{your callBackUrl}</span><small>Merchant endpoint</small></div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>HEADERS · DELIVERY</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>POST /webhooks/koodify/ HTTP/1.1
+Content-Type: application/json
+X-Koodify-Event: payment.success
+X-Koodify-Signature: &lt;hex hmac-sha256 of raw body&gt;</pre>
+      </div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>PAYLOAD · payment.success</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre>{
+  <span class="key">"event"</span>: <span class="str">"payment.success"</span>,
+  <span class="key">"status"</span>: <span class="str">"success"</span>,
+  <span class="key">"reference"</span>: <span class="str">"ORDER_889"</span>,
+  <span class="key">"description"</span>: <span class="str">"Payment was successful"</span>,
+  <span class="key">"amount"</span>: <span class="str">"1000"</span>,
+  <span class="key">"currencyCode"</span>: <span class="str">"NGN"</span>,
+  <span class="key">"zainboxCode"</span>: <span class="str">"main_box"</span>,
+  <span class="key">"payer"</span>: {
+    <span class="key">"email"</span>: <span class="str">"parent@example.com"</span>,
+    <span class="key">"phone"</span>: <span class="str">"08012345678"</span>,
+    <span class="key">"name"</span>: <span class="str">"Ada Lovelace"</span>
+  },
+  <span class="key">"customParam"</span>: {
+    <span class="key">"matric"</span>: <span class="str">"ND/12/2211"</span>,
+    <span class="key">"session"</span>: <span class="str">"2026"</span>
+  },
+  <span class="key">"paymentSplit"</span>: {
+    <span class="key">"txnRef"</span>: <span class="str">"ORDER_889"</span>,
+    <span class="key">"status"</span>: <span class="str">"success"</span>,
+    <span class="key">"legs"</span>: []
+  }
+}</pre>
+      </div>
+      <div class="snippet">
+        <div class="snippet-head">
+          <span>VERIFY · SIGNATURE</span>
+          <button class="copy" type="button">Copy</button>
+        </div>
+        <pre><span class="cm">// expected = HMAC_SHA256_hex(your_webhook_secret, raw_body)</span>
+<span class="cm">// compare expected to header X-Koodify-Signature (constant-time)</span>
+<span class="cm">// return 200 OK, then mark the order paid using event.reference</span></pre>
+      </div>
+    </section>
+
+    
+
+    
+
+        <section id="api">
+      <h3>API endpoints</h3>
+      <p class="body">Stable <code>/api/v1</code> routes for integration. Checkout, VAs, splits, and webhooks are covered in the guides above; samples below cover transfers, settlements, and reading your zainbox.</p>
+      <h4 class="sample-subhead" id="api-accept">Accept payments</h4>
+      <p class="body">How-to walkthroughs live in <strong>Guides</strong>. This catalogue lists the stable routes those guides use—without repeating the same samples.</p>
+
+      <div class="api-catalog" id="api-accept-checkout">
+        <div class="api-catalog-head">
+          <h5 class="api-catalog-title">Checkout</h5>
+          <a class="guide-pill" href="#checkout">Guide · Inline checkout →</a>
+        </div>
+        <p class="body">Browser popup via <code>koodifyInitPayment</code>, or server initialize.</p>
+      <div class="endpoint endpoint--catalog" id="api-checkout"><span class="method">POST</span><span class="path">/api/v1/checkout/initialize</span><small>Server checkout</small></div>
+      <div class="endpoint endpoint--catalog" id="api-checkout-inline"><span class="method">POST</span><span class="path">/api/v1/checkout/initialize/inline</span><small>Inline session</small></div>
+      <div class="endpoint endpoint--catalog" id="api-checkout-account"><span class="method">GET</span><span class="path">/api/v1/checkout/account</span><small>Temporary VA</small></div>
+      <div class="endpoint endpoint--catalog" id="api-checkout-status"><span class="method">GET</span><span class="path">/api/v1/checkout/status</span><small>Payment status</small></div>
+            </div>
+
+      <div class="api-catalog" id="api-accept-va">
+        <div class="api-catalog-head">
+          <h5 class="api-catalog-title">Virtual accounts</h5>
+          <a class="guide-pill" href="#virtual-accounts">Guide · Virtual accounts →</a>
+        </div>
+        <p class="body">Static and dynamic VA create flows, with optional metadata.</p>
+      <div class="endpoint endpoint--catalog" id="api-va-create"><span class="method">POST</span><span class="path">/api/v1/va/create</span><small>Create static VA</small></div>
+      <div class="endpoint endpoint--catalog" id="api-va-helpers"><span class="method">GET</span><span class="path">/api/v1/va/{accountNumber}</span><small>Balance + transactions</small></div>
+                  <div class="endpoint endpoint--catalog" id="api-va-status"><span class="method">PATCH</span><span class="path">/api/v1/va/status</span><small>Update VA status</small></div>
+            <div class="endpoint endpoint--catalog" id="api-dva-create"><span class="method">POST</span><span class="path">/api/v1/dva/create</span><small>Create dynamic VA</small></div>
+      <div class="endpoint endpoint--catalog" id="api-dva-verify"><span class="method">GET</span><span class="path">/api/v1/dva/verify/{txnRef}</span><small>Status + deposit verify</small></div>
+      <div class="endpoint endpoint--catalog" id="api-dva-deposit"><span class="method">GET</span><span class="path">/api/v1/dva/deposit/{txnRef}</span><small>Deposit status</small></div>
+      </div>
+
+      <div class="api-catalog" id="api-accept-splits">
+        <div class="api-catalog-head">
+          <h5 class="api-catalog-title">Payment splits</h5>
+          <a class="guide-pill" href="#payment-splits">Guide · Payment splits →</a>
+        </div>
+        <p class="body">Ad-hoc <code>paymentSplit</code> on initialize, or reusable plans with <code>splitPlanId</code> on checkout.</p>
+      <div class="endpoint endpoint--catalog" id="api-splits"><span class="method">PUT</span><span class="path">/api/v1/split-plans</span><small>Create / update plan</small></div>
+      <div class="endpoint endpoint--catalog" id="api-split-plans-list"><span class="method">GET</span><span class="path">/api/v1/split-plans</span><small>List plans</small></div>
+      <div class="endpoint endpoint--catalog" id="api-split-plans-get"><span class="method">GET</span><span class="path">/api/v1/split-plans/{id}</span><small>Get one plan</small></div>
+      <div class="endpoint endpoint--catalog" id="api-payment-splits"><span class="method">GET</span><span class="path">/api/v1/payment-splits/{txnRef}</span><small>Inspect split run</small></div>
+      </div>
+
+      <h4 class="sample-subhead" id="api-transfers-group">Transfers</h4>
+      <p class="body">List banks, confirm account names, send funds, and verify the transfer.</p>
+
+      <div class="api-doc" id="api-banks">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/banks</span><small>Bank list</small></div>
+        <p class="body">List supported banks and codes for transfers and name enquiry.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/banks" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/banks", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/banks");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/banks",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/banks")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "code": "058",
+      "name": "Guaranty Trust Bank"
+    },
+    {
+      "code": "50515",
+      "name": "Moniepoint MFB"
+    }
+  ]
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-banks-enquiry">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/banks/enquiry</span><small>Name enquiry</small></div>
+        <p class="body">Resolve the account name for a bank code + account number.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/banks/enquiry?bankCode=058&amp;accountNumber=0123456789" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/banks/enquiry?bankCode=058&amp;accountNumber=0123456789", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/banks/enquiry?bankCode=058&amp;accountNumber=0123456789");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/banks/enquiry?bankCode=058&amp;accountNumber=0123456789",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/banks/enquiry?bankCode=058&amp;accountNumber=0123456789")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountName": "ADA LOVELACE",
+    "accountNumber": "0123456789",
+    "bankCode": "058"
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="api-doc" id="api-transfers">
+        <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/transfers</span><small>Funds transfer</small></div>
+        <p class="body">Initiate a single funds transfer (verify separately if needed).</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X POST "https://api.koodify.ng/api/v1/transfers" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY" \
+  -d '{
+  "destinationAccountNumber": "0123456789",
+  "destinationBankCode": "058",
+  "sourceAccountNumber": "5006079921",
+  "amount": "5000",
+  "txnRef": "PAYOUT_1001",
+  "zainboxCode": "main_box",
+  "narration": "Tutor payout"
+}'</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/transfers", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  },
+  body: JSON.stringify({
+  "destinationAccountNumber": "0123456789",
+  "destinationBankCode": "058",
+  "sourceAccountNumber": "5006079921",
+  "amount": "5000",
+  "txnRef": "PAYOUT_1001",
+  "zainboxCode": "main_box",
+  "narration": "Tutor payout"
+})
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/transfers");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "POST",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "Content-Type: application/json",
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+  CURLOPT_POSTFIELDS =&gt; &lt;&lt;&lt;'JSON'
+{
+  "destinationAccountNumber": "0123456789",
+  "destinationBankCode": "058",
+  "sourceAccountNumber": "5006079921",
+  "amount": "5000",
+  "txnRef": "PAYOUT_1001",
+  "zainboxCode": "main_box",
+  "narration": "Tutor payout"
+}
+JSON,
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.post(
+    "https://api.koodify.ng/api/v1/transfers",
+    headers={
+        "X-Api-Key": os.environ["KOODIFY_SECRET_KEY"],
+        "Content-Type": "application/json",
+    },
+    json={
+  "destinationAccountNumber": "0123456789",
+  "destinationBankCode": "058",
+  "sourceAccountNumber": "5006079921",
+  "amount": "5000",
+  "txnRef": "PAYOUT_1001",
+  "zainboxCode": "main_box",
+  "narration": "Tutor payout"
+},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let body = serde_json::from_str(r#"{
+  "destinationAccountNumber": "0123456789",
+  "destinationBankCode": "058",
+  "sourceAccountNumber": "5006079921",
+  "amount": "5000",
+  "txnRef": "PAYOUT_1001",
+  "zainboxCode": "main_box",
+  "narration": "Tutor payout"
+}"#)?;
+let response = reqwest::Client::new()
+    .post("https://api.koodify.ng/api/v1/transfers")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .json(&amp;body)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "PAYOUT_1001",
+    "status": "pending"
+  }
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-transfers-verify">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/transfers/{txnRef}/verify</span><small>Verify transfer</small></div>
+        <p class="body">Verify a transfer by its <code>txnRef</code>.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/transfers/ORDER_889/verify" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/transfers/ORDER_889/verify", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/transfers/ORDER_889/verify");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/transfers/ORDER_889/verify",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/transfers/ORDER_889/verify")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "PAYOUT_1001",
+    "status": "success",
+    "amount": "5000"
+  }
+}</pre>
+        </div>
+      </div>
+
+
+      <h4 class="sample-subhead" id="api-settlements">Settlements</h4>
+      <p class="body">Configure settlement behaviour and inspect settlement accounts for a zainbox.</p>
+
+      <div class="api-doc" id="api-settlements-crud">
+        <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/settlements</span><small>Create settlement</small></div>
+        <p class="body">Create or update settlement configuration for a zainbox. Use <code>GET /api/v1/settlements</code> to read current settings.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X POST "https://api.koodify.ng/api/v1/settlements" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY" \
+  -d '{
+  "name": "Main settlement",
+  "scheduleType": "T1",
+  "zainboxCode": "main_box",
+  "status": false,
+  "settlementAccountList": [
+    {
+      "accountNumber": "0123456789",
+      "bankCode": "058",
+      "accountName": "SCHOOL LTD"
+    }
+  ]
+}'</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/settlements", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  },
+  body: JSON.stringify({
+  "name": "Main settlement",
+  "scheduleType": "T1",
+  "zainboxCode": "main_box",
+  "status": false,
+  "settlementAccountList": [
+    {
+      "accountNumber": "0123456789",
+      "bankCode": "058",
+      "accountName": "SCHOOL LTD"
+    }
+  ]
+})
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/settlements");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "POST",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "Content-Type: application/json",
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+  CURLOPT_POSTFIELDS =&gt; &lt;&lt;&lt;'JSON'
+{
+  "name": "Main settlement",
+  "scheduleType": "T1",
+  "zainboxCode": "main_box",
+  "status": false,
+  "settlementAccountList": [
+    {
+      "accountNumber": "0123456789",
+      "bankCode": "058",
+      "accountName": "SCHOOL LTD"
+    }
+  ]
+}
+JSON,
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.post(
+    "https://api.koodify.ng/api/v1/settlements",
+    headers={
+        "X-Api-Key": os.environ["KOODIFY_SECRET_KEY"],
+        "Content-Type": "application/json",
+    },
+    json={
+  "name": "Main settlement",
+  "scheduleType": "T1",
+  "zainboxCode": "main_box",
+  "status": false,
+  "settlementAccountList": [
+    {
+      "accountNumber": "0123456789",
+      "bankCode": "058",
+      "accountName": "SCHOOL LTD"
+    }
+  ]
+},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let body = serde_json::from_str(r#"{
+  "name": "Main settlement",
+  "scheduleType": "T1",
+  "zainboxCode": "main_box",
+  "status": false,
+  "settlementAccountList": [
+    {
+      "accountNumber": "0123456789",
+      "bankCode": "058",
+      "accountName": "SCHOOL LTD"
+    }
+  ]
+}"#)?;
+let response = reqwest::Client::new()
+    .post("https://api.koodify.ng/api/v1/settlements")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .json(&amp;body)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "zainboxCode": "main_box",
+    "status": false
+  }
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-settlements-get">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/settlements</span><small>Get settlement</small></div>
+        <p class="body">Read settlement configuration (pass zainbox query as required by your integration).</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/settlements?zainboxCode=main_box" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/settlements?zainboxCode=main_box", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/settlements?zainboxCode=main_box");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/settlements?zainboxCode=main_box",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/settlements?zainboxCode=main_box")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "zainboxCode": "main_box",
+    "status": false,
+    "scheduleType": "T1"
+  }
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-settlements-history">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/settlements/history/{zainboxCode}</span><small>History</small></div>
+        <p class="body">Settlement history for a zainbox.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/settlements/history/main_box" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/settlements/history/main_box", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/settlements/history/main_box");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/settlements/history/main_box",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/settlements/history/main_box")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "amount": "50000",
+      "status": "success",
+      "settledAt": "2026-11-01T10:00:00Z"
+    }
+  ]
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-settlements-internal">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/settlements/internal/{zainboxCode}</span><small>Settlement account</small></div>
+        <p class="body">Fetch the settlement account for a zainbox.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/settlements/internal/main_box" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/settlements/internal/main_box", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/settlements/internal/main_box");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/settlements/internal/main_box",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/settlements/internal/main_box")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountNumber": "1100001234",
+    "bankName": "Access Bank"
+  }
+}</pre>
+        </div>
+      </div>
+
+      <h4 class="sample-subhead" id="api-transactions">Transactions</h4>
+      <p class="body">Confirm payments, look up activity, and read your zainbox wallet and transactions.</p>
+
+      
+      <div class="api-catalog" id="api-tx-confirm">
+        <div class="api-catalog-head">
+          <h5 class="api-catalog-title">Confirmation</h5>
+          <span class="api-catalog-links">
+            <a class="guide-pill" href="#webhooks">API Guide · Webhooks →</a>
+          </span>
+        </div>
+        <p class="body">Prefer the signed <code>payment.success</code> webhook. Use deposit verify when you need a server-side status check.</p>
+      <div class="endpoint endpoint--catalog" id="api-webhooks"><span class="method">POST</span><span class="path">{your callBackUrl}</span><small>payment.success webhook</small></div>
+      <div class="endpoint endpoint--catalog" id="api-reconciliation"><span class="method">GET</span><span class="path">/api/v1/reconcile/deposit/{txnRef}</span><small>Verify deposit</small></div>
+                  </div>
+
+<div class="api-doc" id="api-activity">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/activity/{txnRef}</span><small>Payment timeline</small></div>
+        <p class="body">Koodify activity events for one payment reference (initialize, VA create, status, webhook).</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/activity/ORDER_889" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/activity/ORDER_889", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/activity/ORDER_889");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/activity/ORDER_889",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/activity/ORDER_889")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "type": "checkout.initialize",
+      "txnRef": "ORDER_889",
+      "at": "2026-11-02T10:00:00Z"
+    },
+    {
+      "type": "payment.success",
+      "txnRef": "ORDER_889",
+      "at": "2026-11-02T10:04:12Z"
+    }
+  ]
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-activity-recent">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/activity</span><small>Recent activity</small></div>
+        <p class="body">Recent activity for your account.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/activity" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/activity", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/activity");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/activity",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/activity")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "type": "payment.success",
+      "txnRef": "ORDER_889",
+      "at": "2026-11-02T10:04:12Z"
+    }
+  ]
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-merchant-txns">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/transactions</span><small>Summary + list</small></div>
+        <p class="body">Transactions summary + list for your account. Also available as <code>/api/v1/transactions/summary</code> and <code>/list</code>.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/transactions" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/transactions", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/transactions");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/transactions",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/transactions")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "summary": {
+      "count": 12,
+      "volume": "450000"
+    },
+    "transactions": [
+      {
+        "txnRef": "ORDER_889",
+        "amount": "1000",
+        "status": "success"
+      }
+    ]
+  }
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-zainbox">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/zainbox/{zainboxCode}</span><small>Profile + balances</small></div>
+        <p class="body">Zainbox profile plus balances.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/zainbox/main_box" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/zainbox/main_box", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/zainbox/main_box");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/zainbox/main_box",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/zainbox/main_box")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "profile": {
+      "codeName": "main_box",
+      "name": "Main box"
+    },
+    "balances": [
+      {
+        "accountNumber": "5006079921",
+        "balance": "125000.00"
+      }
+    ]
+  }
+}</pre>
+        </div>
+      </div>
+      <div class="api-doc" id="api-zainbox-reads">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/zainboxes</span><small>List zainboxes</small></div>
+        <p class="body">List zainboxes for the authenticated merchant.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/zainboxes" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/zainboxes", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/zainboxes");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/zainboxes",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/zainboxes")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "codeName": "main_box",
+      "name": "Main box"
+    }
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="api-doc" id="api-zainbox-wallet">
+        <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/zainbox/{zainboxCode}/wallet</span><small>VAs + balances</small></div>
+        <p class="body">Virtual accounts and balances for a zainbox—the usual read after checkout goes live.</p>
+        <div class="tabs api-lang-tabs" role="tablist" aria-label="Request language">
+          <button class="tab active" type="button" role="tab" data-lang="curl" aria-selected="true">cURL</button>
+          <button class="tab" type="button" role="tab" data-lang="nodejs" aria-selected="false">Node.js</button>
+          <button class="tab" type="button" role="tab" data-lang="php" aria-selected="false">PHP</button>
+          <button class="tab" type="button" role="tab" data-lang="python" aria-selected="false">Python</button>
+          <button class="tab" type="button" role="tab" data-lang="rust" aria-selected="false">Rust</button>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span class="api-req-label">REQUEST · CURL</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre class="api-req-panel" data-lang="curl">curl -X GET "https://api.koodify.ng/api/v1/zainbox/main_box/wallet" \
+  -H "X-Api-Key: $KOODIFY_SECRET_KEY"</pre>
+          <pre class="api-req-panel" data-lang="nodejs" hidden>const response = await fetch("https://api.koodify.ng/api/v1/zainbox/main_box/wallet", {
+  method: "GET",
+  headers: {
+    "X-Api-Key": process.env.KOODIFY_SECRET_KEY
+  }
+});
+
+const data = await response.json();</pre>
+          <pre class="api-req-panel" data-lang="php" hidden>$ch = curl_init("https://api.koodify.ng/api/v1/zainbox/main_box/wallet");
+curl_setopt_array($ch, [
+  CURLOPT_CUSTOMREQUEST =&gt; "GET",
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    "X-Api-Key: " . getenv("KOODIFY_SECRET_KEY"),
+  ],
+]);
+$response = curl_exec($ch);
+$data = json_decode($response, true);</pre>
+          <pre class="api-req-panel" data-lang="python" hidden>import os, requests
+
+response = requests.get(
+    "https://api.koodify.ng/api/v1/zainbox/main_box/wallet",
+    headers={"X-Api-Key": os.environ["KOODIFY_SECRET_KEY"]},
+    timeout=30,
+)
+data = response.json()</pre>
+          <pre class="api-req-panel" data-lang="rust" hidden>let response = reqwest::Client::new()
+    .get("https://api.koodify.ng/api/v1/zainbox/main_box/wallet")
+    .header("X-Api-Key", std::env::var("KOODIFY_SECRET_KEY")?)
+    .send()
+    .await?;
+
+let data: serde_json::Value = response.json().await?;</pre>
+        </div>
+        <div class="snippet">
+          <div class="snippet-head">
+            <span>RESPONSE · 200 OK</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "virtualAccounts": [
+      {
+        "accountNumber": "5006079921"
+      }
+    ],
+    "balances": [
+      {
+        "accountNumber": "5006079921",
+        "balance": "125000.00"
+      }
+    ]
+  }
+}</pre>
+        </div>
+      </div>
+
+    </section>
+
+    <section id="errors">
+      <h3>Error handling</h3>
+      <p class="body">API responses use a standard envelope: <code>code</code>, <code>status</code>, <code>description</code>, and <code>data</code>. Treat a payment as successful only when the payment status is explicitly successful (for example <code>success</code> or <code>paid</code>). Reused <code>txnRef</code> values fail checkout—issue a fresh reference for each attempt. On webhooks, verify the signature, acknowledge with 2xx, and ignore duplicates for the same <code>reference</code>.</p>
+    </section>
+
+    <section id="security">
+      <h3>Security best practices</h3>
+      <p class="body">Keep <code>sk_…</code> on the server only; publish only <code>pk_…</code> in the browser. Verify <code>X-Koodify-Signature</code> on the <em>raw</em> webhook body. Never log API keys, BVN, or other sensitive customer data. Use an HTTPS <code>callBackUrl</code> that accepts POST.</p>
+    </section>
+
+
+    <div class="bottom-cta">
+      <img class="bottom-cta-art" src="assets/art/hero-mesh.jpg" width="1600" height="900" alt="" loading="lazy" decoding="async" aria-hidden="true">
+      <div class="bottom-cta-inner">
+      <h3>Ready to build something reliable?</h3>
+      <p>Call your zainbox with <code>sk_…</code>, embed inline checkout with <code>pk_…</code>, and verify webhooks before going live.</p>
+      <a href="#quickstart">Go to quickstart →</a>
+      </div>
+    </div>
+  </article>
+
+  <aside class="rightnav" aria-label="On this page">
+    <strong>On this page</strong>
+    <a href="#overview">Overview</a>
+    <a href="#api-guides">API Guides</a>
+    <a href="#checkout">Inline checkout</a>
+    <a href="#virtual-accounts">Virtual accounts</a>
+    <a href="#payment-splits">Payment splits</a>
+    <a href="#webhooks">Webhooks</a>
+    <a href="#errors">Errors</a>
+    <a href="#security">Security</a>
+  </aside>
+</main>
+
+<footer class="footer">
+  <a class="brand" href="#top">
+    <img class="brand-logo brand-logo--footer" src="assets/logo/koodify-logo-white-wordmark-transparent.png" width="132" height="32" alt="Koodify">
+  </a>
+  <span>Merchant integration · api.koodify.ng</span>
+  <nav class="footer-links" aria-label="Footer">
+    <a href="#quickstart">Get started</a>
+    <a href="#api-guides">API Guides</a>
+    <a href="#security">Security</a>
+  </nav>
+</footer>
+
+<script src="app.js" defer></script>
+</body>
+</html>

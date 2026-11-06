@@ -193,8 +193,8 @@ pub async fn name_resolve(
         .and_then(to_json)
 }
 
-/// `GET /api/v1/merchant/transactions` — summary + transaction list.
-/// Alias: `/api/v1/merchant/activity` (deprecated).
+/// `GET /api/v1/transactions` — summary + transaction list.
+/// Aliases (deprecated): `/api/v1/merchant/transactions`, `/api/v1/merchant/activity`.
 pub async fn merchant_activity(
     auth: ApiKeyAuth,
     State(state): State<AppState>,

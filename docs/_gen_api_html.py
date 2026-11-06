@@ -317,9 +317,9 @@ def main() -> None:
             endpoint(
                 "api-merchant-transactions",
                 "GET",
-                "/api/v1/merchant/transactions",
+                "/api/v1/transactions",
                 "Merchant transactions",
-                "Merchant-wide summary + transaction list. Alias: /api/v1/merchant/activity (deprecated).",
+                "Merchant-wide summary + transaction list. Aliases (deprecated): /api/v1/merchant/transactions, /api/v1/merchant/activity.",
                 composite(
                     "composite: merchant transactions summary + list",
                     summary={"totalCredit": "1000000", "totalDebit": "250000"},

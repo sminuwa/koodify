@@ -28,8 +28,20 @@ pub const DEPRECATED_ALIASES: &[DeprecatedAlias] = &[
         successor: "/api/v1/zainbox/{zainboxCode}/transactions",
     },
     DeprecatedAlias {
+        path_pattern: "/api/v1/merchant/transactions",
+        successor: "/api/v1/transactions",
+    },
+    DeprecatedAlias {
         path_pattern: "/api/v1/merchant/activity",
-        successor: "/api/v1/merchant/transactions",
+        successor: "/api/v1/transactions",
+    },
+    DeprecatedAlias {
+        path_pattern: "/api/v1/merchant/transactions/summary",
+        successor: "/api/v1/transactions/summary",
+    },
+    DeprecatedAlias {
+        path_pattern: "/api/v1/merchant/transactions/list",
+        successor: "/api/v1/transactions/list",
     },
     DeprecatedAlias {
         path_pattern: "/api/v1/virtual-account/{accountNumber}",
@@ -49,8 +61,17 @@ pub fn concrete_successor(path: &str) -> Option<String> {
             return Some(format!("/api/v1/zainbox/{code}/transactions"));
         }
     }
-    if path == "/api/v1/merchant/activity" {
-        return Some("/api/v1/merchant/transactions".into());
+    match path {
+        "/api/v1/merchant/transactions" | "/api/v1/merchant/activity" => {
+            return Some("/api/v1/transactions".into());
+        }
+        "/api/v1/merchant/transactions/summary" => {
+            return Some("/api/v1/transactions/summary".into());
+        }
+        "/api/v1/merchant/transactions/list" => {
+            return Some("/api/v1/transactions/list".into());
+        }
+        _ => {}
     }
     if let Some(account) = path.strip_prefix("/api/v1/virtual-account/") {
         if !account.is_empty() && !account.contains('/') {
@@ -99,10 +120,22 @@ mod tests {
     }
 
     #[test]
-    fn matches_merchant_activity() {
+    fn matches_merchant_transaction_aliases() {
         assert_eq!(
             concrete_successor("/api/v1/merchant/activity").as_deref(),
-            Some("/api/v1/merchant/transactions")
+            Some("/api/v1/transactions")
+        );
+        assert_eq!(
+            concrete_successor("/api/v1/merchant/transactions").as_deref(),
+            Some("/api/v1/transactions")
+        );
+        assert_eq!(
+            concrete_successor("/api/v1/merchant/transactions/summary").as_deref(),
+            Some("/api/v1/transactions/summary")
+        );
+        assert_eq!(
+            concrete_successor("/api/v1/merchant/transactions/list").as_deref(),
+            Some("/api/v1/transactions/list")
         );
     }
 
@@ -120,7 +153,8 @@ mod tests {
 
     #[test]
     fn ignores_canonical_paths() {
-        assert!(concrete_successor("/api/v1/merchant/transactions").is_none());
+        assert!(concrete_successor("/api/v1/transactions").is_none());
+        assert!(concrete_successor("/api/v1/transactions/summary").is_none());
         assert!(concrete_successor("/api/v1/dva/verify/ORDER_1").is_none());
         assert!(concrete_successor("/api/v1/activity/ORDER_1").is_none());
     }

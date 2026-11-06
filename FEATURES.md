@@ -678,7 +678,8 @@ curl -X POST "https://api.koodify.ng/api/v1/transfers" \
 | Deprecated | Use instead |
 |------------|-------------|
 | `GET /api/v1/zainbox/{code}/activity` | `GET /api/v1/zainbox/{code}/transactions` |
-| `GET /api/v1/merchant/activity` | `GET /api/v1/merchant/transactions` |
+| `GET /api/v1/merchant/activity` | `GET /api/v1/transactions` |
+| `GET /api/v1/merchant/transactions` | `GET /api/v1/transactions` |
 | `GET /api/v1/virtual-account/{n}` | `GET /api/v1/va/{n}` |
 | `GET /api/v1/deposit/{txnRef}` | `GET /api/v1/dva/verify/{txnRef}` |
 
@@ -693,7 +694,7 @@ Note: `GET /api/v1/activity/{txnRef}` is **not** deprecated — that is the Kood
 
 **Naming rules (house style):**
 - Prefer `/api/v1/{resource}/{action}` — short nouns (`va`, `dva`, `zainbox`, `merchant`, `banks`, `transfers`).
-- Name routes for **what they return**, not an internal nickname (e.g. merchant transactions composite is `/api/v1/merchant/transactions`, not `…/activity`).
+- Name routes for **what they return**, not an internal nickname (e.g. merchant transactions composite is `/api/v1/transactions`, not `…/merchant/…` or `…/activity`).
 - Keep `/api/v1/activity*` for the real Koodify `activity_events` timeline (local, not a Zainpay mirror).
 - Zainpay-shaped gateway paths (and older aliases) may keep working for compatibility, but **new integrations should use `/api/v1`**.
 
@@ -712,7 +713,7 @@ Zainpay   →  GET /virtual-account/wallet/balance/v2/{n}   ← may change; only
 *Composites / renames*
 | Koodify | Talks to (Zainpay) |
 |---------|--------------------|
-| `GET /api/v1/merchant/transactions` | summary + list (alias: `…/activity`) |
+| `GET /api/v1/transactions` | summary + list (aliases: `…/merchant/transactions`, `…/merchant/activity`) |
 | `GET /api/v1/zainbox/{code}/transactions` | box ledger + deposit summary (alias: `…/activity`) |
 | `GET /api/v1/va/{n}` | VA balance + transactions |
 | `GET /api/v1/dva/verify/{txnRef}` | DVA status + deposit verify (alias: `…/deposit/{txnRef}`) |
@@ -734,7 +735,7 @@ Zainpay   →  GET /virtual-account/wallet/balance/v2/{n}   ← may change; only
 | `POST /api/v1/zainbox` · `PATCH /api/v1/zainbox` | create / update |
 | `GET /api/v1/zainbox/{code}/vas` · `/balances` · `/profile` · `/ledger` · `/deposit-summary` · `/card-transactions` | matching `/zainbox/…` paths |
 | `POST /api/v1/zainbox/subscribe` · `/unsubscribe` | service-subscription |
-| `GET /api/v1/merchant/transactions/summary` · `/list` | summary / merchant transactions |
+| `GET /api/v1/transactions/summary` · `/list` | summary / transaction list |
 
 *Bank / transfer / settlement / checkout*
 | Koodify | Talks to |

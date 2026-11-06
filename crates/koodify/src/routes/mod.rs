@@ -56,10 +56,14 @@ pub fn router() -> Router<AppState> {
             get(composite::subscriptions_bundle),
         )
         .route(
+            "/api/v1/transactions",
+            get(composite::merchant_activity),
+        )
+        // Deprecated aliases — prefer `/api/v1/transactions`
+        .route(
             "/api/v1/merchant/transactions",
             get(composite::merchant_activity),
         )
-        // Deprecated alias — prefer `/merchant/transactions`
         .route(
             "/api/v1/merchant/activity",
             get(composite::merchant_activity),
@@ -166,6 +170,15 @@ pub fn router() -> Router<AppState> {
             "/api/v1/zainbox/unsubscribe",
             post(zainbox::unsubscribe),
         )
+        .route(
+            "/api/v1/transactions/summary",
+            get(zainbox::transactions_summary),
+        )
+        .route(
+            "/api/v1/transactions/list",
+            get(zainbox::merchant_transactions),
+        )
+        // Deprecated aliases — prefer `/api/v1/transactions/summary` · `/list`
         .route(
             "/api/v1/merchant/transactions/summary",
             get(zainbox::transactions_summary),

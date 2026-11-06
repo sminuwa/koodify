@@ -226,7 +226,7 @@ Migration: `020_idempotency_keys.sql`.
 | Deprecated | Use instead |
 |------------|-------------|
 | `GET …/zainbox/{code}/activity` | `…/zainbox/{code}/transactions` |
-| `GET …/merchant/activity` | `…/merchant/transactions` |
+| `GET …/merchant/activity` · `…/merchant/transactions` | `…/transactions` |
 | `GET …/virtual-account/{n}` | `…/va/{n}` |
 | `GET …/deposit/{txnRef}` | `…/dva/verify/{txnRef}` |
 
