@@ -1,0 +1,82 @@
+[
+  {
+    "file": "01-smart-bank-routing.png",
+    "title": "Smart VA bank routing",
+    "slug": "smart-bank-routing",
+    "path": "assets/features/01-smart-bank-routing.png",
+    "width": 939,
+    "height": 847
+  },
+  {
+    "file": "02-inline-checkout.png",
+    "title": "Inline bank-transfer checkout",
+    "slug": "inline-checkout",
+    "path": "assets/features/02-inline-checkout.png",
+    "width": 737,
+    "height": 670
+  },
+  {
+    "file": "03-custom-params.png",
+    "title": "Custom params",
+    "slug": "custom-params",
+    "path": "assets/features/03-custom-params.png",
+    "width": 676,
+    "height": 733
+  },
+  {
+    "file": "04-metadata.png",
+    "title": "Metadata on mutating calls",
+    "slug": "metadata",
+    "path": "assets/features/04-metadata.png",
+    "width": 552,
+    "height": 732
+  },
+  {
+    "file": "05-payment-split.png",
+    "title": "Payment split",
+    "slug": "payment-split",
+    "path": "assets/features/05-payment-split.png",
+    "width": 840,
+    "height": 811
+  },
+  {
+    "file": "06-notifications.png",
+    "title": "Notifications (payer + merchant emails)",
+    "slug": "notifications",
+    "path": "assets/features/06-notifications.png",
+    "width": 761,
+    "height": 786
+  },
+  {
+    "file": "07-merchant-webhook.png",
+    "title": "Merchant outbound webhook",
+    "slug": "merchant-webhook",
+    "path": "assets/features/07-merchant-webhook.png",
+    "width": 941,
+    "height": 614
+  },
+  {
+    "file": "08-reconciler.png",
+    "title": "Reconciler",
+    "slug": "reconciler",
+    "path": "assets/features/08-reconciler.png",
+    "width": 666,
+    "height": 739
+  },
+  {
+    "file": "09-stable-api.png",
+    "title": "Stable Koodify API surface",
+    "slug": "stable-api",
+    "path": "assets/features/09-stable-api.png",
+    "width": 786,
+    "height": 777
+  },
+  {
+    "file": "10-escrow.png",
+    "title": "Escrow",
+    "slug": "escrow",
+    "path": "assets/features/10-escrow.png",
+    "width": 1021,
+    "height": 702
+  }
+]

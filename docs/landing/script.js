@@ -1,65 +1,128 @@
-const nav = document.querySelector('.nav');
-const toggle = document.querySelector('.menu-toggle');
-toggle?.addEventListener('click', () => {
-  const open = nav.classList.toggle('open');
-  toggle.setAttribute('aria-expanded', String(open));
+const header = document.getElementById("site-header");
+const nav = document.querySelector(".nav");
+const toggle = document.querySelector(".menu-toggle");
+const year = document.getElementById("year");
+
+const setHeaderState = () => {
+  header?.classList.toggle("is-scrolled", window.scrollY > 12);
+};
+
+toggle?.addEventListener("click", () => {
+  const open = nav.classList.toggle("is-open");
+  toggle.setAttribute("aria-expanded", String(open));
 });
-document.querySelectorAll('.nav-links a').forEach((link) => {
-  link.addEventListener('click', () => {
-    nav.classList.remove('open');
-    toggle?.setAttribute('aria-expanded', 'false');
+
+document.querySelectorAll(".nav-links a, .nav-actions a").forEach((link) => {
+  link.addEventListener("click", () => {
+    nav?.classList.remove("is-open");
+    toggle?.setAttribute("aria-expanded", "false");
   });
 });
 
-document.getElementById('year').textContent = String(new Date().getFullYear());
-
-const clock = document.getElementById('clock');
-const tick = () => {
-  const now = new Date();
-  clock.textContent = now.toTimeString().slice(0, 5);
-};
-tick();
-setInterval(tick, 30_000);
-
-const typed = document.getElementById('typed-line');
-const message = 'payment infrastructure for products that move money';
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-if (typed) {
-  if (reduceMotion) {
-    typed.textContent = message;
-  } else {
-    let i = 0;
-    const typeNext = () => {
-      typed.textContent = message.slice(0, i);
-      i += 1;
-      if (i <= message.length) {
-        window.setTimeout(typeNext, 28);
-      }
-    };
-    typeNext();
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && nav?.classList.contains("is-open")) {
+    nav.classList.remove("is-open");
+    toggle?.setAttribute("aria-expanded", "false");
+    toggle?.focus();
   }
+});
+
+window.addEventListener("scroll", setHeaderState, { passive: true });
+setHeaderState();
+
+if (year) year.textContent = String(new Date().getFullYear());
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reveals = document.querySelectorAll(".reveal");
+
+if (reduceMotion || !("IntersectionObserver" in window)) {
+  reveals.forEach((el) => el.classList.add("is-visible"));
+} else {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    },
+    { threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
+  );
+
+  reveals.forEach((el) => observer.observe(el));
 }
 
-const log = document.getElementById('event-log');
-const lines = [
-  'payment.success   KOOD-28491',
-  'webhook.delivered attempt=1 verified=true',
-  'route.selected    provider=A',
-  'reconcile.matched ₦125,000',
-  'payment.created   ref=order_29011',
-  'webhook.retry     attempt=2 ok',
-];
-let lineIndex = 0;
+/** Hero payment story — plays once to explain checkout → route → code → success */
+const stage = document.getElementById("hero-stage");
+const checkout = stage?.querySelector(".hero-checkout");
+const routeCard = stage?.querySelector(".hero-float-route");
+const codeCard = stage?.querySelector(".hero-float-code");
+const successCard = stage?.querySelector(".hero-float-success");
+const bankName = document.getElementById("hero-bank-name");
+const routeBadge = document.getElementById("hero-route-badge");
+const progressLabel = document.getElementById("hero-progress-label");
 
-if (log && !reduceMotion) {
-  window.setInterval(() => {
-    const stamp = new Date().toTimeString().slice(0, 5);
-    const level = lineIndex % 3 === 1 ? 'OK  ' : 'INFO';
-    const next = `${stamp} ${level} ${lines[lineIndex % lines.length]}`;
-    const current = log.textContent.trim().split('\n');
-    current.unshift(next);
-    log.textContent = current.slice(0, 5).join('\n');
-    lineIndex += 1;
-  }, 4200);
+const show = (el) => el?.classList.add("is-in");
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const settleHero = () => {
+  stage?.setAttribute("data-story", "3");
+  stage?.classList.add("is-complete");
+  show(checkout);
+  show(routeCard);
+  show(codeCard);
+  show(successCard);
+  if (bankName) bankName.textContent = "Moniepoint";
+  if (routeBadge) routeBadge.hidden = false;
+  if (progressLabel) progressLabel.textContent = "Payment received";
+};
+
+const playHeroStory = async () => {
+  if (!stage || !checkout) return;
+
+  if (reduceMotion) {
+    settleHero();
+    return;
+  }
+
+  show(checkout);
+  stage.setAttribute("data-story", "0");
+  if (progressLabel) progressLabel.textContent = "Creating temporary account…";
+  await wait(700);
+
+  show(routeCard);
+  stage.setAttribute("data-story", "1");
+  if (bankName) bankName.textContent = "Moniepoint";
+  if (routeBadge) routeBadge.hidden = false;
+  if (progressLabel) progressLabel.textContent = "Listening for transfer…";
+  await wait(900);
+
+  show(codeCard);
+  stage.setAttribute("data-story", "2");
+  await wait(850);
+
+  show(successCard);
+  stage.setAttribute("data-story", "3");
+  stage.classList.add("is-complete");
+  if (progressLabel) progressLabel.textContent = "Payment received";
+};
+
+if (stage) {
+  if (reduceMotion) {
+    settleHero();
+  } else if ("IntersectionObserver" in window) {
+    const storyObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          storyObserver.unobserve(entry.target);
+          playHeroStory();
+        });
+      },
+      { threshold: 0.35 }
+    );
+    storyObserver.observe(stage);
+  } else {
+    playHeroStory();
+  }
 }

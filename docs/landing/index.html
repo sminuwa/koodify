@@ -2,258 +2,490 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#050805">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070b1c">
   <meta name="description" content="Koodify gives product teams the payment infrastructure to collect, route, reconcile and deliver payment events through one developer-friendly platform.">
   <title>Koodify — Payment infrastructure for products that move money</title>
-  <link rel="icon" href="assets/koodify-logo.png">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Detector-visible type scale; mirrored in styles.css tokens */
+    body { font-size: 17px; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+    .hero h1, .section h2, .cta-card h2, .feature-copy h3 { font-family: Outfit, system-ui, sans-serif; }
+    .hero h1 { font-size: clamp(52px, 7vw, 74px); }
+    .section h2, .cta-card h2 { font-size: clamp(36px, 3.6vw, 50px); }
+    .feature-copy h3 { font-size: 28px; }
+    .solution-grid h3, .trust-items h3 { font-size: 20px; }
+  </style>
 </head>
 <body>
-  <div class="crt" id="top">
-    <div class="scanlines" aria-hidden="true"></div>
-    <header class="site-header">
-      <div class="status-bar wrap">
-        <span class="host">operator@koodify:~$</span>
-        <span class="status-meta"><span class="ok">SYS:OK</span> <span id="clock">00:00</span> <span class="signal" aria-hidden="true">||||</span></span>
-      </div>
-      <nav class="nav wrap" aria-label="Primary">
-        <a class="brand" href="#top" aria-label="Koodify home">
-          <img src="assets/koodify-logo.png" alt="Koodify">
-        </a>
-        <button class="menu-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
-          <span></span><span></span>
-        </button>
+  <header class="site-header" id="site-header">
+    <nav class="nav wrap" aria-label="Primary">
+      <a class="brand" href="#top" aria-label="Koodify home">
+        <img src="assets/koodify-logo-white.png" alt="Koodify" width="166" height="40">
+      </a>
+      <button class="menu-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="primary-nav">
+        <span></span><span></span>
+      </button>
+      <div class="nav-panel" id="primary-nav">
         <div class="nav-links">
-          <a class="on" href="#top"><i aria-hidden="true"></i>01_HOME</a>
-          <a href="#platform">02_PLATFORM</a>
-          <a href="https://developer.koodify.ng">03_DEVELOPERS</a>
-          <a href="#solutions">04_SOLUTIONS</a>
-          <a href="#security">05_TRUST</a>
-          <a href="#contact">06_CONTACT</a>
+          <a href="#platform">Platform</a>
+          <a href="https://developer.koodify.ng">Developers</a>
+          <a href="#solutions">Solutions</a>
+          <a href="#security">Trust &amp; security</a>
         </div>
-      </nav>
-    </header>
+        <div class="nav-actions">
+          <a class="login-link" href="#contact">Sign in</a>
+          <a class="button button-small button-light" href="#contact">
+            Talk to our team
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12 12 4M6 4h6v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+      </div>
+    </nav>
+  </header>
 
-    <main>
-      <section class="hero wrap">
-        <div class="hero-copy">
-          <p class="prompt" aria-live="polite"><span class="prompt-label">&gt;</span> <span id="typed-line"></span><span class="cursor" aria-hidden="true">_</span></p>
-          <h1>KOODIFY<br>PAYMENT LAYER</h1>
-          <p class="hero-lede">Collect. Orchestrate. Deliver. Reconcile. One integration for products that move money.</p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="mailto:hello@koodify.ng?subject=Let's%20build%20with%20Koodify">TALK TO KOODIFY</a>
-            <a class="button button-ghost" href="#developers">READ EVENTS</a>
+  <main id="top">
+    <section class="hero">
+      <div class="hero-atmosphere" aria-hidden="true"></div>
+      <div class="wrap hero-grid">
+        <div class="hero-copy reveal">
+          <h1>One integration.<br>Every payment flow.</h1>
+          <p class="hero-lede">The infrastructure layer for modern payments. Collect, orchestrate and reconcile transactions with one dependable platform built for developers and ambitious businesses.</p>
+          <div class="hero-buttons">
+            <a class="button button-primary" href="#contact">
+              Build with Koodify
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12 12 4M6 4h6v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="text-link" href="#developers">
+              Explore the platform
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
           </div>
-          <p class="hero-note">One integration. More control over your payment flows.</p>
+          <p class="hero-footnote">
+            <span class="pulse" aria-hidden="true"></span>
+            One integration. More control over your payment flows.
+          </p>
         </div>
-        <aside class="hero-panel" aria-label="Illustrative live payment session">
-          <div class="panel-block">
-            <h2>CORE STATUS</h2>
-            <pre class="kv">system ........ nominal
-layer ......... collect|route|event|recon
-uptime ........ session
-currency ...... NGN (illustrative)</pre>
-          </div>
-          <div class="panel-block">
-            <h2>RECENT EVENTS <small>ILLUSTRATIVE</small></h2>
-            <pre class="log" id="event-log">21:08 INFO payment.success   KOOD-28491
-21:08 OK   webhook.delivered attempt=1 verified=true
-21:07 INFO route.selected    provider=B
-21:06 OK   reconcile.matched ₦450,000
-21:05 INFO payment.created   ref=order_28491</pre>
-          </div>
-          <div class="panel-block">
-            <h2>HEALTH</h2>
-            <div class="bars" role="img" aria-label="Illustrative system health meters">
-              <div><span>COLLECT</span><b class="meter" data-on="11"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
-              <div><span>ORCHESTRATE</span><b class="meter" data-on="9"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
-              <div><span>DELIVER</span><b class="meter" data-on="12"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
-              <div><span>RECONCILE</span><b class="meter" data-on="10"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
+
+        <div class="hero-visual reveal" aria-label="Illustrative Koodify checkout with adaptive bank routing">
+          <div class="orbit orbit-one" aria-hidden="true"></div>
+          <div class="orbit orbit-two" aria-hidden="true"></div>
+          <div class="hero-orb" aria-hidden="true"></div>
+
+          <div class="hero-stage" data-story="0" id="hero-stage">
+            <div class="hero-checkout story-piece">
+              <div class="hero-checkout-top">
+                <img src="assets/koodify-logo-white.png" alt="Koodify" width="120" height="29">
+                <span class="live"><i aria-hidden="true"></i> LIVE</span>
+              </div>
+              <p class="hero-checkout-kicker">Bank transfer checkout</p>
+              <div class="hero-amount">₦50,000.00</div>
+              <div class="hero-pay-box">
+                <div class="hero-pay-row">
+                  <span>Bank</span>
+                  <strong><span id="hero-bank-name">GTBank</span> <em class="route-badge" id="hero-route-badge" hidden>routed</em></strong>
+                </div>
+                <div class="hero-pay-row">
+                  <span>Account</span>
+                  <strong class="mono">8124 9930 17</strong>
+                </div>
+                <div class="hero-pay-row">
+                  <span>Reference</span>
+                  <strong class="mono">FEES_28491</strong>
+                </div>
+              </div>
+              <div class="hero-progress" id="hero-progress">
+                <span class="hero-progress-bar" aria-hidden="true"></span>
+                <span id="hero-progress-label">Creating temporary account…</span>
+              </div>
             </div>
-          </div>
-        </aside>
-      </section>
 
-      <section class="strip wrap" aria-label="Built for">
-        <span>BUILT FOR</span>
-        <span>FINTECH</span>
-        <span>MARKETPLACES</span>
-        <span>PLATFORMS</span>
-        <span>DIGITAL BUSINESSES</span>
-      </section>
+            <aside class="hero-float hero-float-route story-piece" aria-hidden="true">
+              <p>Adaptive Bank/DVA Routing</p>
+              <div class="route-rail">
+                <span class="route-bank is-lag">GTBank <small>lag</small></span>
+                <span class="route-arrow">→</span>
+                <span class="route-bank is-live">Moniepoint <small>active</small></span>
+              </div>
+            </aside>
 
-      <section class="section" id="platform">
-        <div class="wrap">
-          <h2>Payments are complex. Your infrastructure shouldn’t be.</h2>
-          <p class="lede">Koodify brings the moving parts of payment operations into one consistent layer — so your team can focus on building products, not stitching systems together.</p>
+            <aside class="hero-float hero-float-code story-piece" aria-hidden="true">
+              <div class="hero-code-head"><i></i><i></i><i></i><span>checkout.js</span></div>
+              <pre><span class="kw">koodifyInitPayment</span>({
+  publicKey: <span class="str">"pk_live_…"</span>,
+  amount: <span class="str">"50000"</span>,
+  txnRef: <span class="str">"FEES_28491"</span>
+}, cb);</pre>
+            </aside>
 
-          <div class="flow">
-            <article>
-              <pre class="step-head">[01] ACCEPT // COLLECT</pre>
-              <h3>Collect payments without the friction.</h3>
-              <p>Connect your product to payment collection flows and virtual accounts through a consistent integration experience.</p>
-              <a class="inline-link" href="#contact">explore payment collection -&gt;</a>
-              <pre class="snippet">payment.request
-amount ........ ₦ 125,000.00
-reference ..... KOOD-28491
-status ........ awaiting_payment
-secure ........ true</pre>
-            </article>
-            <article>
-              <pre class="step-head">[02] ORCHESTRATE</pre>
-              <h3>Make every payment flow work together.</h3>
-              <p>Build a more adaptable payment layer with routing logic and a consistent interface across connected providers.</p>
-              <a class="inline-link" href="#contact">explore orchestration -&gt;</a>
-              <pre class="snippet">app ──► koodify.route
-          ├─ provider_a
-          └─ provider_b</pre>
-            </article>
-            <article>
-              <pre class="step-head">[03] DELIVER</pre>
-              <h3>Webhooks you can build around.</h3>
-              <p>Standardise payment events, verify delivery and give your application a reliable way to react to transaction updates.</p>
-              <a class="inline-link" href="#developers">explore webhooks -&gt;</a>
-              <pre class="snippet">event ..... payment.success
-status .... delivered
-attempt ... 1
-verified .. true</pre>
-            </article>
-            <article>
-              <pre class="step-head">[04] RECONCILE</pre>
-              <h3>Know what happened. And what happens next.</h3>
-              <p>Bring transaction records, provider updates and settlement information into a clearer operational picture.</p>
-              <a class="inline-link" href="#contact">explore reconciliation -&gt;</a>
-              <pre class="snippet">incoming .......... ₦ 450,000   matched
-provider_ref ...... TRX-908312  verified</pre>
-            </article>
+            <aside class="hero-float hero-float-success story-piece" aria-hidden="true">
+              <span class="ok-dot"></span>
+              <div>
+                <strong>payment.success</strong>
+                <small>Webhook delivered · once</small>
+              </div>
+            </aside>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section class="section section-alt" id="developers">
-        <div class="wrap dev-grid">
-          <div>
-            <h2>Less integration overhead. More room to build.</h2>
-            <p class="lede">Work with a consistent API surface, predictable event structures and tools designed to fit into real production systems.</p>
-            <ul class="check-list">
-              <li><strong>One integration layer</strong> Connect your application to a unified payment interface.</li>
-              <li><strong>Consistent webhook events</strong> Handle payment updates with a predictable event structure.</li>
-              <li><strong>Built to evolve</strong> Keep your application decoupled as providers and flows change.</li>
-            </ul>
-            <a class="button button-primary" href="https://developer.koodify.ng">START BUILDING</a>
+      <div class="hero-bottom wrap proof-strip">
+        <span>Trusted patterns for teams that move money</span>
+        <div class="hero-tags">
+          <span>Schools &amp; fees</span>
+          <span>Marketplaces</span>
+          <span>Fintech products</span>
+          <span>Platforms</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="intro section" id="platform">
+      <div class="wrap intro-grid reveal">
+        <h2>Payments are complex.<br><span class="muted-heading">Your infrastructure shouldn’t be.</span></h2>
+        <p>Four flagship capabilities—then the supporting layer that keeps production calm: params, webhooks, reconciliation, and a stable API.</p>
+      </div>
+
+      <div class="wrap feature-stack">
+        <article class="feature-row reveal" id="feature-inline-checkout">
+          <div class="feature-copy">
+            <p class="feature-label">Inline checkout</p>
+            <h3>Bank-transfer payments in a ready-made popup.</h3>
+            <p>Customers see temporary account details, pay by transfer, and your site learns when money arrives—without staff checking bank statements.</p>
+            <pre class="feature-snippet" tabindex="0"><code><span class="cmt">&lt;script src="https://js.koodify.ng/v1/koodify-inline.js"&gt;&lt;/script&gt;</span>
+koodifyInitPayment({
+  publicKey: <span class="str">"pk_live_…"</span>,
+  amount: <span class="str">"50000"</span>,
+  txnRef: <span class="str">"FEES_"</span> + Date.now(),
+  emailAddress: <span class="str">"parent@example.com"</span>,
+  callBackUrl: <span class="str">"https://school.example/paid"</span>
+}, <span class="kw">function</span> (response) {
+  console.log(response.status, response.reference);
+});</code></pre>
+            <a class="inline-link" href="#contact">
+              Explore inline checkout
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
           </div>
-          <div class="code-window" aria-label="Illustrative API snippet">
-            <div class="code-window-head">
-              <span>payment.js</span>
-              <span>ILLUSTRATIVE API</span>
+          <div class="feature-visual">
+            <img class="feature-art" src="assets/features/02-inline-checkout.png" alt="Inline bank-transfer checkout artwork" width="737" height="670" loading="lazy">
+          </div>
+        </article>
+
+        <article class="feature-row reverse reveal" id="feature-adaptive-bank-routing">
+          <div class="feature-copy">
+            <p class="feature-label">Adaptive Bank/DVA Routing</p>
+            <h3>Virtual accounts that failover when a bank lags.</h3>
+            <p>Omit <code>bankType</code> and Koodify picks from your candidates, sticks with a winner, and retries the next bank when creation fails.</p>
+            <pre class="feature-snippet" tabindex="0"><code><span class="cmt"># Gateway env — omit bankType in checkout</span>
+VA_BANK_CANDIDATES=gtBank,moniepoint
+VA_BANK_STICKY_SECS=600
+
+<span class="cmt"># Optional one-shot override (no auto-switch)</span>
+bankType: <span class="str">"moniepoint"</span></code></pre>
+            <a class="inline-link" href="#contact">
+              Explore Adaptive Bank/DVA Routing
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+          </div>
+          <div class="feature-visual">
+            <img class="feature-art" src="assets/features/01-smart-bank-routing.png" alt="Adaptive Bank/DVA Routing artwork" width="939" height="847" loading="lazy">
+          </div>
+        </article>
+
+        <article class="feature-row reveal" id="feature-payment-split">
+          <div class="feature-copy">
+            <p class="feature-label">Payment split</p>
+            <h3>One deposit. Automatic redistribution.</h3>
+            <p>Collect into a primary zainbox, then move fixed amounts and remainder shares to secondary boxes—internal, idempotent, and plan-driven.</p>
+            <pre class="feature-snippet" tabindex="0"><code>paymentSplit: {
+  shares: [
+    { zainboxCode: <span class="str">"tutor_box"</span>, amount: <span class="str">"200"</span> },
+    { zainboxCode: <span class="str">"agent_box"</span>, amount: <span class="str">"50"</span> },
+    { zainboxCode: <span class="str">"main_box"</span>, percent: <span class="num">100</span> }
+  ]
+}</code></pre>
+            <a class="inline-link" href="#contact">
+              Explore payment split
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+          </div>
+          <div class="feature-visual">
+            <img class="feature-art" src="assets/features/05-payment-split.png" alt="Payment split artwork" width="840" height="811" loading="lazy">
+          </div>
+        </article>
+
+        <article class="feature-row reverse reveal" id="feature-escrow">
+          <div class="feature-copy">
+            <p class="feature-label">Escrow</p>
+            <h3>Hold funds until both sides are ready.</h3>
+            <p>Collect payment into escrow, keep value locked until a release condition is met—then settle to the merchant or refund on cancel. Built for marketplaces, services, and milestone deals.</p>
+            <pre class="feature-snippet" tabindex="0"><code>escrow: {
+  mode: <span class="str">"hold"</span>,
+  releaseOn: <span class="str">"merchant.confirm"</span>,
+  expiresInDays: <span class="num">7</span>
+}
+
+<span class="cmt"># Later</span>
+POST /api/v1/escrow/{txnRef}/release
+POST /api/v1/escrow/{txnRef}/refund</code></pre>
+            <a class="inline-link" href="#contact">
+              Explore escrow
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+          </div>
+          <div class="feature-visual">
+            <img class="feature-art" src="assets/features/10-escrow.png" alt="Escrow hold and release artwork" width="840" height="811" loading="lazy">
+          </div>
+        </article>
+      </div>
+
+      <div class="wrap capability-block reveal" id="more-capabilities">
+        <div class="capability-heading">
+          <h3>Also in the platform layer</h3>
+          <p>Supporting capabilities that keep checkout, ops, and integrations coherent.</p>
+        </div>
+        <div class="capability-grid">
+          <a class="capability-card" href="#developers">
+            <img src="assets/features/03-custom-params.png" alt="" width="80" height="80" loading="lazy">
+            <div>
+              <strong>Custom params</strong>
+              <span>Private labels echoed on success—never sent upstream.</span>
             </div>
-            <pre class="code-body"><span class="ln"> 1</span> <span class="kw">const</span> koodify = <span class="kw">new</span> Koodify({
-<span class="ln"> 2</span>   secretKey: process.env.KOODIFY_SECRET
-<span class="ln"> 3</span> });
-<span class="ln"> 4</span>
-<span class="ln"> 5</span> <span class="kw">const</span> payment = <span class="kw">await</span> koodify.payments.create({
-<span class="ln"> 6</span>   amount: <span class="num">125000</span>,
-<span class="ln"> 7</span>   currency: <span class="str">'NGN'</span>,
-<span class="ln"> 8</span>   reference: <span class="str">'order_28491'</span>,
-<span class="ln"> 9</span>   customer: { email: <span class="str">'buyer@example.com'</span> }
-<span class="ln">10</span> });
-<span class="ln">11</span>
-<span class="ln">12</span> <span class="kw">return</span> payment.checkoutUrl;</pre>
-            <div class="code-footer">JavaScript · designed for clean integrations</div>
+          </a>
+          <a class="capability-card" href="#developers">
+            <img src="assets/features/04-metadata.png" alt="" width="80" height="80" loading="lazy">
+            <div>
+              <strong>API metadata</strong>
+              <span>Notes on mutating calls that stay with Koodify.</span>
+            </div>
+          </a>
+          <a class="capability-card" href="#developers" id="feature-notifications">
+            <img src="assets/features/06-notifications.png" alt="" width="80" height="80" loading="lazy">
+            <div>
+              <strong>Notifications</strong>
+              <span>Payer receipts and merchant notices, once per payment.</span>
+            </div>
+          </a>
+          <a class="capability-card" href="#developers" id="feature-merchant-webhook">
+            <img src="assets/features/07-merchant-webhook.png" alt="" width="80" height="80" loading="lazy">
+            <div>
+              <strong>Merchant webhook</strong>
+              <span>Signed <code>payment.success</code> even if the tab closed.</span>
+            </div>
+          </a>
+          <a class="capability-card" href="#security" id="feature-reconciler">
+            <img src="assets/features/08-reconciler.png" alt="" width="80" height="80" loading="lazy">
+            <div>
+              <strong>Reconciler</strong>
+              <span>Safety net when inbound webhooks lag.</span>
+            </div>
+          </a>
+          <a class="capability-card" href="#developers" id="feature-stable-api">
+            <img src="assets/features/09-stable-api.png" alt="" width="80" height="80" loading="lazy">
+            <div>
+              <strong>Stable API</strong>
+              <span>Integrate once against <code>/api/v1</code>.</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="developer-section section" id="developers">
+      <div class="wrap dev-grid">
+        <div class="dev-copy reveal">
+          <h2>Less integration overhead.<br><span class="soft-heading">More room to build.</span></h2>
+          <p>Work with a consistent API surface, predictable event structures and tools designed to fit into real production systems.</p>
+          <ul class="check-list">
+            <li>
+              <svg class="check-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div>
+                <b>One integration layer</b>
+                <span>Connect your application to a unified payment interface.</span>
+              </div>
+            </li>
+            <li>
+              <svg class="check-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div>
+                <b>Consistent webhook events</b>
+                <span>Handle payment updates with a predictable event structure.</span>
+              </div>
+            </li>
+            <li>
+              <svg class="check-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div>
+                <b>Built to evolve</b>
+                <span>Keep your application decoupled as providers and flows change.</span>
+              </div>
+            </li>
+          </ul>
+          <a class="button button-primary" href="https://developer.koodify.ng">
+            Start building
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12 12 4M6 4h6v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+
+        <div class="code-window reveal">
+          <div class="code-window-head">
+            <div aria-hidden="true"><i></i><i></i><i></i></div>
+            <span>checkout.js</span>
+            <span class="copy-label">Inline widget</span>
+          </div>
+          <div class="code-body" role="region" aria-label="Illustrative inline checkout example">
+            <div class="line"><em>1</em><span>koodifyInitPayment({</span></div>
+            <div class="line"><em>2</em><span>&nbsp;&nbsp;publicKey: <s>'pk_live_…'</s>,</span></div>
+            <div class="line"><em>3</em><span>&nbsp;&nbsp;amount: <s>'50000'</s>,</span></div>
+            <div class="line"><em>4</em><span>&nbsp;&nbsp;txnRef: <s>'FEES_'</s> + Date.now(),</span></div>
+            <div class="line"><em>5</em><span>&nbsp;&nbsp;emailAddress: <s>'parent@example.com'</s>,</span></div>
+            <div class="line"><em>6</em><span>&nbsp;&nbsp;callBackUrl: <s>'https://school.example/paid'</s>,</span></div>
+            <div class="line"><em>7</em><span>&nbsp;&nbsp;customParam: { matric: <s>'ND/12/2211'</s> }</span></div>
+            <div class="line"><em>8</em><span>}, <b>function</b> (response) {</span></div>
+            <div class="line"><em>9</em><span>&nbsp;&nbsp;console.log(response.status, response.reference);</span></div>
+            <div class="line"><em>10</em><span>});</span></div>
+          </div>
+          <div class="code-footer">
+            <span><i aria-hidden="true"></i> koodify-inline.js</span>
+            <span>Stable browser checkout</span>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="section" id="solutions">
-        <div class="wrap">
-          <h2>Infrastructure that adapts to what you’re building.</h2>
-          <p class="lede">From a single payment flow to a connected financial product, build on a foundation that can grow with your roadmap.</p>
-          <div class="solution-list">
-            <article>
-              <h3>Fintech products</h3>
-              <p>Build payment and account experiences with an infrastructure layer designed to connect the pieces.</p>
-            </article>
-            <article>
-              <h3>Marketplaces &amp; platforms</h3>
-              <p>Coordinate payment collection, provider events and transaction visibility across your ecosystem.</p>
-            </article>
-            <article>
-              <h3>Growing businesses</h3>
-              <p>Bring payment operations into a clearer, more manageable system as transaction needs evolve.</p>
-            </article>
-          </div>
+    <section class="solutions section" id="solutions">
+      <div class="wrap">
+        <div class="section-heading reveal">
+          <h2>Infrastructure that adapts<br>to what you’re building.</h2>
+          <p>From a single payment flow to a connected financial product, build on a foundation that can grow with your roadmap.</p>
         </div>
-      </section>
+        <div class="solution-grid">
+          <article class="reveal">
+            <div class="solution-art art-market" aria-hidden="true">
+              <div class="art-window">
+                <div class="art-bar"></div>
+                <div class="art-row"><i></i><b></b><strong></strong></div>
+                <div class="art-row"><i></i><b></b><strong></strong></div>
+                <div class="art-row"><i></i><b></b><strong></strong></div>
+              </div>
+            </div>
+            <h3>Fintech products</h3>
+            <p>Build payment and account experiences with an infrastructure layer designed to connect the pieces.</p>
+          </article>
+          <article class="reveal">
+            <div class="solution-art art-platform" aria-hidden="true">
+              <div class="platform-core">K</div>
+              <i class="satellite sat-a">₦</i>
+              <i class="satellite sat-b">↗</i>
+              <i class="satellite sat-c">⌁</i>
+            </div>
+            <h3>Marketplaces &amp; platforms</h3>
+            <p>Coordinate payment collection, provider events and transaction visibility across your ecosystem.</p>
+          </article>
+          <article class="reveal">
+            <div class="solution-art art-enterprise" aria-hidden="true">
+              <div class="enterprise-stack"><i></i><i></i><i></i><b>DATA FLOW</b></div>
+            </div>
+            <h3>Growing businesses</h3>
+            <p>Bring payment operations into a clearer, more manageable system as transaction needs evolve.</p>
+          </article>
+        </div>
+      </div>
+    </section>
 
-      <section class="section section-alt" id="security">
-        <div class="wrap trust-grid">
-          <div>
-            <h2>Built for the moments that matter.</h2>
-            <p class="lede">Payment infrastructure needs more than a successful API response. It needs clear event handling, traceable transactions and systems designed to recover gracefully.</p>
-            <a class="inline-link" href="#contact">talk to our team -&gt;</a>
-          </div>
-          <div class="trust-log">
+    <section class="trust-section section" id="security">
+      <div class="wrap trust-grid">
+        <div class="reveal">
+          <h2>Built for the moments<br><span class="soft-heading">that matter.</span></h2>
+          <p>Payment infrastructure needs more than a successful API response. It needs clear event handling, traceable transactions and systems designed to recover gracefully.</p>
+          <a class="text-link light-link" href="#contact">
+            Talk to our team
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+        <div class="trust-items">
+          <div class="reveal">
+            <span class="trust-symbol" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3 4.5 6.5v5c0 4.6 3.1 8.8 7.5 9.5 4.4-.7 7.5-4.9 7.5-9.5v-5L12 3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </span>
             <div>
               <h3>Traceable payment events</h3>
               <p>Keep transaction references and event histories connected across the payment lifecycle.</p>
             </div>
+          </div>
+          <div class="reveal">
+            <span class="trust-symbol" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M9 12.5 11 14.5 15.5 9.5M12 3 4.5 6.5v5c0 4.6 3.1 8.8 7.5 9.5 4.4-.7 7.5-4.9 7.5-9.5v-5L12 3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
             <div>
               <h3>Webhook verification</h3>
               <p>Validate incoming events and design handlers that account for retries and duplicate delivery.</p>
             </div>
+          </div>
+          <div class="reveal">
+            <span class="trust-symbol" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.5-5.8M20 12a8 8 0 0 1-13.5 5.8M16 4v4h4M8 20v-4H4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
             <div>
               <h3>Resilient integrations</h3>
               <p>Separate your product logic from provider-specific behaviour to make change easier to manage.</p>
             </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="section" id="contact">
-        <div class="wrap cta">
-          <h2>Build the product. We’ll help with the plumbing.</h2>
-          <p class="lede">Let’s talk about the payment infrastructure your product needs.</p>
-          <a class="button button-primary" href="mailto:hello@koodify.ng?subject=Let's%20build%20with%20Koodify">TALK TO KOODIFY</a>
+    <section class="cta-section section" id="contact">
+      <div class="wrap cta-card reveal">
+        <div class="cta-glow" aria-hidden="true"></div>
+        <h2>Build the product.<br><span class="muted-heading">We’ll help with the plumbing.</span></h2>
+        <p>Let’s talk about the payment infrastructure your product needs.</p>
+        <a class="button button-primary" href="mailto:hello@koodify.ng?subject=Let's%20build%20with%20Koodify">
+          Talk to Koodify
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12 12 4M6 4h6v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <div class="cta-mark" aria-hidden="true">K</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-top">
+      <a class="footer-brand" href="#top"><img src="assets/koodify-logo-white.png" alt="Koodify" width="155" height="37"></a>
+      <div class="footer-links">
+        <div>
+          <b>Platform</b>
+          <a href="#feature-inline-checkout">Inline checkout</a>
+          <a href="#feature-payment-split">Payment split</a>
+          <a href="#feature-escrow">Escrow</a>
+          <a href="#feature-merchant-webhook">Webhooks</a>
         </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <div class="wrap footer-top">
-        <a class="footer-brand" href="#top"><img src="assets/koodify-logo.png" alt="Koodify"></a>
-        <div class="footer-links">
-          <div>
-            <b>Platform</b>
-            <a href="#platform">Payment collection</a>
-            <a href="#platform">Orchestration</a>
-            <a href="#platform">Webhooks</a>
-            <a href="#platform">Reconciliation</a>
-          </div>
-          <div>
-            <b>Developers</b>
-            <a href="https://developer.koodify.ng">API overview</a>
-            <a href="https://developer.koodify.ng">Integration guides</a>
-            <a href="#contact">Developer support</a>
-          </div>
-          <div>
-            <b>Company</b>
-            <a href="#contact">Contact</a>
-            <a href="#security">Trust &amp; security</a>
-          </div>
+        <div>
+          <b>Developers</b>
+          <a href="https://developer.koodify.ng">API overview</a>
+          <a href="https://developer.koodify.ng">Integration guides</a>
+          <a href="#contact">Developer support</a>
+        </div>
+        <div>
+          <b>Company</b>
+          <a href="#contact">Contact</a>
+          <a href="#security">Trust &amp; security</a>
         </div>
       </div>
-      <div class="wrap footer-bottom">
-        <span>© <span id="year"></span> Koodify. All rights reserved.</span>
-        <span>Payment infrastructure for what’s next.</span>
-      </div>
-    </footer>
-
-    <div class="session-foot wrap">
-      <span>hello@koodify.ng</span>
-      <span>ILLUSTRATIVE SESSION · NOT LIVE DATA</span>
     </div>
-  </div>
+    <div class="wrap footer-bottom">
+      <span>© <span id="year"></span> Koodify. All rights reserved.</span>
+      <span>Payment infrastructure for what’s next.</span>
+    </div>
+  </footer>
+
   <script src="script.js"></script>
 </body>
 </html>
