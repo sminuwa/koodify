@@ -89,6 +89,15 @@
         ],
         "createdAt": "2026-10-31T13:28:31.477Z",
         "reason": "Email clients commonly use 12-13px meta/footer type"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "docs/landing/index.html"
+        ],
+        "createdAt": "2026-11-06T22:54:24.772Z",
+        "reason": "Intentional CRT terminal marketing layout; hierarchy is phosphor weight/case driven, not rem scale — existing design, unrelated to docs URL update"
       }
     ]
   }

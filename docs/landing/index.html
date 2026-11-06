@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050805">
+  <meta name="description" content="Koodify gives product teams the payment infrastructure to collect, route, reconcile and deliver payment events through one developer-friendly platform.">
+  <title>Koodify — Payment infrastructure for products that move money</title>
+  <link rel="icon" href="assets/koodify-logo.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="crt" id="top">
+    <div class="scanlines" aria-hidden="true"></div>
+    <header class="site-header">
+      <div class="status-bar wrap">
+        <span class="host">operator@koodify:~$</span>
+        <span class="status-meta"><span class="ok">SYS:OK</span> <span id="clock">00:00</span> <span class="signal" aria-hidden="true">||||</span></span>
+      </div>
+      <nav class="nav wrap" aria-label="Primary">
+        <a class="brand" href="#top" aria-label="Koodify home">
+          <img src="assets/koodify-logo.png" alt="Koodify">
+        </a>
+        <button class="menu-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span><span></span>
+        </button>
+        <div class="nav-links">
+          <a class="on" href="#top"><i aria-hidden="true"></i>01_HOME</a>
+          <a href="#platform">02_PLATFORM</a>
+          <a href="https://developer.koodify.ng">03_DEVELOPERS</a>
+          <a href="#solutions">04_SOLUTIONS</a>
+          <a href="#security">05_TRUST</a>
+          <a href="#contact">06_CONTACT</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="prompt" aria-live="polite"><span class="prompt-label">&gt;</span> <span id="typed-line"></span><span class="cursor" aria-hidden="true">_</span></p>
+          <h1>KOODIFY<br>PAYMENT LAYER</h1>
+          <p class="hero-lede">Collect. Orchestrate. Deliver. Reconcile. One integration for products that move money.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="mailto:hello@koodify.ng?subject=Let's%20build%20with%20Koodify">TALK TO KOODIFY</a>
+            <a class="button button-ghost" href="#developers">READ EVENTS</a>
+          </div>
+          <p class="hero-note">One integration. More control over your payment flows.</p>
+        </div>
+        <aside class="hero-panel" aria-label="Illustrative live payment session">
+          <div class="panel-block">
+            <h2>CORE STATUS</h2>
+            <pre class="kv">system ........ nominal
+layer ......... collect|route|event|recon
+uptime ........ session
+currency ...... NGN (illustrative)</pre>
+          </div>
+          <div class="panel-block">
+            <h2>RECENT EVENTS <small>ILLUSTRATIVE</small></h2>
+            <pre class="log" id="event-log">21:08 INFO payment.success   KOOD-28491
+21:08 OK   webhook.delivered attempt=1 verified=true
+21:07 INFO route.selected    provider=B
+21:06 OK   reconcile.matched ₦450,000
+21:05 INFO payment.created   ref=order_28491</pre>
+          </div>
+          <div class="panel-block">
+            <h2>HEALTH</h2>
+            <div class="bars" role="img" aria-label="Illustrative system health meters">
+              <div><span>COLLECT</span><b class="meter" data-on="11"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
+              <div><span>ORCHESTRATE</span><b class="meter" data-on="9"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
+              <div><span>DELIVER</span><b class="meter" data-on="12"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
+              <div><span>RECONCILE</span><b class="meter" data-on="10"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="strip wrap" aria-label="Built for">
+        <span>BUILT FOR</span>
+        <span>FINTECH</span>
+        <span>MARKETPLACES</span>
+        <span>PLATFORMS</span>
+        <span>DIGITAL BUSINESSES</span>
+      </section>
+
+      <section class="section" id="platform">
+        <div class="wrap">
+          <h2>Payments are complex. Your infrastructure shouldn’t be.</h2>
+          <p class="lede">Koodify brings the moving parts of payment operations into one consistent layer — so your team can focus on building products, not stitching systems together.</p>
+
+          <div class="flow">
+            <article>
+              <pre class="step-head">[01] ACCEPT // COLLECT</pre>
+              <h3>Collect payments without the friction.</h3>
+              <p>Connect your product to payment collection flows and virtual accounts through a consistent integration experience.</p>
+              <a class="inline-link" href="#contact">explore payment collection -&gt;</a>
+              <pre class="snippet">payment.request
+amount ........ ₦ 125,000.00
+reference ..... KOOD-28491
+status ........ awaiting_payment
+secure ........ true</pre>
+            </article>
+            <article>
+              <pre class="step-head">[02] ORCHESTRATE</pre>
+              <h3>Make every payment flow work together.</h3>
+              <p>Build a more adaptable payment layer with routing logic and a consistent interface across connected providers.</p>
+              <a class="inline-link" href="#contact">explore orchestration -&gt;</a>
+              <pre class="snippet">app ──► koodify.route
+          ├─ provider_a
+          └─ provider_b</pre>
+            </article>
+            <article>
+              <pre class="step-head">[03] DELIVER</pre>
+              <h3>Webhooks you can build around.</h3>
+              <p>Standardise payment events, verify delivery and give your application a reliable way to react to transaction updates.</p>
+              <a class="inline-link" href="#developers">explore webhooks -&gt;</a>
+              <pre class="snippet">event ..... payment.success
+status .... delivered
+attempt ... 1
+verified .. true</pre>
+            </article>
+            <article>
+              <pre class="step-head">[04] RECONCILE</pre>
+              <h3>Know what happened. And what happens next.</h3>
+              <p>Bring transaction records, provider updates and settlement information into a clearer operational picture.</p>
+              <a class="inline-link" href="#contact">explore reconciliation -&gt;</a>
+              <pre class="snippet">incoming .......... ₦ 450,000   matched
+provider_ref ...... TRX-908312  verified</pre>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-alt" id="developers">
+        <div class="wrap dev-grid">
+          <div>
+            <h2>Less integration overhead. More room to build.</h2>
+            <p class="lede">Work with a consistent API surface, predictable event structures and tools designed to fit into real production systems.</p>
+            <ul class="check-list">
+              <li><strong>One integration layer</strong> Connect your application to a unified payment interface.</li>
+              <li><strong>Consistent webhook events</strong> Handle payment updates with a predictable event structure.</li>
+              <li><strong>Built to evolve</strong> Keep your application decoupled as providers and flows change.</li>
+            </ul>
+            <a class="button button-primary" href="https://developer.koodify.ng">START BUILDING</a>
+          </div>
+          <div class="code-window" aria-label="Illustrative API snippet">
+            <div class="code-window-head">
+              <span>payment.js</span>
+              <span>ILLUSTRATIVE API</span>
+            </div>
+            <pre class="code-body"><span class="ln"> 1</span> <span class="kw">const</span> koodify = <span class="kw">new</span> Koodify({
+<span class="ln"> 2</span>   secretKey: process.env.KOODIFY_SECRET
+<span class="ln"> 3</span> });
+<span class="ln"> 4</span>
+<span class="ln"> 5</span> <span class="kw">const</span> payment = <span class="kw">await</span> koodify.payments.create({
+<span class="ln"> 6</span>   amount: <span class="num">125000</span>,
+<span class="ln"> 7</span>   currency: <span class="str">'NGN'</span>,
+<span class="ln"> 8</span>   reference: <span class="str">'order_28491'</span>,
+<span class="ln"> 9</span>   customer: { email: <span class="str">'buyer@example.com'</span> }
+<span class="ln">10</span> });
+<span class="ln">11</span>
+<span class="ln">12</span> <span class="kw">return</span> payment.checkoutUrl;</pre>
+            <div class="code-footer">JavaScript · designed for clean integrations</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="solutions">
+        <div class="wrap">
+          <h2>Infrastructure that adapts to what you’re building.</h2>
+          <p class="lede">From a single payment flow to a connected financial product, build on a foundation that can grow with your roadmap.</p>
+          <div class="solution-list">
+            <article>
+              <h3>Fintech products</h3>
+              <p>Build payment and account experiences with an infrastructure layer designed to connect the pieces.</p>
+            </article>
+            <article>
+              <h3>Marketplaces &amp; platforms</h3>
+              <p>Coordinate payment collection, provider events and transaction visibility across your ecosystem.</p>
+            </article>
+            <article>
+              <h3>Growing businesses</h3>
+              <p>Bring payment operations into a clearer, more manageable system as transaction needs evolve.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-alt" id="security">
+        <div class="wrap trust-grid">
+          <div>
+            <h2>Built for the moments that matter.</h2>
+            <p class="lede">Payment infrastructure needs more than a successful API response. It needs clear event handling, traceable transactions and systems designed to recover gracefully.</p>
+            <a class="inline-link" href="#contact">talk to our team -&gt;</a>
+          </div>
+          <div class="trust-log">
+            <div>
+              <h3>Traceable payment events</h3>
+              <p>Keep transaction references and event histories connected across the payment lifecycle.</p>
+            </div>
+            <div>
+              <h3>Webhook verification</h3>
+              <p>Validate incoming events and design handlers that account for retries and duplicate delivery.</p>
+            </div>
+            <div>
+              <h3>Resilient integrations</h3>
+              <p>Separate your product logic from provider-specific behaviour to make change easier to manage.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="contact">
+        <div class="wrap cta">
+          <h2>Build the product. We’ll help with the plumbing.</h2>
+          <p class="lede">Let’s talk about the payment infrastructure your product needs.</p>
+          <a class="button button-primary" href="mailto:hello@koodify.ng?subject=Let's%20build%20with%20Koodify">TALK TO KOODIFY</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-top">
+        <a class="footer-brand" href="#top"><img src="assets/koodify-logo.png" alt="Koodify"></a>
+        <div class="footer-links">
+          <div>
+            <b>Platform</b>
+            <a href="#platform">Payment collection</a>
+            <a href="#platform">Orchestration</a>
+            <a href="#platform">Webhooks</a>
+            <a href="#platform">Reconciliation</a>
+          </div>
+          <div>
+            <b>Developers</b>
+            <a href="https://developer.koodify.ng">API overview</a>
+            <a href="https://developer.koodify.ng">Integration guides</a>
+            <a href="#contact">Developer support</a>
+          </div>
+          <div>
+            <b>Company</b>
+            <a href="#contact">Contact</a>
+            <a href="#security">Trust &amp; security</a>
+          </div>
+        </div>
+      </div>
+      <div class="wrap footer-bottom">
+        <span>© <span id="year"></span> Koodify. All rights reserved.</span>
+        <span>Payment infrastructure for what’s next.</span>
+      </div>
+    </footer>
+
+    <div class="session-foot wrap">
+      <span>hello@koodify.ng</span>
+      <span>ILLUSTRATIVE SESSION · NOT LIVE DATA</span>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
