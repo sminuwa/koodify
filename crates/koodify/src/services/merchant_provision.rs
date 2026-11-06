@@ -3,11 +3,11 @@
 //! Flow: customer registers → KYC submitted → status `approved` →
 //! create Zainpay zainbox (business name) → local cache + publishable
 //! `public_key` → link customer → mirror credentials (public_key from
-//! zainbox; `zainbox_code` is the private/server Bearer id).
+//! zainbox; `zainbox_code` is the Zainpay box id; mint `sk_…` secrets).
 //!
 //! Checkout identity remains `zainboxes.public_key` only. Credentials keep a
 //! mirrored `public_key` for dashboard/API compatibility — not a second source
-//! of truth for payment init.
+//! of truth for payment init. Merchant server APIs use `sk_test_` / `sk_live_`.
 
 use anyhow::{anyhow, bail, Context, Result};
 use client::{CreateZainboxRequest, ZainpayClient};
@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 use sqlx::PgPool;
 use tracing::{info, warn};
 
+use crate::auth::{hash_secret_key, mint_secret_key, secret_key_prefix};
 use crate::config::Config;
 use crate::db;
 use crate::db::credentials::UpsertCredential;
@@ -22,24 +23,57 @@ use crate::db::models::{Credential, Customer, KycProfile};
 use crate::db::zainboxes::{self, UpsertZainbox, Zainbox};
 
 #[derive(Debug, Clone)]
+pub struct ProvisionedSecret {
+    pub environment: String,
+    /// Plaintext shown once (create / rotate). Never persisted.
+    pub secret_key: String,
+    pub prefix: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct ProvisionResult {
     pub customer: Customer,
     pub zainbox: Zainbox,
     pub public_key: String,
     pub credentials: Vec<Credential>,
+    /// Newly minted secrets only (empty when secrets already existed).
+    pub minted_secrets: Vec<ProvisionedSecret>,
     /// True when a new Zainpay zainbox was created this call.
     pub created_new_zainbox: bool,
 }
 
-/// Sync test+live credentials so `public_key` always matches the zainbox row.
+/// Ensure a credential row has a merchant secret. Returns plaintext only when minted.
+pub async fn ensure_secret_key(
+    pool: &PgPool,
+    credential: &Credential,
+) -> Result<(Credential, Option<String>)> {
+    if credential
+        .secret_key_hash
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .is_some()
+    {
+        return Ok((credential.clone(), None));
+    }
+    let plaintext = mint_secret_key(&credential.environment);
+    let hash = hash_secret_key(&plaintext);
+    let prefix = secret_key_prefix(&plaintext);
+    let row = db::credentials::set_secret_hash(pool, credential.id, &hash, &prefix)
+        .await
+        .context("store merchant secret hash")?;
+    Ok((row, Some(plaintext)))
+}
+
+/// Sync test+live credentials so `public_key` matches the zainbox; mint secrets if missing.
 pub async fn sync_credentials_from_zainbox(
     pool: &PgPool,
     customer_id: i64,
     zainbox_code: &str,
     public_key: &str,
-) -> Result<Vec<Credential>> {
+) -> Result<(Vec<Credential>, Vec<ProvisionedSecret>)> {
     let meta = json!({ "zainboxCode": zainbox_code, "source": "zainbox-public-key" });
     let mut out = Vec::with_capacity(2);
+    let mut minted = Vec::new();
     for environment in ["test", "live"] {
         let row = db::credentials::upsert(
             pool,
@@ -56,9 +90,17 @@ pub async fn sync_credentials_from_zainbox(
         .with_context(|| {
             format!("upsert {environment} credentials for customer {customer_id}")
         })?;
+        let (row, secret) = ensure_secret_key(pool, &row).await?;
+        if let Some(secret_key) = secret {
+            minted.push(ProvisionedSecret {
+                environment: environment.to_string(),
+                prefix: secret_key_prefix(&secret_key),
+                secret_key,
+            });
+        }
         out.push(row);
     }
-    Ok(out)
+    Ok((out, minted))
 }
 
 fn extract_zainbox_code(data: &Value) -> Option<String> {
@@ -126,7 +168,7 @@ pub async fn ensure_merchant_zainbox(
             }
         };
         let public_key = zainboxes::ensure_public_key(pool, &code).await?;
-        let credentials =
+        let (credentials, minted_secrets) =
             sync_credentials_from_zainbox(pool, customer_id, &code, &public_key).await?;
         if let Some(kyc) = db::kyc::find_by_customer_id(pool, customer_id).await? {
             if kyc.zainbox_code.as_deref() != Some(code.as_str()) {
@@ -144,6 +186,7 @@ pub async fn ensure_merchant_zainbox(
             zainbox,
             public_key,
             credentials,
+            minted_secrets,
             created_new_zainbox: false,
         });
     }
@@ -228,13 +271,14 @@ pub async fn ensure_merchant_zainbox(
         let _ = db::kyc::set_zainbox_code(pool, kyc.id, &zainbox_code).await?;
     }
 
-    let credentials =
+    let (credentials, minted_secrets) =
         sync_credentials_from_zainbox(pool, customer_id, &zainbox_code, &public_key).await?;
 
     info!(
         customer_id,
         zainbox_code = %zainbox_code,
         public_key = %public_key,
+        minted_secrets = minted_secrets.len(),
         "provisioned merchant zainbox after KYC approval"
     );
 
@@ -243,6 +287,7 @@ pub async fn ensure_merchant_zainbox(
         zainbox: zb,
         public_key,
         credentials,
+        minted_secrets,
         created_new_zainbox: true,
     })
 }

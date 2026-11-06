@@ -9,7 +9,7 @@ use client::{
     UpdateVirtualAccountStatusRequest,
 };
 
-use crate::auth::ApiKeyAuth;
+use crate::auth::AdminAuth;
 use crate::db;
 use crate::metadata::CreateVirtualAccountInbound;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
@@ -28,7 +28,7 @@ pub struct TxnQuery {
 }
 
 pub async fn create(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(inbound): Json<CreateVirtualAccountInbound>,
 ) -> JsonResult {
@@ -86,7 +86,7 @@ pub async fn create(
 }
 
 pub async fn create_dynamic(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -103,7 +103,7 @@ pub async fn create_dynamic(
 }
 
 pub async fn balance(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(account_number): Path<String>,
 ) -> JsonResult {
@@ -116,7 +116,7 @@ pub async fn balance(
 }
 
 pub async fn get_one(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(account_number): Path<String>,
 ) -> Result<Json<StoredVirtualAccount>, (StatusCode, String)> {
@@ -128,7 +128,7 @@ pub async fn get_one(
 }
 
 pub async fn update_status(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -145,7 +145,7 @@ pub async fn update_status(
 }
 
 pub async fn update_bvn(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -162,7 +162,7 @@ pub async fn update_bvn(
 }
 
 pub async fn transactions(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(account_number): Path<String>,
     Query(q): Query<TxnQuery>,
@@ -184,7 +184,7 @@ pub async fn transactions(
 }
 
 pub async fn dynamic_deposit_status(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(txn_ref): Path<String>,
 ) -> JsonResult {
@@ -201,7 +201,7 @@ pub async fn dynamic_deposit_status(
 }
 
 pub async fn fund_static(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -218,7 +218,7 @@ pub async fn fund_static(
 }
 
 pub async fn fund_dynamic(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {

@@ -35,9 +35,9 @@ pub struct ListPlansQuery {
     pub primary_zainbox_code: Option<String>,
 }
 
-/// `PUT /api/v1/split-plans` — create/update a reusable plan (secret key).
+/// `PUT /api/v1/split-plans` — create/update a reusable plan (admin or owning merchant).
 pub async fn upsert_plan(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Json(body): Json<UpsertSplitPlanBody>,
 ) -> JsonResult {
@@ -50,6 +50,7 @@ pub async fn upsert_plan(
             "id, name, and primaryZainboxCode are required".into(),
         ));
     }
+    auth.ensure_zainbox(primary)?;
 
     // Validate shape with a dummy positive amount (₦10,000).
     let input = PaymentSplitInput {
@@ -96,17 +97,20 @@ pub async fn upsert_plan(
 }
 
 pub async fn get_plan(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> JsonResult {
     match db::split_plans::get(&state.pool, &id).await {
-        Ok(Some(plan)) => Ok(Json(json!({
-            "code": "00",
-            "status": "200 OK",
-            "description": "successful",
-            "data": plan,
-        }))),
+        Ok(Some(plan)) => {
+            auth.ensure_zainbox(&plan.primary_zainbox_code)?;
+            Ok(Json(json!({
+                "code": "00",
+                "status": "200 OK",
+                "description": "successful",
+                "data": plan,
+            })))
+        }
         Ok(None) => Err((StatusCode::NOT_FOUND, format!("split plan `{id}` not found"))),
         Err(err) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -116,7 +120,7 @@ pub async fn get_plan(
 }
 
 pub async fn list_plans(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Query(q): Query<ListPlansQuery>,
 ) -> JsonResult {
@@ -131,6 +135,7 @@ pub async fn list_plans(
             "primaryZainboxCode query param is required".into(),
         ));
     };
+    auth.ensure_zainbox(primary)?;
     match db::split_plans::list_for_primary(&state.pool, primary).await {
         Ok(plans) => Ok(Json(json!({
             "code": "00",
@@ -145,19 +150,33 @@ pub async fn list_plans(
     }
 }
 
+fn primary_from_summary(summary: &Value) -> Option<&str> {
+    summary
+        .get("primaryZainboxCode")
+        .or_else(|| summary.get("primary_zainbox_code"))
+        .and_then(|v| v.as_str())
+}
+
 /// `GET /api/v1/payment-splits/{txnRef}` — run status + legs.
 pub async fn get_payment_split(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(txn_ref): Path<String>,
 ) -> JsonResult {
     match db::payment_splits::summary_json(&state.pool, &txn_ref).await {
-        Ok(Some(summary)) => Ok(Json(json!({
-            "code": "00",
-            "status": "200 OK",
-            "description": "successful",
-            "data": summary,
-        }))),
+        Ok(Some(summary)) => {
+            if let Some(primary) = primary_from_summary(&summary) {
+                auth.ensure_zainbox(primary)?;
+            } else {
+                auth.require_admin()?;
+            }
+            Ok(Json(json!({
+                "code": "00",
+                "status": "200 OK",
+                "description": "successful",
+                "data": summary,
+            })))
+        }
         Ok(None) => Err((
             StatusCode::NOT_FOUND,
             format!("no payment split for txnRef `{txn_ref}`"),
@@ -171,10 +190,19 @@ pub async fn get_payment_split(
 
 /// `POST /api/v1/payment-splits/{txnRef}/run` — force execute a pending/failed/partial split.
 pub async fn run_payment_split(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(txn_ref): Path<String>,
 ) -> JsonResult {
+    if let Ok(Some(summary)) = db::payment_splits::summary_json(&state.pool, &txn_ref).await {
+        if let Some(primary) = primary_from_summary(&summary) {
+            auth.ensure_zainbox(primary)?;
+        } else {
+            auth.require_admin()?;
+        }
+    } else {
+        auth.require_admin()?;
+    }
     match payment_split::force_run(&state, &txn_ref).await {
         Ok(summary) => Ok(Json(json!({
             "code": "00",

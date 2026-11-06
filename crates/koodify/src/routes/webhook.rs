@@ -17,15 +17,15 @@ use axum::Json;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use crate::auth::ApiKeyAuth;
+use crate::auth::AdminAuth;
 use crate::db;
 use crate::routes::helpers::{map_upstream, JsonResult};
 use crate::services::activity::{self, SuccessSource};
-use crate::services::payment_success;
+use crate::services::{payment_status, payment_success};
 use crate::state::AppState;
 
 pub async fn repush_deposit(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(txn_ref): Path<String>,
 ) -> JsonResult {
@@ -39,7 +39,7 @@ pub async fn repush_deposit(
 }
 
 pub async fn repush_card_payment(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(txn_ref): Path<String>,
 ) -> JsonResult {
@@ -122,19 +122,6 @@ fn looks_like_deposit(payload: &Value) -> bool {
         })
 }
 
-fn payment_status_success(response: &Value) -> bool {
-    let status = response
-        .pointer("/data/paymentStatus")
-        .or_else(|| response.get("paymentStatus"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    matches!(
-        status.as_str(),
-        "success" | "successful" | "paid" | "completed"
-    )
-}
-
 /// Confirm the txn is paid using Zainpay (same checks Path 2 uses).
 async fn confirm_paid(state: &AppState, txn_ref: &str) -> Option<Value> {
     if let Ok(resp) = state
@@ -144,14 +131,35 @@ async fn confirm_paid(state: &AppState, txn_ref: &str) -> Option<Value> {
         .await
     {
         let value = serde_json::to_value(&resp).unwrap_or(Value::Null);
-        if resp.is_success() && payment_status_success(&value) {
+        if resp.is_success() && payment_status::is_paid(&value) {
             return Some(value);
         }
     }
 
     if let Ok(resp) = state.zainpay.reconciliation().verify_deposit(txn_ref).await {
+        let value = serde_json::to_value(&resp).unwrap_or(Value::Null);
+        // Deposit verify historically treated API success as paid — require an
+        // explicit paid signal via the normalizer when present.
+        if resp.is_success() && payment_status::is_paid(&value) {
+            return Some(value);
+        }
+        // If verify returns code 00 with no paymentStatus, keep prior behaviour
+        // only when the payload clearly looks deposited.
         if resp.is_success() {
-            return Some(serde_json::to_value(&resp).unwrap_or(Value::Null));
+            let data = value.get("data").unwrap_or(&value);
+            if data.get("depositedAmount").is_some()
+                || data
+                    .get("paymentStatus")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| {
+                        matches!(
+                            s.to_ascii_lowercase().as_str(),
+                            "success" | "successful" | "paid" | "completed"
+                        )
+                    })
+            {
+                return Some(value);
+            }
         }
     }
 

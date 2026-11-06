@@ -73,3 +73,5 @@ tail -f /path/to/demo.koodify.ng/webhooks/koodify/webhook-log.jsonl | jq .
 ```
 
 No webhook secret required for this demo — it only receipts and logs the transaction object Koodify posts.
+
+For signature verification on **raw body** bytes (including the Node anti-`JSON.stringify` pattern), see `samples/node/webhook/koodify/`.

@@ -12,7 +12,7 @@ use tracing::{info, warn};
 
 use crate::db;
 use crate::services::activity::SuccessSource;
-use crate::services::{payer, payment_success};
+use crate::services::{payer, payment_status, payment_success};
 use crate::state::AppState;
 
 #[derive(Debug, Default, Clone)]
@@ -21,19 +21,6 @@ pub struct ReconcileStats {
     pub polled: u32,
     pub succeeded: u32,
     pub errors: u32,
-}
-
-fn payment_status_success(response: &Value) -> bool {
-    let status = response
-        .pointer("/data/paymentStatus")
-        .or_else(|| response.get("paymentStatus"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    matches!(
-        status.as_str(),
-        "success" | "successful" | "paid" | "completed"
-    )
 }
 
 /// One reconcile pass over pending checkouts.
@@ -90,7 +77,7 @@ pub async fn run_once(state: &AppState) -> ReconcileStats {
             }
         };
 
-        if !payment_status_success(&response) {
+        if !payment_status::is_paid(&response) {
             continue;
         }
 
@@ -156,18 +143,19 @@ pub fn spawn_loop(state: AppState) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use crate::services::payment_status;
 
     #[test]
     fn detects_success_status() {
-        assert!(payment_status_success(&json!({
+        assert!(payment_status::is_paid(&json!({
             "data": { "paymentStatus": "success" }
         })));
-        assert!(payment_status_success(&json!({
+        assert!(payment_status::is_paid(&json!({
             "data": { "paymentStatus": "PAID" }
         })));
-        assert!(!payment_status_success(&json!({
+        assert!(!payment_status::is_paid(&json!({
             "data": { "paymentStatus": "pending" }
         })));
     }

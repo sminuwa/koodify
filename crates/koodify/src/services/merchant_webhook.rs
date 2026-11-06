@@ -11,24 +11,11 @@ use tracing::{info, warn};
 
 use crate::db;
 use crate::services::activity::{self, SuccessSource};
-use crate::services::payer;
+use crate::services::{payer, payment_status};
 use crate::state::AppState;
 
 const MAX_ATTEMPTS: u32 = 3;
 const ATTEMPT_TIMEOUT: Duration = Duration::from_secs(8);
-
-fn payment_status_success(response: &Value) -> bool {
-    let status = response
-        .pointer("/data/paymentStatus")
-        .or_else(|| response.get("paymentStatus"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    matches!(
-        status.as_str(),
-        "success" | "successful" | "paid" | "completed"
-    )
-}
 
 fn first_str(map: Option<&Value>, keys: &[&str]) -> Option<String> {
     let map = map?;
@@ -241,7 +228,7 @@ pub async fn maybe_deliver_on_success(
     response: &Value,
     source: SuccessSource,
 ) {
-    if !payment_status_success(response) {
+    if !payment_status::is_paid(response) {
         return;
     }
 

@@ -23,6 +23,8 @@ Reusable Rust integration for [Zainpay](https://docs.zainpay.ng/):
 
 **Product features:** [FEATURES.md](FEATURES.md) — living inventory (Adaptive Bank/DVA Routing, Zainbox Payment Split, receipts, inline checkout, etc.).
 
+**DX challenges → Koodify solutions + added features:** [docs/koodify-dx-and-features.md](docs/koodify-dx-and-features.md) — how we close Zainpay integration gaps, then what Koodify adds that Zainpay alone does not.
+
 **API docs (HTML + Tailwind):** [docs/api.html](docs/api.html) — full gateway reference. Composite deep-dive: [docs/composite-endpoints.html](docs/composite-endpoints.html). Inline checkout: [docs/inline-checkout.html](docs/inline-checkout.html).
 
 **Browser checkout (bank transfer):** [packages/koodify-inline](packages/koodify-inline) — `koodifyInitPayment` InlineJS-style widget (no cards). Hosted script: `https://js.koodify.ng/v1/koodify-inline.js` (defaults to `https://api.koodify.ng`). Merchants pass a publishable `publicKey` (`pk_live_…`); Koodify maps it to the zainbox. Docs: [docs/inline-checkout.html](docs/inline-checkout.html).
@@ -72,8 +74,10 @@ Static VA create also accepts **flat** unknown keys (e.g. `customerId` at the to
 - Seed (`cargo run -p koodify --example seed`) syncs live Zainpay zainboxes into `zainboxes`, creates one customer per box, and sets credential `privateKey` = zainbox `codeName`
 - `PUT /kyc` — upsert KYC linked by integer `customerId` → `customers.id`
 - `GET /kyc/by-customer/{customerId}` — fetch KYC for a customer
-- `PUT /credentials` — upsert keys (`customerId`, `environment`: test|live, `publicKey`, `privateKey`)
-- `GET /credentials/by-customer/{customerId}` — that customer's test + live credentials (`privateKey` redacted by default; pass `?revealPrivateKey=true` to include it)
+- `PUT /credentials` — upsert keys (`customerId`, `environment`: test|live, `publicKey`, `zainboxCode`); mints `sk_…` if missing (plaintext once)
+- `POST /credentials/{id}/rotate-secret` — mint a new merchant `sk_…` (plaintext once)
+- `GET /credentials/by-customer/{customerId}` — that customer's test + live credentials (`zainboxCode` redacted by default; `?revealZainboxCode=true`)
+- Merchant server APIs: `X-Api-Key: sk_live_…` (scoped to their zainbox). Platform admin: `GATEWAY_API_KEY`
 - Inbound webhooks de-duplicate by body hash (`webhook_deliveries`) so replays do not re-run side effects
 - `POST /webhooks/zainpay` — inbound Zainpay webhook (HMAC `Zainpay-Signature`; set `ZAINPAY_WEBHOOK_SECRET`)
 - Plain `/api/v1` convenience routes — e.g. `GET /api/v1/zainbox/{zainboxCode}`, `GET /api/v1/virtual-account/{accountNumber}`, `POST /api/v1/transfer`

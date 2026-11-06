@@ -9,7 +9,7 @@ pub mod services;
 pub mod state;
 
 use anyhow::Result;
-use axum::http::Method;
+use axum::http::{header, HeaderName, Method};
 use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -30,6 +30,12 @@ fn cors_layer() -> CorsLayer {
             Method::OPTIONS,
         ])
         .allow_headers(Any)
+        .expose_headers([
+            HeaderName::from_static("deprecation"),
+            HeaderName::from_static("sunset"),
+            header::LINK,
+            HeaderName::from_static("x-koodify-successor"),
+        ])
 }
 
 /// Build the HTTP router and application state.
@@ -63,6 +69,9 @@ pub async fn build_app(config: Config) -> Result<(Router, AppState)> {
     };
 
     let app = routes::router()
+        .layer(axum::middleware::from_fn(
+            services::deprecation::deprecation_headers,
+        ))
         .layer(cors_layer())
         .layer(TraceLayer::new_for_http())
         .with_state(state.clone());
@@ -88,6 +97,9 @@ pub fn build_app_with(
     };
 
     routes::router()
+        .layer(axum::middleware::from_fn(
+            services::deprecation::deprecation_headers,
+        ))
         .layer(cors_layer())
         .layer(TraceLayer::new_for_http())
         .with_state(state)

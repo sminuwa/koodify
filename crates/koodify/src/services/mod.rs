@@ -1,10 +1,14 @@
 pub mod activity;
+pub mod api_error;
 pub mod bank_router;
+pub mod deprecation;
+pub mod idempotency;
 pub mod mail;
 pub mod merchant_provision;
 pub mod merchant_webhook;
 pub mod payer;
 pub mod payment_split;
+pub mod payment_status;
 pub mod payment_success;
 pub mod proxy;
 pub mod receipt;

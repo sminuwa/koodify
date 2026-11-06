@@ -89,8 +89,13 @@ pub struct Credential {
     /// `test` or `live`
     pub environment: String,
     pub public_key: String,
-    /// Zainpay zainbox business id (`codeName`) used as Bearer — not a crypto key.
+    /// Zainpay zainbox business id (`codeName`) — not a crypto key.
     pub zainbox_code: String,
+    /// SHA-256 hex of merchant `sk_…` secret (never return plaintext from DB).
+    #[serde(skip_serializing)]
+    pub secret_key_hash: Option<String>,
+    /// Display prefix e.g. `sk_live_abcd1234…`
+    pub secret_key_prefix: Option<String>,
     pub metadata: Value,
     pub status: String,
     pub created_at: DateTime<Utc>,

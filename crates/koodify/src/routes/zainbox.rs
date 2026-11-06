@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use tracing::{info, warn};
 use client::{CreateZainboxRequest, ServiceSubscriptionRequest, UpdateZainboxRequest};
 
-use crate::auth::ApiKeyAuth;
+use crate::auth::{AdminAuth, ApiKeyAuth};
 use crate::db;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::proxy;
@@ -44,7 +44,7 @@ pub struct TxnQuery {
 }
 
 pub async fn create(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -62,7 +62,7 @@ pub async fn create(
 }
 
 pub async fn list(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Query(q): Query<ListQuery>,
 ) -> JsonResult {
@@ -76,7 +76,7 @@ pub async fn list(
 }
 
 pub async fn update(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -98,7 +98,7 @@ pub async fn update(
 /// Requires `PUBLIC_BASE_URL`. Uses local `zainboxes` rows for code/name, then PATCHes Zainpay
 /// and refreshes the local `callback_url` column.
 pub async fn sync_webhook_callbacks(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
 ) -> JsonResult {
     let Some(webhook_url) = state.config.inbound_zainpay_webhook_url() else {
@@ -203,10 +203,12 @@ pub async fn sync_webhook_callbacks(
 }
 
 pub async fn virtual_accounts(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -217,10 +219,12 @@ pub async fn virtual_accounts(
 }
 
 pub async fn accounts_balance(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -231,11 +235,13 @@ pub async fn accounts_balance(
 }
 
 pub async fn transactions(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
     Query(q): Query<TxnQuery>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -254,7 +260,7 @@ pub async fn transactions(
 }
 
 pub async fn merchant_transactions(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Query(q): Query<TxnQuery>,
 ) -> JsonResult {
@@ -275,11 +281,13 @@ pub async fn merchant_transactions(
 }
 
 pub async fn deposit_summary(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
     Query(q): Query<TxnQuery>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -290,10 +298,12 @@ pub async fn deposit_summary(
 }
 
 pub async fn profile(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -304,10 +314,12 @@ pub async fn profile(
 }
 
 pub async fn profile_v2(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -318,10 +330,12 @@ pub async fn profile_v2(
 }
 
 pub async fn billing_config(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -332,7 +346,7 @@ pub async fn billing_config(
 }
 
 pub async fn transactions_summary(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Query(q): Query<TxnQuery>,
 ) -> JsonResult {
@@ -346,11 +360,13 @@ pub async fn transactions_summary(
 }
 
 pub async fn card_transactions(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
     Query(q): Query<TxnQuery>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -369,7 +385,7 @@ pub async fn card_transactions(
 }
 
 pub async fn subscribe(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -386,7 +402,7 @@ pub async fn subscribe(
 }
 
 pub async fn unsubscribe(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -403,11 +419,13 @@ pub async fn unsubscribe(
 }
 
 pub async fn subscriptions_all(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
     Query(q): Query<TxnQuery>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()
@@ -418,10 +436,12 @@ pub async fn subscriptions_all(
 }
 
 pub async fn subscriptions_active(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .zainbox()

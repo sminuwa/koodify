@@ -355,7 +355,7 @@ npm run build
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">X-Koodify-Signature</td>
-                  <td class="px-4 py-3">Hex HMAC-SHA256 of the <em>raw</em> body. Secret: <code class="font-mono text-xs">MERCHANT_WEBHOOK_SECRET</code>, else <code class="font-mono text-xs">GATEWAY_API_KEY</code>.</td>
+                  <td class="px-4 py-3">Hex HMAC-SHA256 of the <em>raw</em> body bytes (not <code class="font-mono text-xs">JSON.stringify</code> of a parsed object). Secret: <code class="font-mono text-xs">MERCHANT_WEBHOOK_SECRET</code>, else <code class="font-mono text-xs">GATEWAY_API_KEY</code>.</td>
                 </tr>
               </tbody>
             </table>
@@ -420,9 +420,18 @@ npm run build
             <code class="font-mono text-xs">payer</code>,
             <code class="font-mono text-xs">customParam</code>,
             <code class="font-mono text-xs">paymentSplit</code>.
-            PHP sample receiver:
-            <code class="font-mono text-xs">samples/php/webhook/koodify/</code>.
+            Sample receivers:
+            PHP <code class="font-mono text-xs">samples/php/webhook/koodify/</code>,
+            Node <code class="font-mono text-xs">samples/node/webhook/koodify/</code>
+            (uses <code class="font-mono text-xs">express.raw()</code> + timing-safe HMAC).
           </p>
+          <h3 class="mt-8 text-xl font-semibold text-ink-950">Verify signature (Node)</h3>
+          <pre class="mt-4 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>// Correct — HMAC the raw Buffer from express.raw()
+const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+
+// WRONG — never re-serialize a parsed object
+// crypto.createHmac("sha256", secret).update(JSON.stringify(req.body))
+</code></pre>
         </section>
 
         <section id="flow" class="scroll-mt-24 border-b border-slate-200 py-12">

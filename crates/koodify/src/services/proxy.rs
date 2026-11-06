@@ -143,7 +143,7 @@ where
         }
     }
 
-    Ok(response_json)
+    Ok(crate::services::api_error::enrich(response_json))
 }
 
 /// Same as [`mutate_with_metadata`] but accepts already-split JSON body deserialized into `Req`.
@@ -211,7 +211,7 @@ where
         }
     }
 
-    Ok(response_json)
+    Ok(crate::services::api_error::enrich(response_json))
 }
 
 #[derive(Debug, thiserror::Error)]

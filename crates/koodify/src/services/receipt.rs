@@ -6,21 +6,8 @@ use serde_json::Value;
 use tracing::warn;
 
 use crate::db;
-use crate::services::{mail, payer};
+use crate::services::{mail, payer, payment_status};
 use crate::state::AppState;
-
-fn payment_status_success(response: &Value) -> bool {
-    let status = response
-        .pointer("/data/paymentStatus")
-        .or_else(|| response.get("paymentStatus"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    matches!(
-        status.as_str(),
-        "success" | "successful" | "paid" | "completed"
-    )
-}
 
 fn format_naira(raw: &str) -> String {
     let t = raw.trim();
@@ -413,7 +400,7 @@ fn to_mail(ctx: &PaymentMailContext, to: String, txn_ref: &str) -> mail::Receipt
 
 /// Send payer receipt + merchant notice once each when payment is confirmed.
 pub async fn maybe_send_on_success(state: &AppState, txn_ref: &str, response: &Value) {
-    if !payment_status_success(response) {
+    if !payment_status::is_paid(response) {
         return;
     }
     if state.config.resend_api_key.is_none() {

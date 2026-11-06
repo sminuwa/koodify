@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use client::CreateSettlementRequest;
 
-use crate::auth::ApiKeyAuth;
+use crate::auth::{AdminAuth, ApiKeyAuth};
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::proxy;
 use crate::state::AppState;
@@ -25,7 +25,7 @@ pub struct HistoryQuery {
 }
 
 pub async fn create(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -42,10 +42,11 @@ pub async fn create(
 }
 
 pub async fn get(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Query(q): Query<SettlementQuery>,
 ) -> JsonResult {
+    auth.ensure_zainbox(&q.zainbox_code)?;
     state
         .zainpay
         .settlements()
@@ -56,11 +57,13 @@ pub async fn get(
 }
 
 pub async fn history(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
     Query(q): Query<HistoryQuery>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .settlements()
@@ -77,10 +80,12 @@ pub async fn history(
 }
 
 pub async fn internal_account(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .settlements()

@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::PgPool;
 
-use super::credentials::{self, UpsertCredential};
 use super::customers::{self, CreateCustomer};
 use super::zainboxes::{self, UpsertZainbox};
 
@@ -32,10 +31,9 @@ fn default_active() -> bool {
 /// Sync Zainpay zainboxes into local DB, then create one customer per box.
 ///
 /// Each zainbox gets a browser-safe `public_key` (`pk_live_…`) stored on
-/// `zainboxes` (source of truth for checkout). The same key is mirrored onto
-/// credentials for dashboard/API compatibility. Credential `zainbox_code` is the
-/// Zainpay zainbox `codeName` (Bearer / private identity) — never sent to the
-/// browser by default.
+/// `zainboxes` (source of truth for checkout). Credentials mirror that key and
+/// mint merchant `sk_test_` / `sk_live_` secrets (shown once). `zainbox_code` is
+/// the Zainpay box id — not an API secret.
 ///
 /// New merchants (register → KYC approve) are provisioned by
 /// `services::merchant_provision` instead of this seed path.
@@ -146,34 +144,32 @@ pub async fn run(pool: &PgPool) -> Result<()> {
         .await
         .with_context(|| format!("create customer for {}", zb.zainbox_code))?;
 
-        let cred_meta = json!({ "zainboxCode": zb.zainbox_code });
-
-        // public_key = Koodify publishable token; zainbox_code = Zainpay Bearer id.
-        for environment in ["test", "live"] {
-            credentials::upsert(
-                pool,
-                UpsertCredential {
-                    customer_id: customer.id,
-                    environment,
-                    public_key: &public_key,
-                    zainbox_code: &zb.zainbox_code,
-                    metadata: &cred_meta,
-                    status: "active",
-                },
+        // public_key = checkout; zainbox_code = box id; sk_… minted if missing.
+        let (creds, minted) = crate::services::merchant_provision::sync_credentials_from_zainbox(
+            pool,
+            customer.id,
+            &zb.zainbox_code,
+            &public_key,
+        )
+        .await
+        .with_context(|| {
+            format!(
+                "sync credentials for customer {} ({})",
+                customer.id, zb.zainbox_code
             )
-            .await
-            .with_context(|| {
-                format!(
-                    "upsert {} credentials for customer {} ({})",
-                    environment, customer.id, zb.zainbox_code
-                )
-            })?;
-        }
+        })?;
+        let _ = creds;
 
         println!(
             "  id={} uuid={} publicKey={} zainbox={} — {}",
             customer.id, customer.uuid, public_key, zb.zainbox_code, zb.name
         );
+        for s in &minted {
+            println!(
+                "    NEW {} secretKey={} (store now — shown once)",
+                s.environment, s.secret_key
+            );
+        }
     }
 
     Ok(())

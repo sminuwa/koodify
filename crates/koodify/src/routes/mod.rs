@@ -350,6 +350,14 @@ pub fn router() -> Router<AppState> {
             "/credentials/{id}/status",
             patch(credentials::update_status),
         )
+        .route(
+            "/credentials/{id}/rotate-secret",
+            post(credentials::rotate_secret),
+        )
+        .route(
+            "/api/v1/credentials/{id}/rotate-secret",
+            post(credentials::rotate_secret),
+        )
         // Zainbox
         .route("/zainbox/create/request", post(zainbox::create))
         .route("/zainbox/list", get(zainbox::list))

@@ -8,7 +8,8 @@ pub struct Config {
     pub database_url: String,
     pub zainpay_base_url: String,
     pub zainpay_api_key: String,
-    /// Secret key for admin / privileged gateway routes (`X-Api-Key`).
+    /// Platform admin secret (`X-Api-Key`). Not shared with merchants.
+    /// Merchants use per-credential `sk_test_` / `sk_live_` secrets instead.
     pub gateway_api_key: String,
     /// HMAC secret for inbound `Zainpay-Signature` verification.
     /// Docs refer to this as the dashboard secret key (`ZAINPAY_WEBHOOK_SECRET`).

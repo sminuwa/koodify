@@ -3,7 +3,7 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::auth::ApiKeyAuth;
+use crate::auth::AdminAuth;
 use crate::routes::helpers::{map_upstream, JsonResult};
 use crate::services::payer;
 use crate::state::AppState;
@@ -24,7 +24,7 @@ pub struct CardPaymentQuery {
 }
 
 pub async fn verify_deposit(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(txn_ref): Path<String>,
 ) -> JsonResult {
@@ -35,13 +35,12 @@ pub async fn verify_deposit(
         .await
         .map(|r| serde_json::to_value(r).unwrap_or(Value::Null))
         .map_err(map_upstream)?;
-    Ok(Json(
-        payer::enrich_response_from_db(&state.pool, &txn_ref, response).await,
-    ))
+    let response = payer::enrich_response_from_db(&state.pool, &txn_ref, response).await;
+    Ok(Json(crate::services::payment_status::enrich(response)))
 }
 
 pub async fn reconcile_bank_deposit(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Query(q): Query<BankDepositQuery>,
 ) -> JsonResult {
@@ -60,7 +59,7 @@ pub async fn reconcile_bank_deposit(
 }
 
 pub async fn reconcile_card_payment(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Query(q): Query<CardPaymentQuery>,
 ) -> JsonResult {

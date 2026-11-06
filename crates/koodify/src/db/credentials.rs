@@ -5,14 +5,15 @@ use uuid::Uuid;
 use super::models::Credential;
 
 const COLUMNS: &str = r#"
-    id, customer_id, environment, public_key, zainbox_code, metadata, status, created_at, updated_at
+    id, customer_id, environment, public_key, zainbox_code,
+    secret_key_hash, secret_key_prefix, metadata, status, created_at, updated_at
 "#;
 
 pub struct UpsertCredential<'a> {
     pub customer_id: i64,
     pub environment: &'a str,
     pub public_key: &'a str,
-    /// Zainpay zainbox business id (`codeName`) used as Bearer — not a crypto key.
+    /// Zainpay zainbox business id (`codeName`) — not a crypto key.
     pub zainbox_code: &'a str,
     pub metadata: &'a Value,
     pub status: &'a str,
@@ -46,6 +47,46 @@ pub async fn upsert(
     .bind(input.metadata)
     .bind(input.status)
     .fetch_one(pool)
+    .await
+}
+
+/// Set (or replace) the hashed merchant secret for a credential row.
+pub async fn set_secret_hash(
+    pool: &PgPool,
+    id: Uuid,
+    secret_key_hash: &str,
+    secret_key_prefix: &str,
+) -> Result<Credential, sqlx::Error> {
+    sqlx::query_as::<_, Credential>(&format!(
+        r#"
+        UPDATE credentials
+        SET secret_key_hash = $2,
+            secret_key_prefix = $3,
+            updated_at = now()
+        WHERE id = $1
+        RETURNING {COLUMNS}
+        "#
+    ))
+    .bind(id)
+    .bind(secret_key_hash)
+    .bind(secret_key_prefix)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn find_by_secret_hash(
+    pool: &PgPool,
+    secret_key_hash: &str,
+) -> Result<Option<Credential>, sqlx::Error> {
+    sqlx::query_as::<_, Credential>(&format!(
+        r#"
+        SELECT {COLUMNS}
+        FROM credentials
+        WHERE secret_key_hash = $1
+        "#
+    ))
+    .bind(secret_key_hash)
+    .fetch_optional(pool)
     .await
 }
 

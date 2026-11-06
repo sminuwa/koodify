@@ -1,0 +1,17 @@
+{
+  "name": "koodify-webhook-sample",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Koodify merchant webhook receiver — verifies X-Koodify-Signature on raw body bytes",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test verify.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

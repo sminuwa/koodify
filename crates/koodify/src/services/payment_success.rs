@@ -8,21 +8,8 @@ use tracing::{info, warn};
 
 use crate::db;
 use crate::services::activity::{self, SuccessSource};
-use crate::services::{merchant_webhook, payment_split, receipt};
+use crate::services::{merchant_webhook, payment_split, payment_status, receipt};
 use crate::state::AppState;
-
-fn payment_status_success(response: &Value) -> bool {
-    let status = response
-        .pointer("/data/paymentStatus")
-        .or_else(|| response.get("paymentStatus"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    matches!(
-        status.as_str(),
-        "success" | "successful" | "paid" | "completed"
-    )
-}
 
 fn zainbox_from(response: &Value) -> Option<&str> {
     response
@@ -45,7 +32,7 @@ pub async fn apply_side_effects(
     deposit_bank: Option<&str>,
     source: SuccessSource,
 ) -> Value {
-    if !payment_status_success(response) {
+    if !payment_status::is_paid(response) {
         return response.clone();
     }
 

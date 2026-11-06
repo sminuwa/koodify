@@ -6,7 +6,6 @@ use serde_json::{json, Value};
 use client::{InitializeCardPaymentRequest, RecurringCardPurchaseRequest};
 use tracing::warn;
 
-use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::activity::SuccessSource;
@@ -81,7 +80,7 @@ async fn resolve_checkout_merchant(
 }
 
 pub async fn initialize_payment(
-    _auth: ApiKeyAuth,
+    _auth: crate::auth::AdminAuth,
     State(state): State<AppState>,
     Json(mut body): Json<Value>,
 ) -> JsonResult {
@@ -216,7 +215,7 @@ async fn initialize_with_optional_split(
 }
 
 pub async fn recurring_purchase(
-    _auth: ApiKeyAuth,
+    _auth: crate::auth::AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
@@ -344,6 +343,7 @@ pub async fn temporary_virtual_account_payment_status(
         .map(|r| serde_json::to_value(r).unwrap_or(Value::Null))
         .map_err(map_upstream)?;
     let enriched = payer::enrich_response_from_db(&state.pool, &q.txn_ref, response).await;
+    let enriched = crate::services::payment_status::enrich(enriched);
     let deposit_account = payment_success::deposit_account_from(&enriched);
     let deposit_bank = payment_success::deposit_bank_from(&enriched);
     let enriched = payment_success::apply_side_effects(

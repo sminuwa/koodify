@@ -44,10 +44,12 @@ fn to_json<T: serde::Serialize>(r: T) -> JsonResult {
 
 /// `GET /api/v1/zainbox/{zainboxCode}` — profile + balances
 pub async fn zainbox_snapshot(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .composite()
@@ -59,10 +61,12 @@ pub async fn zainbox_snapshot(
 
 /// `GET /api/v1/zainbox/{zainboxCode}/wallet` — virtual accounts + balances
 pub async fn zainbox_wallet_view(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .composite()
@@ -75,11 +79,13 @@ pub async fn zainbox_wallet_view(
 /// `GET /api/v1/zainbox/{zainboxCode}/transactions` — transactions + deposit summary.
 /// Alias: `/api/v1/zainbox/{zainboxCode}/activity` (deprecated).
 pub async fn zainbox_activity(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
     Query(q): Query<DateRangeQuery>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .composite()
@@ -99,10 +105,12 @@ pub async fn zainbox_activity(
 
 /// `GET /api/v1/zainbox/{zainboxCode}/settlement` — settlement GET + internal account
 pub async fn settlement_context(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .composite()
@@ -114,10 +122,12 @@ pub async fn settlement_context(
 
 /// `GET /api/v1/zainbox/{zainboxCode}/billing` — profile + billing config
 pub async fn zainbox_profile_billing(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .composite()
@@ -129,10 +139,12 @@ pub async fn zainbox_profile_billing(
 
 /// `GET /api/v1/zainbox/{zainboxCode}/subscriptions` — all + active
 pub async fn subscriptions_bundle(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(code): Path<String>,
 ) -> JsonResult {
+
+    auth.ensure_zainbox(&code)?;
     state
         .zainpay
         .composite()
@@ -184,10 +196,11 @@ pub async fn name_resolve(
 /// `GET /api/v1/merchant/transactions` — summary + transaction list.
 /// Alias: `/api/v1/merchant/activity` (deprecated).
 pub async fn merchant_activity(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Query(q): Query<DateRangeQuery>,
 ) -> JsonResult {
+    auth.require_admin()?;
     state
         .zainpay
         .composite()
@@ -221,10 +234,28 @@ pub async fn payout_prep(
 
 /// `POST /api/v1/transfer` — transfer then verify
 pub async fn transfer_and_verify(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(body): Json<Value>,
 ) -> JsonResult {
+    auth.require_admin()?;
+    use crate::services::idempotency;
+
+    let idem_key = idempotency::extract_key(&headers);
+    let claim = if let Some(ref key) = idem_key {
+        let hash = idempotency::transfer_request_hash(&body)
+            .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, e))?;
+        match idempotency::begin(&state, idempotency::SCOPE_TRANSFER_COMPOSITE, key, &hash).await {
+            idempotency::BeginOutcome::Proceed => Some(key.clone()),
+            idempotency::BeginOutcome::Replay(body) => return Ok(Json(body)),
+            idempotency::BeginOutcome::Conflict => return Err(idempotency::conflict_error()),
+            idempotency::BeginOutcome::InFlight => return Err(idempotency::in_flight_error()),
+        }
+    } else {
+        None
+    };
+
     let (payload, metadata) = proxy::split_body(body);
     let req: FundsTransferRequest = serde_json::from_value(payload).map_err(|e| {
         (
@@ -232,15 +263,30 @@ pub async fn transfer_and_verify(
             format!("invalid transfer body: {e}"),
         )
     })?;
-    let response = state
-        .zainpay
-        .composite()
-        .transfer_and_verify(&req)
-        .await
-        .map_err(map_upstream)?;
+    let txn_ref = req.txn_ref.clone();
+    let response = match state.zainpay.composite().transfer_and_verify(&req).await {
+        Ok(r) => r,
+        Err(err) => {
+            if let Some(key) = claim.as_deref() {
+                idempotency::release(&state, idempotency::SCOPE_TRANSFER_COMPOSITE, key).await;
+            }
+            return Err(map_upstream(err));
+        }
+    };
     let mut json = serde_json::to_value(&response).unwrap_or(Value::Null);
     if response.is_success() {
         json = proxy::merge_metadata_into_response(json, metadata);
+    }
+    json = crate::services::api_error::enrich(json);
+    if let Some(key) = claim.as_deref() {
+        idempotency::complete(
+            &state,
+            idempotency::SCOPE_TRANSFER_COMPOSITE,
+            key,
+            &json,
+            Some(txn_ref.as_str()),
+        )
+        .await;
     }
     Ok(Json(json))
 }
@@ -259,18 +305,18 @@ pub async fn dynamic_deposit_check(
         .await
         .map_err(map_upstream)?;
     let json = serde_json::to_value(response).unwrap_or(Value::Null);
-    Ok(Json(
-        crate::services::payer::enrich_response_from_db(&state.pool, &txn_ref, json).await,
-    ))
+    let json = crate::services::payer::enrich_response_from_db(&state.pool, &txn_ref, json).await;
+    Ok(Json(crate::services::payment_status::enrich(json)))
 }
 
 /// `POST /api/v1/settlement` — create then history
 pub async fn settlement_create_with_history(
-    _auth: ApiKeyAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Query(q): Query<SettlementHistoryQuery>,
     Json(body): Json<Value>,
 ) -> JsonResult {
+    auth.require_admin()?;
     let (payload, metadata) = proxy::split_body(body);
     let req: CreateSettlementRequest = serde_json::from_value(payload).map_err(|e| {
         (

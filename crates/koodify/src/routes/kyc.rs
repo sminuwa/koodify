@@ -5,7 +5,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::auth::ApiKeyAuth;
+use crate::auth::AdminAuth;
 use crate::db;
 use crate::db::kyc::UpsertKyc;
 use crate::db::models::KycProfile;
@@ -77,6 +77,11 @@ async fn after_kyc_write(
                 "zainboxCode": result.zainbox.zainbox_code,
                 "publicKey": result.public_key,
                 "createdNewZainbox": result.created_new_zainbox,
+                "mintedSecrets": result.minted_secrets.iter().map(|s| json!({
+                    "environment": s.environment,
+                    "secretKey": s.secret_key,
+                    "secretKeyPrefix": s.prefix,
+                })).collect::<Vec<_>>(),
             })),
             Ok(None) => None,
             Err(err) => {
@@ -110,7 +115,7 @@ async fn after_kyc_write(
 /// the customer's `displayName`, assigns a publishable `publicKey`, and mirrors
 /// credentials. Existing integrations that use other statuses are unchanged.
 pub async fn upsert(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<UpsertKycRequest>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
@@ -166,7 +171,7 @@ pub async fn upsert(
 
 /// `GET /kyc?status=`
 pub async fn list(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Query(q): Query<ListKycQuery>,
 ) -> Result<Json<Vec<KycProfile>>, (StatusCode, String)> {
@@ -178,7 +183,7 @@ pub async fn list(
 
 /// `GET /kyc/by-customer/{customer_id}`
 pub async fn by_customer(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(customer_id): Path<i64>,
 ) -> Result<Json<KycProfile>, (StatusCode, String)> {
@@ -191,7 +196,7 @@ pub async fn by_customer(
 
 /// `GET /kyc/{id}` — KYC row UUID.
 pub async fn get_one(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<KycProfile>, (StatusCode, String)> {
@@ -206,7 +211,7 @@ pub async fn get_one(
 ///
 /// Setting `status` to `approved` provisions the merchant zainbox + public key.
 pub async fn update_status(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateStatusRequest>,

@@ -597,23 +597,7 @@ pub async fn maybe_run_on_success(
 /// Top-level API `code=00` alone is NOT payment success (Zainpay uses it for
 /// successful API calls while payment may still be pending).
 fn is_payment_success(response: &Value) -> bool {
-    let status = response
-        .pointer("/data/paymentStatus")
-        .or_else(|| response.get("paymentStatus"))
-        .or_else(|| response.pointer("/data/status"))
-        .or_else(|| response.get("status"))
-        .or_else(|| response.pointer("/data/txnStatus"))
-        .or_else(|| response.pointer("/data/transactionStatus"))
-        .and_then(|v| match v {
-            Value::String(s) => Some(s.to_ascii_lowercase()),
-            Value::Bool(true) => Some("success".into()),
-            _ => None,
-        })
-        .unwrap_or_default();
-    matches!(
-        status.as_str(),
-        "success" | "successful" | "paid" | "completed"
-    )
+    crate::services::payment_status::is_paid(response)
 }
 
 fn extract_deposit_account(response: &Value) -> Option<String> {

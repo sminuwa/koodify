@@ -1,6 +1,7 @@
 pub mod activity_events;
 pub mod credentials;
 pub mod customers;
+pub mod idempotency;
 pub mod kyc;
 pub mod models;
 pub mod payment_splits;

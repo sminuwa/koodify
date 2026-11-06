@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::auth::ApiKeyAuth;
+use crate::auth::AdminAuth;
 use crate::db;
 use crate::db::customers::{CreateCustomer, PatchCustomer, UpdateCustomer};
 use crate::db::models::{Credential, Customer, KycProfile};
@@ -258,7 +258,7 @@ async fn load_detail(
 /// Self-register style: omit `zainboxCode`, use `status: "pending"`, then submit KYC.
 /// After KYC is `approved`, a zainbox + public key are provisioned automatically.
 pub async fn create(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Json(body): Json<CreateCustomerRequest>,
 ) -> Result<Json<Customer>, (StatusCode, String)> {
@@ -293,7 +293,7 @@ pub async fn create(
 
 /// `PUT /customers/{id}`
 pub async fn update(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(id): Path<i64>,
     Json(body): Json<UpdateCustomerRequest>,
@@ -332,7 +332,7 @@ pub async fn update(
 
 /// `PATCH /customers/{id}` — partial update for merchant profile edits.
 pub async fn patch(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(id): Path<i64>,
     Json(body): Json<PatchCustomerRequest>,
@@ -384,7 +384,7 @@ pub async fn patch(
 
 /// `GET /customers?status=` or `GET /customers?email=` (single detail for login prep).
 pub async fn list(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Query(q): Query<ListCustomersQuery>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
@@ -405,7 +405,7 @@ pub async fn list(
 
 /// `GET /customers/{id}` — customer + zainbox / public key / KYC / credentials (dashboard).
 pub async fn get_one(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(id): Path<i64>,
     Query(q): Query<DetailQuery>,
@@ -421,7 +421,7 @@ pub async fn get_one(
 
 /// `GET /customers/by-uuid/{uuid}`
 pub async fn by_uuid(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(uuid): Path<Uuid>,
     Query(q): Query<DetailQuery>,
@@ -437,7 +437,7 @@ pub async fn by_uuid(
 
 /// `GET /customers/{id}/zainbox` — assigned zainbox + publishable public key.
 pub async fn zainbox(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
@@ -467,7 +467,7 @@ pub async fn zainbox(
 
 /// `POST /customers/{id}/provision` — create/sync zainbox + keys (admin retry / manual).
 pub async fn provision(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
@@ -495,7 +495,14 @@ pub async fn provision(
             "credentials": result.credentials.iter().map(|c| json!({
                 "environment": c.environment,
                 "publicKey": c.public_key,
+                "secretKeyPrefix": c.secret_key_prefix,
+                "secretKeySet": c.secret_key_hash.as_ref().map(|h| !h.is_empty()).unwrap_or(false),
                 "status": c.status,
+            })).collect::<Vec<_>>(),
+            "mintedSecrets": result.minted_secrets.iter().map(|s| json!({
+                "environment": s.environment,
+                "secretKey": s.secret_key,
+                "secretKeyPrefix": s.prefix,
             })).collect::<Vec<_>>(),
         }
     })))
@@ -503,7 +510,7 @@ pub async fn provision(
 
 /// `PATCH /customers/{id}/status`
 pub async fn update_status(
-    _auth: ApiKeyAuth,
+    _auth: AdminAuth,
     State(state): State<AppState>,
     Path(id): Path<i64>,
     Json(body): Json<UpdateStatusRequest>,
