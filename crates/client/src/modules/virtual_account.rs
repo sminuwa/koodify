@@ -16,13 +16,27 @@ pub struct VirtualAccountApi<'a> {
 
 impl VirtualAccountApi<'_> {
     /// `POST /virtual-account/create/request`
+    ///
+    /// Parses the envelope as [`Value`] first so application-level failures
+    /// (e.g. `data: {}` without `accountName`) are returned as
+    /// `Ok(ApiResponse { code: … })` instead of a deserialize hard-fail.
     pub async fn create(
         &self,
         req: &CreateVirtualAccountRequest,
     ) -> Result<ApiResponse<VirtualAccountData>, ZainpayError> {
-        self.client
+        let envelope: ApiResponse<Value> = self
+            .client
             .post_json("/virtual-account/create/request", req)
-            .await
+            .await?;
+        Ok(ApiResponse {
+            code: envelope.code,
+            status: envelope.status,
+            description: envelope.description,
+            data: match envelope.data {
+                None | Some(Value::Null) => None,
+                Some(value) => serde_json::from_value(value).ok(),
+            },
+        })
     }
 
     /// `POST /virtual-account/dynamic/create/request`

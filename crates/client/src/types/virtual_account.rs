@@ -25,14 +25,21 @@ pub struct CreateVirtualAccountRequest {
 }
 
 /// Successful create payload inside `ApiResponse.data`.
+///
+/// Fields default so Zainpay **error** envelopes with `data: {}` (or partial
+/// objects) still deserialize; callers must check [`crate::types::envelope::ApiResponse::is_success`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VirtualAccountData {
+    #[serde(default)]
     pub account_name: String,
+    #[serde(default)]
     pub account_number: String,
     #[serde(default)]
     pub account_type: String,
+    #[serde(default)]
     pub bank_name: String,
+    #[serde(default)]
     pub email: String,
 }
 

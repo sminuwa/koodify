@@ -102,6 +102,39 @@ async fn create_virtual_account_application_error() {
 }
 
 #[tokio::test]
+async fn create_virtual_account_error_with_empty_data_object() {
+    // Live Zainpay often returns `data: {}` on failure — must not 502 at Koodify.
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/virtual-account/create/request"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "code": "99",
+            "data": {},
+            "description": "Unable to create virtual account",
+            "status": "400 BAD_REQUEST"
+        })))
+        .mount(&server)
+        .await;
+
+    let client = ZainpayClient::builder()
+        .base_url(server.uri())
+        .api_key("test-key")
+        .build()
+        .unwrap();
+
+    let response = client
+        .virtual_accounts()
+        .create(&sample_request())
+        .await
+        .unwrap();
+
+    assert!(!response.is_success());
+    assert_eq!(response.code, "99");
+    assert_eq!(response.description, "Unable to create virtual account");
+}
+
+#[tokio::test]
 async fn balance_success() {
     let server = MockServer::start().await;
 
