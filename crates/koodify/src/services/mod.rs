@@ -13,4 +13,5 @@ pub mod payment_success;
 pub mod proxy;
 pub mod receipt;
 pub mod reconcile;
+pub mod secret_wrap;
 pub mod virtual_account;

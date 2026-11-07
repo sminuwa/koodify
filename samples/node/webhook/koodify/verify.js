@@ -6,8 +6,9 @@
  * and whitespace will not match what Koodify signed.
  *
  * Signature header: X-Koodify-Signature (hex HMAC-SHA256)
- * Secret: MERCHANT_WEBHOOK_SECRET, else GATEWAY_API_KEY
+ * Secret: merchant sk_… (same as X-Api-Key)
  */
+
 
 const crypto = require("crypto");
 

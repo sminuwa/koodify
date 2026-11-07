@@ -483,7 +483,7 @@ RESEND_FROM=Koodify <receipts@yourdomain.com>
 4. Builds JSON (`event`, `status`, `reference`, `amount`, `payer`, `customParam`, `paymentSplit` when present).
 5. Normalizes directory-style callback URLs to end with `/` (skips file-looking paths) and follows 301/302 while **keeping POST** (avoids nginx trailing-slash → HTTP 405).
 6. POSTs with `X-Koodify-Signature` = hex HMAC-SHA256 of the raw body; also sends `X-Koodify-Event: payment.success`.
-7. Up to 3 attempts with short backoff; non-2xx is logged. Signing secret: `MERCHANT_WEBHOOK_SECRET`, else `GATEWAY_API_KEY`.
+7. Up to 3 attempts with short backoff; non-2xx is logged. Signing secret: the merchant’s `sk_…` (same as `X-Api-Key`). Legacy fallback: `MERCHANT_WEBHOOK_SECRET`, else `GATEWAY_API_KEY`.
 8. Merchants must verify the signature on the **raw request bytes** — never `HMAC(JSON.stringify(parsed))` (Node trap). Samples: `samples/php/webhook/koodify/`, `samples/node/webhook/koodify/`.
 
 ```js
@@ -497,7 +497,7 @@ koodifyInitPayment({
 
 ```bash
 # Merchant verifies (pseudo)
-# signature = HMAC_SHA256_hex(MERCHANT_WEBHOOK_SECRET or GATEWAY_API_KEY, raw_body)
+# signature = HMAC_SHA256_hex(sk_live_…, raw_body)  // same secret as X-Api-Key
 # compare to header X-Koodify-Signature
 ```
 
@@ -995,7 +995,7 @@ Migration: `018_naming_consistency.sql`.
 | Feature | When it turns on |
 |---------|------------------|
 | Receipt & merchant emails | You set a Resend API key |
-| Merchant outbound webhook | Checkout `callBackUrl` (or zainbox `callback_url`) is an absolute http(s) URL; signed with `MERCHANT_WEBHOOK_SECRET` or `GATEWAY_API_KEY` |
+| Merchant outbound webhook | Checkout `callBackUrl` (or zainbox `callback_url`) is an absolute http(s) URL; signed with the merchant `sk_…` |
 | Pending checkout reconciler | On by default (`RECONCILE_ENABLED`); disable with `false`. Force: `POST /api/v1/reconcile/pending` |
 | Activity events | Always on after migrate `017`; query `GET /api/v1/activity/{txnRef}` |
 | Inbound webhooks | Set `ZAINPAY_WEBHOOK_SECRET` + `PUBLIC_BASE_URL`; sync zainbox callbacks to `/webhooks/zainpay` |

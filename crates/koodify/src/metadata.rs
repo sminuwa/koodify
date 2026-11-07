@@ -29,6 +29,8 @@ pub enum CreateVirtualAccountInbound {
 #[serde(rename_all = "camelCase")]
 pub struct FlatCreateVirtualAccount {
     pub address: String,
+    /// Merchants may omit this — Koodify applies Adaptive Bank/DVA Routing.
+    #[serde(default)]
     pub bank_type: String,
     pub bvn: String,
     pub dob: String,
@@ -39,6 +41,8 @@ pub struct FlatCreateVirtualAccount {
     pub state: String,
     pub surname: String,
     pub title: String,
+    /// Merchants may omit this — filled from the `sk_…` credential's zainbox.
+    #[serde(default)]
     pub zainbox_code: String,
     #[serde(default)]
     pub middle_name: Option<String>,
@@ -151,5 +155,28 @@ mod tests {
         // Ensure known fields did not leak into metadata.
         assert!(meta.get("bankType").is_none());
         assert!(meta.get("zainboxCode").is_none());
+    }
+
+    #[test]
+    fn merchant_payload_may_omit_bank_and_zainbox() {
+        let inbound: CreateVirtualAccountInbound = serde_json::from_value(json!({
+            "address": "12 Computing Lane, Lagos",
+            "bvn": "12345678901",
+            "dob": "10-12-1990",
+            "email": "ada@example.com",
+            "firstName": "Ada",
+            "gender": "F",
+            "mobileNumber": "08012345678",
+            "state": "Lagos",
+            "surname": "Lovelace",
+            "title": "Ms",
+            "metadata": { "customerId": "cus_demo_001" }
+        }))
+        .unwrap();
+
+        let (req, meta) = inbound.split();
+        assert!(req.bank_type.is_empty());
+        assert!(req.zainbox_code.is_empty());
+        assert_eq!(meta["customerId"], "cus_demo_001");
     }
 }

@@ -9,13 +9,16 @@ use client::{
     UpdateVirtualAccountStatusRequest,
 };
 
-use crate::auth::AdminAuth;
+use crate::auth::{AdminAuth, ApiKeyAuth};
 use crate::db;
 use crate::metadata::CreateVirtualAccountInbound;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::proxy::{self, merge_metadata_into_response};
 use crate::services::virtual_account::{self, CreateError, StoredVirtualAccount};
 use crate::state::AppState;
+use client::CreateVirtualAccountRequest;
+use client::ApiResponse;
+use client::VirtualAccountData;
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -28,20 +31,35 @@ pub struct TxnQuery {
 }
 
 pub async fn create(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Json(inbound): Json<CreateVirtualAccountInbound>,
 ) -> JsonResult {
-    let (request, metadata) = inbound.split();
+    let (mut request, metadata) = inbound.split();
+    resolve_zainbox_for_create(&auth, &mut request)?;
+
+    let forced_bank = {
+        let t = request.bank_type.trim().trim_matches('"');
+        if t.is_empty() {
+            None
+        } else {
+            Some(t.to_string())
+        }
+    };
+
+    let response = if let Some(bank) = forced_bank {
+        request.bank_type = bank;
+        state
+            .zainpay
+            .virtual_accounts()
+            .create(&request)
+            .await
+            .map_err(map_upstream)?
+    } else {
+        create_with_adaptive_bank(&state, &request).await?
+    };
+
     let zainbox_code = request.zainbox_code.clone();
-
-    let response = state
-        .zainpay
-        .virtual_accounts()
-        .create(&request)
-        .await
-        .map_err(map_upstream)?;
-
     let mut response_json = serde_json::to_value(&response).unwrap_or(Value::Null);
 
     if response.is_success() {
@@ -83,6 +101,89 @@ pub async fn create(
     }
 
     Ok(Json(response_json))
+}
+
+fn resolve_zainbox_for_create(
+    auth: &ApiKeyAuth,
+    request: &mut CreateVirtualAccountRequest,
+) -> Result<(), (StatusCode, String)> {
+    let provided = request.zainbox_code.trim();
+    if let Some(merchant) = auth.merchant() {
+        if provided.is_empty() {
+            request.zainbox_code = merchant.zainbox_code.clone();
+            return Ok(());
+        }
+        auth.ensure_zainbox(provided)?;
+        request.zainbox_code = provided.to_string();
+        return Ok(());
+    }
+
+    // Platform admin must still name the target zainbox (multi-tenant ops).
+    if provided.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "zainboxCode is required when using the platform admin API key".into(),
+        ));
+    }
+    request.zainbox_code = provided.to_string();
+    Ok(())
+}
+
+async fn create_with_adaptive_bank(
+    state: &AppState,
+    base: &CreateVirtualAccountRequest,
+) -> Result<ApiResponse<VirtualAccountData>, (StatusCode, String)> {
+    let order = state.bank_router.attempt_order();
+    let mut last_http_err: Option<client::ZainpayError> = None;
+    let mut last_app_fail: Option<ApiResponse<VirtualAccountData>> = None;
+
+    for bank in order {
+        let mut attempt = base.clone();
+        attempt.bank_type = bank.clone();
+        let started = std::time::Instant::now();
+        match state.zainpay.virtual_accounts().create(&attempt).await {
+            Ok(resp) if resp.is_success() => {
+                state
+                    .bank_router
+                    .record_outcome(&bank, true, started.elapsed());
+                tracing::info!(%bank, "static VA issued via bank router");
+                return Ok(resp);
+            }
+            Ok(resp) => {
+                state
+                    .bank_router
+                    .record_outcome(&bank, false, started.elapsed());
+                warn!(
+                    bank = %bank,
+                    code = %resp.code,
+                    description = %resp.description,
+                    "static VA bank attempt failed at application layer — trying next"
+                );
+                last_app_fail = Some(resp);
+            }
+            Err(err) => {
+                state
+                    .bank_router
+                    .record_outcome(&bank, false, started.elapsed());
+                warn!(
+                    bank = %bank,
+                    error = %err,
+                    "static VA bank attempt failed at HTTP layer — trying next"
+                );
+                last_http_err = Some(err);
+            }
+        }
+    }
+
+    if let Some(body) = last_app_fail {
+        return Ok(body);
+    }
+    Err(map_upstream(last_http_err.unwrap_or_else(|| {
+        client::ZainpayError::UnexpectedStatus {
+            status: 502,
+            body: "no VA bank candidates available".into(),
+        }
+    })))
 }
 
 pub async fn create_dynamic(

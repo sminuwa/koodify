@@ -96,6 +96,9 @@ pub struct Credential {
     pub secret_key_hash: Option<String>,
     /// Display prefix e.g. `sk_live_abcd1234…`
     pub secret_key_prefix: Option<String>,
+    /// AES-GCM sealed `sk_…` for signing outbound merchant webhooks.
+    #[serde(skip_serializing)]
+    pub secret_key_wrapped: Option<String>,
     pub metadata: Value,
     pub status: String,
     pub created_at: DateTime<Utc>,

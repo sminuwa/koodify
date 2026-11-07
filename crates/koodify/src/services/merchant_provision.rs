@@ -43,9 +43,12 @@ pub struct ProvisionResult {
 }
 
 /// Ensure a credential row has a merchant secret. Returns plaintext only when minted.
+///
+/// Also seals the secret for outbound webhook HMAC (merchants verify with the same `sk_…`).
 pub async fn ensure_secret_key(
     pool: &PgPool,
     credential: &Credential,
+    gateway_api_key: &str,
 ) -> Result<(Credential, Option<String>)> {
     if credential
         .secret_key_hash
@@ -58,7 +61,9 @@ pub async fn ensure_secret_key(
     let plaintext = mint_secret_key(&credential.environment);
     let hash = hash_secret_key(&plaintext);
     let prefix = secret_key_prefix(&plaintext);
-    let row = db::credentials::set_secret_hash(pool, credential.id, &hash, &prefix)
+    let wrapped = crate::services::secret_wrap::wrap_secret(gateway_api_key, &plaintext)
+        .context("wrap merchant secret for webhook signing")?;
+    let row = db::credentials::set_secret_hash(pool, credential.id, &hash, &prefix, &wrapped)
         .await
         .context("store merchant secret hash")?;
     Ok((row, Some(plaintext)))
@@ -70,6 +75,7 @@ pub async fn sync_credentials_from_zainbox(
     customer_id: i64,
     zainbox_code: &str,
     public_key: &str,
+    gateway_api_key: &str,
 ) -> Result<(Vec<Credential>, Vec<ProvisionedSecret>)> {
     let meta = json!({ "zainboxCode": zainbox_code, "source": "zainbox-public-key" });
     let mut out = Vec::with_capacity(2);
@@ -90,7 +96,7 @@ pub async fn sync_credentials_from_zainbox(
         .with_context(|| {
             format!("upsert {environment} credentials for customer {customer_id}")
         })?;
-        let (row, secret) = ensure_secret_key(pool, &row).await?;
+        let (row, secret) = ensure_secret_key(pool, &row, gateway_api_key).await?;
         if let Some(secret_key) = secret {
             minted.push(ProvisionedSecret {
                 environment: environment.to_string(),
@@ -168,8 +174,14 @@ pub async fn ensure_merchant_zainbox(
             }
         };
         let public_key = zainboxes::ensure_public_key(pool, &code).await?;
-        let (credentials, minted_secrets) =
-            sync_credentials_from_zainbox(pool, customer_id, &code, &public_key).await?;
+        let (credentials, minted_secrets) = sync_credentials_from_zainbox(
+            pool,
+            customer_id,
+            &code,
+            &public_key,
+            &config.gateway_api_key,
+        )
+        .await?;
         if let Some(kyc) = db::kyc::find_by_customer_id(pool, customer_id).await? {
             if kyc.zainbox_code.as_deref() != Some(code.as_str()) {
                 let _ = db::kyc::set_zainbox_code(pool, kyc.id, &code).await?;
@@ -271,8 +283,14 @@ pub async fn ensure_merchant_zainbox(
         let _ = db::kyc::set_zainbox_code(pool, kyc.id, &zainbox_code).await?;
     }
 
-    let (credentials, minted_secrets) =
-        sync_credentials_from_zainbox(pool, customer_id, &zainbox_code, &public_key).await?;
+    let (credentials, minted_secrets) = sync_credentials_from_zainbox(
+        pool,
+        customer_id,
+        &zainbox_code,
+        &public_key,
+        &config.gateway_api_key,
+    )
+    .await?;
 
     info!(
         customer_id,

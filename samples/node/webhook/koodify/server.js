@@ -1,89 +1,68 @@
 /**
- * Demo merchant webhook for Koodify checkout `callBackUrl`.
+ * Minimal Koodify merchant webhook receiver (Node).
  *
- *   npm install
- *   MERCHANT_WEBHOOK_SECRET=… node server.js
+ *   KOODIFY_SECRET_KEY=sk_live_… node server.js
  *
- * Point checkout at: http://localhost:3091/webhooks/koodify/
- *
- * Uses express.raw() so HMAC runs on the original body bytes — the fix for
- * the common Node trap of verifying JSON.stringify(parsedBody).
- *
- * Docs: docs/inline-checkout.html#merchant-webhook
- * PHP twin: samples/php/webhook/koodify/
+ * Verifies X-Koodify-Signature with the same sk_… used as X-Api-Key.
  */
 
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
+const http = require("http");
 const { verifyKoodifySignature } = require("./verify");
 
-const PORT = Number(process.env.PORT || 3091);
+const PORT = Number(process.env.PORT || 8787);
 const SECRET =
+  process.env.KOODIFY_SECRET_KEY ||
   process.env.MERCHANT_WEBHOOK_SECRET ||
   process.env.GATEWAY_API_KEY ||
   "";
-const LOG_FILE = path.join(__dirname, "webhook-log.jsonl");
 
-const app = express();
+const server = http.createServer((req, res) => {
+  if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("ok");
+    return;
+  }
 
-// Raw body required for signature verification. Do NOT use express.json() here.
-app.post(
-  ["/webhooks/koodify", "/webhooks/koodify/"],
-  express.raw({ type: "*/*", limit: "1mb" }),
-  (req, res) => {
-    const rawBody = req.body; // Buffer
-    if (!Buffer.isBuffer(rawBody) || rawBody.length === 0) {
-      return res.status(400).type("text").send("empty body\n");
-    }
+  if (req.method !== "POST" || !req.url.startsWith("/webhooks/koodify")) {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("not found");
+    return;
+  }
 
-    const signature = req.get("X-Koodify-Signature");
-    if (SECRET) {
-      if (!verifyKoodifySignature(SECRET, rawBody, signature)) {
-        return res.status(401).type("text").send("invalid signature\n");
-      }
-    } else {
+  const chunks = [];
+  req.on("data", (c) => chunks.push(c));
+  req.on("end", () => {
+    const rawBody = Buffer.concat(chunks);
+    const signature = req.headers["x-koodify-signature"];
+    const event = req.headers["x-koodify-event"] || "";
+
+    if (!SECRET) {
       console.warn(
-        "[koodify] MERCHANT_WEBHOOK_SECRET / GATEWAY_API_KEY unset — skipping signature check (demo only)"
+        "[koodify] KOODIFY_SECRET_KEY unset — skipping signature check (demo only)"
       );
+    } else if (!verifyKoodifySignature(SECRET, rawBody, signature)) {
+      console.warn("[koodify] invalid signature");
+      res.writeHead(401, { "Content-Type": "text/plain" });
+      res.end("invalid signature");
+      return;
     }
 
-    let payload;
+    let payload = {};
     try {
       payload = JSON.parse(rawBody.toString("utf8"));
     } catch {
-      return res.status(400).type("text").send("invalid JSON\n");
+      payload = { raw: rawBody.toString("utf8") };
     }
 
-    // WRONG — never do this:
-    // const bad = crypto.createHmac("sha256", SECRET).update(JSON.stringify(payload)).digest("hex");
+    console.log("[koodify] webhook", { event, reference: payload.reference, status: payload.status });
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("ok");
+  });
+});
 
-    const entry = {
-      receivedAt: new Date().toISOString(),
-      reference: payload.reference ?? null,
-      event: payload.event ?? null,
-      payload,
-    };
-
-    try {
-      fs.appendFileSync(LOG_FILE, `${JSON.stringify(entry)}\n`, { flag: "a" });
-    } catch (err) {
-      console.error("log write failed", err);
-      return res.status(500).type("text").send("log write failed\n");
-    }
-
-    console.log(
-      `ok event=${entry.event} reference=${entry.reference} bytes=${rawBody.length}`
-    );
-    return res.status(200).type("text").send("OK\n");
-  }
-);
-
-app.get("/health", (_req, res) => res.type("text").send("ok\n"));
-
-app.listen(PORT, () => {
-  console.log(`Koodify webhook sample listening on http://localhost:${PORT}/webhooks/koodify/`);
+server.listen(PORT, () => {
+  console.log(`Koodify webhook listening on :${PORT}/webhooks/koodify`);
   if (!SECRET) {
-    console.warn("Set MERCHANT_WEBHOOK_SECRET to enforce X-Koodify-Signature checks.");
+    console.warn("Set KOODIFY_SECRET_KEY (sk_…) to enforce X-Koodify-Signature checks.");
   }
 });

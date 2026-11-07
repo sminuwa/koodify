@@ -6,7 +6,8 @@ use super::models::Credential;
 
 const COLUMNS: &str = r#"
     id, customer_id, environment, public_key, zainbox_code,
-    secret_key_hash, secret_key_prefix, metadata, status, created_at, updated_at
+    secret_key_hash, secret_key_prefix, secret_key_wrapped,
+    metadata, status, created_at, updated_at
 "#;
 
 pub struct UpsertCredential<'a> {
@@ -50,18 +51,20 @@ pub async fn upsert(
     .await
 }
 
-/// Set (or replace) the hashed merchant secret for a credential row.
+/// Set (or replace) the hashed + wrapped merchant secret for a credential row.
 pub async fn set_secret_hash(
     pool: &PgPool,
     id: Uuid,
     secret_key_hash: &str,
     secret_key_prefix: &str,
+    secret_key_wrapped: &str,
 ) -> Result<Credential, sqlx::Error> {
     sqlx::query_as::<_, Credential>(&format!(
         r#"
         UPDATE credentials
         SET secret_key_hash = $2,
             secret_key_prefix = $3,
+            secret_key_wrapped = $4,
             updated_at = now()
         WHERE id = $1
         RETURNING {COLUMNS}
@@ -70,7 +73,27 @@ pub async fn set_secret_hash(
     .bind(id)
     .bind(secret_key_hash)
     .bind(secret_key_prefix)
+    .bind(secret_key_wrapped)
     .fetch_one(pool)
+    .await
+}
+
+/// Active credentials for a zainbox — live first, then test.
+pub async fn list_active_for_zainbox(
+    pool: &PgPool,
+    zainbox_code: &str,
+) -> Result<Vec<Credential>, sqlx::Error> {
+    sqlx::query_as::<_, Credential>(&format!(
+        r#"
+        SELECT {COLUMNS}
+        FROM credentials
+        WHERE zainbox_code = $1
+          AND status = 'active'
+        ORDER BY CASE environment WHEN 'live' THEN 0 ELSE 1 END, updated_at DESC
+        "#
+    ))
+    .bind(zainbox_code)
+    .fetch_all(pool)
     .await
 }
 

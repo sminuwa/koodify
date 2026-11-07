@@ -27,8 +27,9 @@ pub struct Config {
     pub va_bank_candidates: Vec<String>,
     /// How long the preferred DVA bank stays sticky (`VA_BANK_STICKY_SECS`, default 600).
     pub va_bank_sticky_secs: u64,
-    /// HMAC secret for outbound merchant webhooks (`MERCHANT_WEBHOOK_SECRET`).
-    /// When unset, `GATEWAY_API_KEY` is used so merchants can verify with the same secret.
+    /// Legacy fallback for outbound merchant webhook HMAC (`MERCHANT_WEBHOOK_SECRET`).
+    /// Prefer each merchant's `sk_…` (wrapped on the credential). When unset and no
+    /// wrapped secret exists, falls back to `GATEWAY_API_KEY`.
     pub merchant_webhook_secret: Option<String>,
     /// Background pending-checkout reconciler (`RECONCILE_ENABLED`, default true).
     pub reconcile_enabled: bool,

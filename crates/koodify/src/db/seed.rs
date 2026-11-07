@@ -37,7 +37,7 @@ fn default_active() -> bool {
 ///
 /// New merchants (register → KYC approve) are provisioned by
 /// `services::merchant_provision` instead of this seed path.
-pub async fn run(pool: &PgPool) -> Result<()> {
+pub async fn run(pool: &PgPool, gateway_api_key: &str) -> Result<()> {
     let api_key = std::env::var("ZAINPAY_API_KEY")
         .context("ZAINPAY_API_KEY is required to seed from live zainboxes")?;
     let base_url = std::env::var("ZAINPAY_BASE_URL")
@@ -150,6 +150,7 @@ pub async fn run(pool: &PgPool) -> Result<()> {
             customer.id,
             &zb.zainbox_code,
             &public_key,
+            gateway_api_key,
         )
         .await
         .with_context(|| {

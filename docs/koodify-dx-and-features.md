@@ -53,7 +53,7 @@ The ten items below come from the *Zainpay Developer Experience — Visual Issue
 
 - Header: `X-Koodify-Signature`
 - Algorithm: HMAC-SHA256 hex over the **raw body**
-- Secret: `MERCHANT_WEBHOOK_SECRET`, else `GATEWAY_API_KEY`
+- Secret: merchant `sk_…` (same as `X-Api-Key`); legacy fallback `MERCHANT_WEBHOOK_SECRET` / `GATEWAY_API_KEY`
 
 **Example:**
 

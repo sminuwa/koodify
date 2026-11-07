@@ -355,7 +355,7 @@ npm run build
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-mono text-xs">X-Koodify-Signature</td>
-                  <td class="px-4 py-3">Hex HMAC-SHA256 of the <em>raw</em> body bytes (not <code class="font-mono text-xs">JSON.stringify</code> of a parsed object). Secret: <code class="font-mono text-xs">MERCHANT_WEBHOOK_SECRET</code>, else <code class="font-mono text-xs">GATEWAY_API_KEY</code>.</td>
+                  <td class="px-4 py-3">Hex HMAC-SHA256 of the <em>raw</em> body bytes (not <code class="font-mono text-xs">JSON.stringify</code> of a parsed object). Secret: merchant <code class="font-mono text-xs">sk_…</code> (same as <code class="font-mono text-xs">X-Api-Key</code>).</td>
                 </tr>
               </tbody>
             </table>

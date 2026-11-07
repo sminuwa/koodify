@@ -303,7 +303,7 @@ const data = await response.json();
 
     <section id="virtual-accounts">
       <h3>Virtual accounts</h3>
-      <p class="body">Create static virtual accounts with <code>POST /api/v1/va/create</code> and one-time / dynamic accounts with <code>POST /api/v1/dva/create</code>. Inline checkout also creates a temporary account for the payer. Persist the account number and your own customer reference. Optional <code>metadata</code> is stored by Koodify and returned to you—it is not required for the payment rail. Check balances and history with <code>/api/v1/va/…</code> helpers such as <code>GET /api/v1/va/{accountNumber}</code>.</p>
+      <p class="body">Create static virtual accounts with <code>POST /api/v1/va/create</code> using your merchant <code>sk_…</code> (zainbox is implied by the key). Omit <code>bankType</code> so Adaptive Bank/DVA Routing can choose the rail. One-time accounts use <code>POST /api/v1/dva/create</code>; inline checkout also issues a temporary VA. Persist the account number and your own customer reference. Optional <code>metadata</code> is stored by Koodify and returned to you. Check balances and history with helpers such as <code>GET /api/v1/va/{accountNumber}</code>.</p>
       <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/va/create</span><small>Create static VA</small></div>
       <div class="snippet">
         <div class="snippet-head">
@@ -314,7 +314,6 @@ const data = await response.json();
   -H <span class="str">"Content-Type: application/json"</span> \
   -H <span class="str">"X-Api-Key: $KOODIFY_SECRET_KEY"</span> \
   -d <span class="str">'{
-  "bankType": "gtBank",
   "title": "Ms",
   "firstName": "Ada",
   "surname": "Lovelace",
@@ -325,7 +324,6 @@ const data = await response.json();
   "gender": "F",
   "address": "12 Computing Lane, Lagos",
   "state": "Lagos",
-  "zainboxCode": "main_box",
   "metadata": { "customerId": "cus_demo_001" }
 }'</span></pre>
       </div>
@@ -518,7 +516,7 @@ const data = await response.json();
           <img src="assets/art/art-payment-success.jpg" width="720" height="720" alt="" loading="lazy" decoding="async">
         </div>
       </div>
-      <p class="body">On payment success, Koodify POSTs a signed JSON event to the <code>callBackUrl</code> you set at checkout—even if the browser tab closed. Verify <code>X-Koodify-Signature</code> (hex HMAC-SHA256 of the raw body) using your webhook signing secret, respond with HTTP 2xx quickly, and process the event asynchronously. Duplicate deliveries are safe to ignore when you key on <code>reference</code>.</p>
+      <p class="body">On payment success, Koodify POSTs a signed JSON event to the <code>callBackUrl</code> you set at checkout—even if the browser tab closed. Verify <code>X-Koodify-Signature</code> (hex HMAC-SHA256 of the raw body) using your merchant secret key <code>sk_…</code>—the same key you send as <code>X-Api-Key</code>. Respond with HTTP 2xx quickly, and process asynchronously. Duplicate deliveries are safe to ignore when you key on <code>reference</code>.</p>
       <div class="endpoint"><span class="method">POST</span><span class="path">{your callBackUrl}</span><small>Merchant endpoint</small></div>
       <div class="snippet">
         <div class="snippet-head">
@@ -564,7 +562,7 @@ X-Koodify-Signature: &lt;hex hmac-sha256 of raw body&gt;</pre>
           <span>VERIFY · SIGNATURE</span>
           <button class="copy" type="button">Copy</button>
         </div>
-        <pre><span class="cm">// expected = HMAC_SHA256_hex(your_webhook_secret, raw_body)</span>
+        <pre><span class="cm">// expected = HMAC_SHA256_hex(sk_live_…, raw_body)  // same secret as X-Api-Key</span>
 <span class="cm">// compare expected to header X-Koodify-Signature (constant-time)</span>
 <span class="cm">// return 200 OK, then mark the order paid using event.reference</span></pre>
       </div>
@@ -1772,7 +1770,7 @@ let data: serde_json::Value = response.json().await?;</pre>
 
     <section id="security">
       <h3>Security best practices</h3>
-      <p class="body">Keep <code>sk_…</code> on the server only; publish only <code>pk_…</code> in the browser. Verify <code>X-Koodify-Signature</code> on the <em>raw</em> webhook body. Never log API keys, BVN, or other sensitive customer data. Use an HTTPS <code>callBackUrl</code> that accepts POST.</p>
+      <p class="body">Keep <code>sk_…</code> on the server only; publish only <code>pk_…</code> in the browser. Merchants need just those two keys: use <code>sk_…</code> for API calls and to verify <code>X-Koodify-Signature</code> on the <em>raw</em> webhook body. Never log API keys, BVN, or other sensitive customer data. Use an HTTPS <code>callBackUrl</code> that accepts POST.</p>
     </section>
 
 

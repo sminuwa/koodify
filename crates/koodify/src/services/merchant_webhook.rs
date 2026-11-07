@@ -74,6 +74,60 @@ fn callback_from_request(req: &Value) -> Option<String> {
     .and_then(|s| normalize_callback_url(&s))
 }
 
+/// Signing key for outbound merchant webhooks = that merchant's `sk_…`.
+///
+/// Prefers an active live credential for the zainbox, then test. Falls back to
+/// platform `MERCHANT_WEBHOOK_SECRET` / gateway key only when no wrapped secret
+/// exists yet (pre-rotation legacy rows).
+async fn resolve_merchant_signing_secret(
+    state: &AppState,
+    zainbox_code: Option<&str>,
+) -> Option<String> {
+    if let Some(code) = zainbox_code.map(str::trim).filter(|s| !s.is_empty()) {
+        match db::credentials::list_active_for_zainbox(&state.pool, code).await {
+            Ok(rows) => {
+                for row in rows {
+                    if let Some(wrapped) = row
+                        .secret_key_wrapped
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                    {
+                        match crate::services::secret_wrap::unwrap_secret(
+                            &state.config.gateway_api_key,
+                            wrapped,
+                        ) {
+                            Ok(sk) => return Some(sk),
+                            Err(err) => {
+                                warn!(
+                                    error = %err,
+                                    zainbox_code = %code,
+                                    credential_id = %row.id,
+                                    "failed to unwrap merchant secret for webhook signing"
+                                );
+                            }
+                        }
+                    }
+                }
+                warn!(
+                    zainbox_code = %code,
+                    "no wrapped merchant secret for webhook signing — rotate sk_… or re-seed"
+                );
+            }
+            Err(err) => {
+                warn!(error = %err, zainbox_code = %code, "credential lookup failed for webhook signing");
+            }
+        }
+    }
+
+    let fallback = state.config.merchant_webhook_signing_key();
+    if fallback.is_empty() {
+        None
+    } else {
+        Some(fallback.to_string())
+    }
+}
+
 async fn resolve_callback_url(
     state: &AppState,
     txn_ref: &str,
@@ -297,7 +351,19 @@ pub async fn maybe_deliver_on_success(
         }
     };
 
-    let secret = state.config.merchant_webhook_signing_key();
+    let Some(secret) = resolve_merchant_signing_secret(state, zainbox_code).await else {
+        activity::record(
+            state,
+            "merchant.webhook.failed",
+            src,
+            Some(txn_ref),
+            zainbox_code,
+            format!("No merchant secret available to sign webhook for {txn_ref}"),
+            json!({ "url": url, "reason": "missing_merchant_secret" }),
+        )
+        .await;
+        return;
+    };
     let signature = sign_webhook_body(secret.as_bytes(), &body);
 
     activity::record(

@@ -7,9 +7,11 @@ async fn main() -> Result<()> {
 
     let url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/koodify".into());
+    let gateway_api_key = std::env::var("GATEWAY_API_KEY")
+        .map_err(|_| anyhow::anyhow!("GATEWAY_API_KEY is required to wrap merchant secrets"))?;
     let pool = db::connect(&url).await?;
     db::migrate(&pool).await?;
-    db::seed::run(&pool).await?;
+    db::seed::run(&pool, &gateway_api_key).await?;
     println!("seed complete for {url}");
     Ok(())
 }

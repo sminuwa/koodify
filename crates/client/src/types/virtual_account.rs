@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct CreateVirtualAccountRequest {
     pub address: String,
+    /// Optional for merchants — Koodify fills via Adaptive Bank/DVA Routing when empty.
+    #[serde(default)]
     pub bank_type: String,
     pub bvn: String,
     pub dob: String,
@@ -15,6 +17,8 @@ pub struct CreateVirtualAccountRequest {
     pub state: String,
     pub surname: String,
     pub title: String,
+    /// Optional for merchants — taken from the `sk_…` credential scope when empty.
+    #[serde(default)]
     pub zainbox_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub middle_name: Option<String>,

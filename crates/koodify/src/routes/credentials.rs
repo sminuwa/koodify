@@ -205,7 +205,8 @@ pub async fn upsert(
     .await
     .map_err(map_db)?;
 
-    let (row, secret) = merchant_provision::ensure_secret_key(&state.pool, &row)
+    let (row, secret) =
+        merchant_provision::ensure_secret_key(&state.pool, &row, &state.config.gateway_api_key)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -353,9 +354,17 @@ pub async fn rotate_secret(
     let plaintext = mint_secret_key(&row.environment);
     let hash = hash_secret_key(&plaintext);
     let prefix = secret_key_prefix(&plaintext);
-    let row = db::credentials::set_secret_hash(&state.pool, row.id, &hash, &prefix)
-        .await
-        .map_err(map_db)?;
+    let wrapped = crate::services::secret_wrap::wrap_secret(&state.config.gateway_api_key, &plaintext)
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to wrap secret: {e}"),
+            )
+        })?;
+    let row =
+        db::credentials::set_secret_hash(&state.pool, row.id, &hash, &prefix, &wrapped)
+            .await
+            .map_err(map_db)?;
 
     Ok(Json(CredentialView::from_row_with_secret(
         row,
