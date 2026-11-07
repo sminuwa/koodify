@@ -41,11 +41,14 @@ class DynamicVirtualAccountController extends Controller
             : (string) (config('koodify.callback_url') ?: url('/webhooks/koodify'));
 
         // Merchants omit zainboxCode / bankType / accountName — Koodify fills them.
+        // Duration is sent as an integer (Zainpay DVA docs); callBackUrl may be omitted
+        // when the gateway has PUBLIC_BASE_URL (inbound webhook). Keep merchant URL in payload
+        // so Koodify can forward deposit events outbound.
         $payload = [
             'email' => $validated['email'],
             'amount' => (string) $validated['amount'],
             'txnRef' => $txnRef,
-            'duration' => (string) $validated['duration'],
+            'duration' => (int) $validated['duration'],
             'callBackUrl' => $callBackUrl,
             'metadata' => [
                 'source' => 'laravel-checkout-sample',

@@ -1,5 +1,5 @@
 use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 /// Accept JSON string or number into a `String` (Zainpay samples mix both).
@@ -15,6 +15,17 @@ where
             "expected string or number, got {other}"
         ))),
     }
+}
+
+/// Serialize a numeric string as a JSON number (Zainpay DVA docs use `duration: 900`).
+pub fn serialize_string_as_u64<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let n: u64 = value.trim().parse().map_err(|_| {
+        serde::ser::Error::custom(format!("expected unsigned integer string, got {value:?}"))
+    })?;
+    serializer.serialize_u64(n)
 }
 
 /// Request body for `POST /virtual-account/create/request`.
@@ -88,26 +99,37 @@ pub struct VirtualAccountBalance {
 }
 
 /// Request body for `POST /virtual-account/dynamic/create/request`.
+///
+/// Per Zainpay docs: amount is a kobo **string**; duration is a **number** (300–259200);
+/// `accountName` is fixed as `"Zainpay Checkout"`. BVN / DOB / gender are **not** used.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateDynamicVirtualAccountRequest {
     /// Optional for merchants — Koodify Adaptive Bank/DVA Routing when empty.
     #[serde(default)]
     pub bank_type: String,
+    #[serde(default)]
     pub email: String,
-    /// Amount in kobo (string or number accepted from JSON).
-    #[serde(deserialize_with = "deserialize_stringish")]
+    /// Amount in kobo (string or number accepted from JSON; always sent as string).
+    #[serde(default, deserialize_with = "deserialize_stringish")]
     pub amount: String,
     /// Optional for merchants — taken from the `sk_…` credential when empty.
     #[serde(default)]
     pub zainbox_code: String,
+    #[serde(default)]
     pub txn_ref: String,
-    /// Validity seconds (string or number). Zainpay: 300–259200.
-    #[serde(deserialize_with = "deserialize_stringish")]
+    /// Validity seconds (string or number on input). Serialized as a JSON number.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_stringish",
+        serialize_with = "serialize_string_as_u64"
+    )]
     pub duration: String,
-    /// Optional — defaults to Zainpay’s fixed `"Zainpay Checkout"` when empty.
+    /// Fixed by Zainpay as `"Zainpay Checkout"` — Koodify overwrites empties/custom values.
     #[serde(default)]
     pub account_name: String,
+    /// Optional when Koodify has `PUBLIC_BASE_URL` (filled with inbound webhook).
+    #[serde(default)]
     pub call_back_url: String,
 }
 

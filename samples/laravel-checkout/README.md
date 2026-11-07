@@ -68,5 +68,5 @@ tail -f storage/logs/laravel.log
 
 - Never put `sk_…` in the browser.
 - Static VA omits BVN / DOB / gender — Koodify fills `VA_DEFAULT_*` before calling Zainpay.
-- Dynamic VA needs amount (kobo), duration (300–259200s), email, and a public `callBackUrl`.
+- Dynamic VA needs amount (kobo string), email, and txnRef. Duration is an integer seconds value (300–259200; default 900). `accountName` is fixed by Zainpay as `Zainpay Checkout`. BVN/DOB/gender are not used on DVA.
 - Docs: https://developer.koodify.ng

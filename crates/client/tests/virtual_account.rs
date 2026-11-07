@@ -1,7 +1,9 @@
 use serde_json::json;
 use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use client::{CreateVirtualAccountRequest, ZainpayClient};
+use client::{
+    CreateDynamicVirtualAccountRequest, CreateVirtualAccountRequest, ZainpayClient,
+};
 
 fn sample_request() -> CreateVirtualAccountRequest {
     CreateVirtualAccountRequest {
@@ -132,6 +134,76 @@ async fn create_virtual_account_error_with_empty_data_object() {
     assert!(!response.is_success());
     assert_eq!(response.code, "99");
     assert_eq!(response.description, "Unable to create virtual account");
+}
+
+#[tokio::test]
+async fn create_dynamic_virtual_account_sends_numeric_duration() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/virtual-account/dynamic/create/request"))
+        .and(header("Authorization", "Bearer test-key"))
+        .and(body_partial_json(json!({
+            "bankType": "gtBank",
+            "email": "ada@example.com",
+            "amount": "50000",
+            "zainboxCode": "STORE_Xy9Kp2mNqRtVwZ1sL",
+            "txnRef": "ORDER_12345_DVA",
+            "duration": 900,
+            "accountName": "Zainpay Checkout",
+            "callBackUrl": "https://example.com/webhook/zainpay"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "code": "00",
+            "description": "successful",
+            "status": "200 OK",
+            "data": {
+                "accountNumber": "7760000001",
+                "accountName": "Zainpay Checkout",
+                "txnRef": "ORDER_12345_DVA"
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = ZainpayClient::builder()
+        .base_url(server.uri())
+        .api_key("test-key")
+        .build()
+        .unwrap();
+
+    let req = CreateDynamicVirtualAccountRequest {
+        bank_type: "gtBank".into(),
+        email: "ada@example.com".into(),
+        amount: "50000".into(),
+        zainbox_code: "STORE_Xy9Kp2mNqRtVwZ1sL".into(),
+        txn_ref: "ORDER_12345_DVA".into(),
+        duration: "900".into(),
+        account_name: "Zainpay Checkout".into(),
+        call_back_url: "https://example.com/webhook/zainpay".into(),
+    };
+
+    let response = client.virtual_accounts().create_dynamic(&req).await.unwrap();
+    assert!(response.is_success());
+}
+
+#[test]
+fn dynamic_request_serializes_duration_as_number() {
+    let req = CreateDynamicVirtualAccountRequest {
+        bank_type: "gtBank".into(),
+        email: "ada@example.com".into(),
+        amount: "50000".into(),
+        zainbox_code: "box".into(),
+        txn_ref: "ref".into(),
+        duration: "900".into(),
+        account_name: "Zainpay Checkout".into(),
+        call_back_url: "https://example.com/hook".into(),
+    };
+    let value = serde_json::to_value(&req).unwrap();
+    assert!(value["duration"].is_number());
+    assert_eq!(value["duration"], 900);
+    assert!(value["amount"].is_string());
+    assert_eq!(value["amount"], "50000");
 }
 
 #[tokio::test]

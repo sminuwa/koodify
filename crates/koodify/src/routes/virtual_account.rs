@@ -2,7 +2,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tracing::warn;
 use client::{
     CreateDynamicVirtualAccountRequest, FundVirtualAccountRequest, UpdateVirtualAccountBvnRequest,
@@ -117,6 +117,57 @@ fn apply_va_identity_defaults(config: &crate::config::Config, request: &mut Crea
     }
 }
 
+/// Zainpay DVA docs: fixed account name, duration 300–259200 (JSON number), public callBackUrl.
+fn apply_dva_defaults(
+    state: &AppState,
+    request: &mut CreateDynamicVirtualAccountRequest,
+    metadata: &mut Value,
+) -> Result<(), (StatusCode, String)> {
+    // Docs: "Account Name is fixed as Zainpay Checkout".
+    request.account_name = "Zainpay Checkout".into();
+
+    if request.duration.trim().is_empty() {
+        request.duration = "900".into();
+    }
+    let duration_secs: u64 = request.duration.trim().parse().map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            "duration must be an integer number of seconds".into(),
+        )
+    })?;
+    if !(300..=259_200).contains(&duration_secs) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "duration must be between 300 and 259200 seconds".into(),
+        ));
+    }
+    request.duration = duration_secs.to_string();
+
+    // Keep merchant callback in metadata for outbound webhooks, then point Zainpay
+    // at Koodify inbound when configured (avoids localhost / unreachable URLs → 502).
+    let merchant_callback = request.call_back_url.trim().to_string();
+    if !merchant_callback.is_empty()
+        && !state
+            .config
+            .is_inbound_zainpay_webhook_url(&merchant_callback)
+    {
+        if let Some(obj) = metadata.as_object_mut() {
+            obj.entry("callBackUrl")
+                .or_insert_with(|| json!(merchant_callback));
+        }
+    }
+    if let Some(inbound) = state.config.inbound_zainpay_webhook_url() {
+        request.call_back_url = inbound;
+    } else if request.call_back_url.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "callBackUrl is required (or set PUBLIC_BASE_URL so Koodify can fill the inbound webhook)".into(),
+        ));
+    }
+
+    Ok(())
+}
+
 fn resolve_zainbox_for_create(
     auth: &ApiKeyAuth,
     request: &mut CreateVirtualAccountRequest,
@@ -209,9 +260,9 @@ async fn create_with_adaptive_bank(
 
 /// `POST /api/v1/dva/create` — temporary/dynamic VA for a one-time amount.
 ///
-/// Merchants authenticate with `sk_…`. They may omit `zainboxCode` and `bankType`
-/// (filled like static VA create). `accountName` defaults to Zainpay’s fixed
-/// `"Zainpay Checkout"` when empty.
+/// Merchants authenticate with `sk_…`. They may omit `zainboxCode`, `bankType`,
+/// `accountName`, `duration`, and `callBackUrl`. Zainpay does **not** take BVN /
+/// DOB / gender on this endpoint (unlike permanent VA create).
 pub async fn create_dynamic(
     auth: ApiKeyAuth,
     State(state): State<AppState>,
@@ -230,24 +281,15 @@ pub async fn create_dynamic(
         })?;
 
     resolve_zainbox_code_for_auth(&auth, &mut request.zainbox_code)?;
+    apply_dva_defaults(&state, &mut request, &mut metadata)?;
 
-    if request.account_name.trim().is_empty() {
-        request.account_name = "Zainpay Checkout".into();
-    }
-    if request.call_back_url.trim().is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "callBackUrl is required for dynamic virtual accounts".into(),
-        ));
-    }
     if request.email.trim().is_empty()
         || request.amount.trim().is_empty()
         || request.txn_ref.trim().is_empty()
-        || request.duration.trim().is_empty()
     {
         return Err((
             StatusCode::BAD_REQUEST,
-            "email, amount, txnRef, and duration are required".into(),
+            "email, amount, and txnRef are required".into(),
         ));
     }
 
