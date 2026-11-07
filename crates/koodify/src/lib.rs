@@ -70,6 +70,9 @@ pub async fn build_app(config: Config) -> Result<(Router, AppState)> {
 
     let app = routes::router()
         .layer(axum::middleware::from_fn(
+            services::merchant_response::shape_json_middleware,
+        ))
+        .layer(axum::middleware::from_fn(
             services::deprecation::deprecation_headers,
         ))
         .layer(cors_layer())
@@ -97,6 +100,9 @@ pub fn build_app_with(
     };
 
     routes::router()
+        .layer(axum::middleware::from_fn(
+            services::merchant_response::shape_json_middleware,
+        ))
         .layer(axum::middleware::from_fn(
             services::deprecation::deprecation_headers,
         ))

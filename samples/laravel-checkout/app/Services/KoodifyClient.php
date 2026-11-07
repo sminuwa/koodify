@@ -28,7 +28,7 @@ class KoodifyClient
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array{status: int, body: array<string, mixed>}
+     * @return array<string, mixed> Koodify JSON envelope (flattened — no nested body/data wrapper)
      */
     public function createVirtualAccount(array $payload): array
     {
@@ -37,7 +37,7 @@ class KoodifyClient
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array{status: int, body: array<string, mixed>}
+     * @return array<string, mixed> Koodify JSON envelope (flattened — no nested body/data wrapper)
      */
     public function createDynamicVirtualAccount(array $payload): array
     {
@@ -46,7 +46,7 @@ class KoodifyClient
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array{status: int, body: array<string, mixed>}
+     * @return array<string, mixed>
      */
     private function postJson(string $path, array $payload): array
     {
@@ -67,14 +67,16 @@ class KoodifyClient
             }
         }
 
-        /** @var array<string, mixed> $body */
-        $body = $response->json() ?? [
-            'description' => $response->body() ?: 'empty response',
-        ];
+        /** @var array<string, mixed>|null $json */
+        $json = $response->json();
+        if (is_array($json)) {
+            return $json;
+        }
 
         return [
-            'status' => $response->status(),
-            'body' => $body,
+            'code' => (string) $response->status(),
+            'status' => (string) $response->status(),
+            'description' => $response->body() ?: 'empty response',
         ];
     }
 }

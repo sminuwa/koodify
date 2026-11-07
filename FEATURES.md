@@ -903,7 +903,7 @@ curl -X POST "https://api.koodify.ng/api/v1/zainboxes/sync-webhook-callbacks" \
 **Example:** Permanent VA for a landlord; later fetch by account number still shows `tenantId`.
 
 **Process flow:**
-1. Create VA through the gateway (with optional metadata). Merchants may omit `bankType`, `zainboxCode`, `bvn`, `dob`, and `gender` — Koodify fills bank routing, credential zainbox, and `VA_DEFAULT_*` identity defaults before calling Zainpay. Dynamic VA (`POST /api/v1/dva/create`) uses the same merchant `sk_…` auth and bank/zainbox fill; Zainpay does not take BVN/DOB/gender on DVA. Koodify forces `accountName` to `Zainpay Checkout`, serializes `duration` as a JSON number (default `900`), and fills `callBackUrl` from `PUBLIC_BASE_URL` inbound webhook when omitted.
+1. Create VA through the gateway (with optional metadata). Merchants may omit `bankType`, `zainboxCode`, `bvn`, `dob`, and `gender` — Koodify fills bank routing, credential zainbox, and `VA_DEFAULT_*` identity defaults before calling Zainpay. Dynamic VA (`POST /api/v1/dva/create`) uses the same merchant `sk_…` auth and bank/zainbox fill; Zainpay does not take BVN/DOB/gender on DVA. Koodify forces `accountName` to `Zainpay Checkout`, serializes `duration` as a JSON number (default `900`), and fills `callBackUrl` from `PUBLIC_BASE_URL` inbound webhook when omitted. JSON responses flatten object `data` onto the top level (no nested `body`/`data` dig) and redact `zainboxCode`; list endpoints keep array `data`.
 2. Upstream success → row saved locally.
 3. Later `GET /virtual-accounts/{accountNumber}` returns stored data + metadata.
 4. Balance/status can still be checked via mirrored Zainpay routes when needed.

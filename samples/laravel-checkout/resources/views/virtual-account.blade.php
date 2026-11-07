@@ -70,8 +70,7 @@
 
         @if ($result)
             @php
-                $ok = ($result['status'] ?? 0) >= 200 && ($result['status'] ?? 0) < 300
-                    && (($result['body']['code'] ?? null) === '00' || ($result['body']['status'] ?? '') === '200 OK');
+                $ok = ($result['code'] ?? null) === '00' || ($result['status'] ?? '') === '200 OK';
             @endphp
             <div class="status {{ $ok ? 'ok' : 'err' }}" aria-live="polite">{{ json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</div>
         @else

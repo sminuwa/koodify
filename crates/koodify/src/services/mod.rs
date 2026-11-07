@@ -5,6 +5,7 @@ pub mod deprecation;
 pub mod idempotency;
 pub mod mail;
 pub mod merchant_provision;
+pub mod merchant_response;
 pub mod merchant_webhook;
 pub mod payer;
 pub mod payment_split;

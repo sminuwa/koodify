@@ -143,7 +143,9 @@ where
         }
     }
 
-    Ok(crate::services::api_error::enrich(response_json))
+    let mut response_json = crate::services::api_error::enrich(response_json);
+    crate::services::merchant_response::shape_envelope(&mut response_json);
+    Ok(response_json)
 }
 
 /// Same as [`mutate_with_metadata`] but accepts already-split JSON body deserialized into `Req`.
@@ -211,7 +213,9 @@ where
         }
     }
 
-    Ok(crate::services::api_error::enrich(response_json))
+    let mut response_json = crate::services::api_error::enrich(response_json);
+    crate::services::merchant_response::shape_envelope(&mut response_json);
+    Ok(response_json)
 }
 
 #[derive(Debug, thiserror::Error)]

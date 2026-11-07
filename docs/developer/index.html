@@ -333,13 +333,11 @@ const data = await response.json();
   <span class="key">"code"</span>: <span class="str">"00"</span>,
   <span class="key">"status"</span>: <span class="str">"200 OK"</span>,
   <span class="key">"description"</span>: <span class="str">"successful"</span>,
-  <span class="key">"data"</span>: {
-    <span class="key">"accountNumber"</span>: <span class="str">"5006079921"</span>,
-    <span class="key">"accountName"</span>: <span class="str">"Ada Lovelace"</span>,
-    <span class="key">"bankName"</span>: <span class="str">"gtBank"</span>,
-    <span class="key">"email"</span>: <span class="str">"ada@example.com"</span>,
-    <span class="key">"metadata"</span>: { <span class="key">"customerId"</span>: <span class="str">"cus_demo_001"</span> }
-  }
+  <span class="key">"accountNumber"</span>: <span class="str">"5006079921"</span>,
+  <span class="key">"accountName"</span>: <span class="str">"Ada Lovelace"</span>,
+  <span class="key">"bankName"</span>: <span class="str">"gtBank"</span>,
+  <span class="key">"email"</span>: <span class="str">"ada@example.com"</span>,
+  <span class="key">"metadata"</span>: { <span class="key">"customerId"</span>: <span class="str">"cus_demo_001"</span> }
 }</pre>
       </div>
       <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/dva/create</span><small>Create dynamic VA</small></div>
@@ -368,10 +366,12 @@ const data = await response.json();
   <span class="key">"code"</span>: <span class="str">"00"</span>,
   <span class="key">"status"</span>: <span class="str">"200 OK"</span>,
   <span class="key">"description"</span>: <span class="str">"successful"</span>,
-  <span class="key">"data"</span>: {
-    <span class="key">"accountNumber"</span>: <span class="str">"9123456789"</span>,
-    <span class="key">"txnRef"</span>: <span class="str">"ORDER_889"</span>
-  }
+  <span class="key">"accountNumber"</span>: <span class="str">"9123456789"</span>,
+  <span class="key">"accountName"</span>: <span class="str">"Zainpay Checkout"</span>,
+  <span class="key">"amount"</span>: <span class="str">"50000"</span>,
+  <span class="key">"paymentStatus"</span>: <span class="str">"pending"</span>,
+  <span class="key">"timeToLive"</span>: <span class="num">900</span>,
+  <span class="key">"txnRef"</span>: <span class="str">"ORDER_889"</span>
 }</pre>
       </div>
     </section>

@@ -101,6 +101,7 @@ pub async fn create(
         response_json = merge_metadata_into_response(response_json, metadata);
     }
 
+    crate::services::merchant_response::shape_envelope(&mut response_json);
     Ok(Json(response_json))
 }
 
@@ -341,7 +342,10 @@ pub async fn create_dynamic(
         response_json = merge_metadata_into_response(response_json, metadata);
     }
 
-    Ok(Json(crate::services::api_error::enrich(response_json)))
+    // Middleware also flattens; shape here so unit/proxy paths stay uniform without HTTP.
+    let mut response_json = crate::services::api_error::enrich(response_json);
+    crate::services::merchant_response::shape_envelope(&mut response_json);
+    Ok(Json(response_json))
 }
 
 async fn create_dynamic_with_adaptive_bank(
@@ -573,3 +577,4 @@ pub async fn fund_dynamic(
     .map(Json)
     .map_err(map_proxy_error)
 }
+
