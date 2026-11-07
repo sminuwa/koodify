@@ -192,7 +192,8 @@
             </div>
             <nav class="nav" aria-label="Sample pages">
                 <a href="{{ route('checkout') }}" @class(['on' => request()->routeIs('checkout')])>Inline checkout</a>
-                <a href="{{ route('virtual-accounts.create') }}" @class(['on' => request()->routeIs('virtual-accounts.*')])>Virtual account</a>
+                <a href="{{ route('virtual-accounts.create') }}" @class(['on' => request()->routeIs('virtual-accounts.*')])>Static VA</a>
+                <a href="{{ route('dynamic-virtual-accounts.create') }}" @class(['on' => request()->routeIs('dynamic-virtual-accounts.*')])>Dynamic VA</a>
             </nav>
         </div>
 

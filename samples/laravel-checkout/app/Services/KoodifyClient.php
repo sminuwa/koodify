@@ -39,6 +39,15 @@ class KoodifyClient
      * @param  array<string, mixed>  $payload
      * @return array{status: int, body: array<string, mixed>}
      */
+    public function createDynamicVirtualAccount(array $payload): array
+    {
+        return $this->postJson('/api/v1/dva/create', $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{status: int, body: array<string, mixed>}
+     */
     private function postJson(string $path, array $payload): array
     {
         try {

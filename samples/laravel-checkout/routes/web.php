@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\DynamicVirtualAccountController;
 use App\Http\Controllers\KoodifyWebhookController;
 use App\Http\Controllers\VirtualAccountController;
 use Illuminate\Support\Facades\Route;
@@ -11,6 +12,11 @@ Route::get('/virtual-accounts/create', [VirtualAccountController::class, 'create
     ->name('virtual-accounts.create');
 Route::post('/virtual-accounts', [VirtualAccountController::class, 'store'])
     ->name('virtual-accounts.store');
+
+Route::get('/dynamic-virtual-accounts/create', [DynamicVirtualAccountController::class, 'createForm'])
+    ->name('dynamic-virtual-accounts.create');
+Route::post('/dynamic-virtual-accounts', [DynamicVirtualAccountController::class, 'store'])
+    ->name('dynamic-virtual-accounts.store');
 
 Route::post('/webhooks/koodify', KoodifyWebhookController::class)
     ->name('webhooks.koodify');

@@ -1,4 +1,21 @@
-use serde::{Deserialize, Serialize};
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
+
+/// Accept JSON string or number into a `String` (Zainpay samples mix both).
+pub fn deserialize_stringish<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    match Value::deserialize(deserializer)? {
+        Value::String(s) => Ok(s),
+        Value::Number(n) => Ok(n.to_string()),
+        Value::Null => Ok(String::new()),
+        other => Err(D::Error::custom(format!(
+            "expected string or number, got {other}"
+        ))),
+    }
+}
 
 /// Request body for `POST /virtual-account/create/request`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -74,13 +91,22 @@ pub struct VirtualAccountBalance {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateDynamicVirtualAccountRequest {
+    /// Optional for merchants — Koodify Adaptive Bank/DVA Routing when empty.
+    #[serde(default)]
     pub bank_type: String,
     pub email: String,
-    /// Amount in kobo.
+    /// Amount in kobo (string or number accepted from JSON).
+    #[serde(deserialize_with = "deserialize_stringish")]
     pub amount: String,
+    /// Optional for merchants — taken from the `sk_…` credential when empty.
+    #[serde(default)]
     pub zainbox_code: String,
     pub txn_ref: String,
+    /// Validity seconds (string or number). Zainpay: 300–259200.
+    #[serde(deserialize_with = "deserialize_stringish")]
     pub duration: String,
+    /// Optional — defaults to Zainpay’s fixed `"Zainpay Checkout"` when empty.
+    #[serde(default)]
     pub account_name: String,
     pub call_back_url: String,
 }

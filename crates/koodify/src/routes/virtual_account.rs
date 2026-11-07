@@ -121,14 +121,21 @@ fn resolve_zainbox_for_create(
     auth: &ApiKeyAuth,
     request: &mut CreateVirtualAccountRequest,
 ) -> Result<(), (StatusCode, String)> {
-    let provided = request.zainbox_code.trim();
+    resolve_zainbox_code_for_auth(auth, &mut request.zainbox_code)
+}
+
+fn resolve_zainbox_code_for_auth(
+    auth: &ApiKeyAuth,
+    zainbox_code: &mut String,
+) -> Result<(), (StatusCode, String)> {
+    let provided = zainbox_code.trim();
     if let Some(merchant) = auth.merchant() {
         if provided.is_empty() {
-            request.zainbox_code = merchant.zainbox_code.clone();
+            *zainbox_code = merchant.zainbox_code.clone();
             return Ok(());
         }
         auth.ensure_zainbox(provided)?;
-        request.zainbox_code = provided.to_string();
+        *zainbox_code = provided.to_string();
         return Ok(());
     }
 
@@ -139,7 +146,7 @@ fn resolve_zainbox_for_create(
             "zainboxCode is required when using the platform admin API key".into(),
         ));
     }
-    request.zainbox_code = provided.to_string();
+    *zainbox_code = provided.to_string();
     Ok(())
 }
 
@@ -200,21 +207,156 @@ async fn create_with_adaptive_bank(
     })))
 }
 
+/// `POST /api/v1/dva/create` — temporary/dynamic VA for a one-time amount.
+///
+/// Merchants authenticate with `sk_…`. They may omit `zainboxCode` and `bankType`
+/// (filled like static VA create). `accountName` defaults to Zainpay’s fixed
+/// `"Zainpay Checkout"` when empty.
 pub async fn create_dynamic(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
-    let zainpay = state.zainpay.clone();
-    proxy::mutate_json_with_metadata::<CreateDynamicVirtualAccountRequest, _>(
-        &state,
-        "virtual_account.create_dynamic",
-        body,
-        |req| async move { zainpay.virtual_accounts().create_dynamic(&req).await },
-    )
-    .await
-    .map(Json)
-    .map_err(map_proxy_error)
+    let (mut zainpay_body, mut metadata) = crate::services::proxy::split_body(body);
+    crate::services::payer::peel_payer_fields(&mut zainpay_body, &mut metadata);
+    crate::services::payer::peel_custom_param(&mut zainpay_body, &mut metadata);
+
+    let mut request: CreateDynamicVirtualAccountRequest =
+        serde_json::from_value(zainpay_body).map_err(|err| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("invalid DVA create body: {err}"),
+            )
+        })?;
+
+    resolve_zainbox_code_for_auth(&auth, &mut request.zainbox_code)?;
+
+    if request.account_name.trim().is_empty() {
+        request.account_name = "Zainpay Checkout".into();
+    }
+    if request.call_back_url.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "callBackUrl is required for dynamic virtual accounts".into(),
+        ));
+    }
+    if request.email.trim().is_empty()
+        || request.amount.trim().is_empty()
+        || request.txn_ref.trim().is_empty()
+        || request.duration.trim().is_empty()
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "email, amount, txnRef, and duration are required".into(),
+        ));
+    }
+
+    let forced_bank = {
+        let t = request.bank_type.trim().trim_matches('"');
+        if t.is_empty() {
+            None
+        } else {
+            Some(t.to_string())
+        }
+    };
+
+    let response = if let Some(bank) = forced_bank {
+        request.bank_type = bank;
+        state
+            .zainpay
+            .virtual_accounts()
+            .create_dynamic(&request)
+            .await
+            .map_err(map_upstream)?
+    } else {
+        create_dynamic_with_adaptive_bank(&state, &request).await?
+    };
+
+    let request_json = serde_json::to_value(&request).unwrap_or(Value::Null);
+    let mut response_json = serde_json::to_value(&response).unwrap_or(Value::Null);
+
+    if response.is_success() {
+        let resource_key = response
+            .data
+            .as_ref()
+            .and_then(|d| d.get("accountNumber").or_else(|| d.get("txnRef")))
+            .and_then(|v| v.as_str())
+            .map(str::to_owned);
+        if let Err(err) = db::transactions::insert(
+            &state.pool,
+            "virtual_account.create_dynamic",
+            resource_key.as_deref(),
+            Some(request.zainbox_code.as_str()),
+            &metadata,
+            Some(&request_json),
+            &response_json,
+            &response.code,
+        )
+        .await
+        {
+            warn!(error = %err, "failed to persist DVA transaction");
+        }
+        response_json = merge_metadata_into_response(response_json, metadata);
+    }
+
+    Ok(Json(crate::services::api_error::enrich(response_json)))
+}
+
+async fn create_dynamic_with_adaptive_bank(
+    state: &AppState,
+    base: &CreateDynamicVirtualAccountRequest,
+) -> Result<client::ApiResponse<Value>, (StatusCode, String)> {
+    let order = state.bank_router.attempt_order();
+    let mut last_http_err: Option<client::ZainpayError> = None;
+    let mut last_app_fail: Option<client::ApiResponse<Value>> = None;
+
+    for bank in order {
+        let mut attempt = base.clone();
+        attempt.bank_type = bank.clone();
+        let started = std::time::Instant::now();
+        match state.zainpay.virtual_accounts().create_dynamic(&attempt).await {
+            Ok(resp) if resp.is_success() => {
+                state
+                    .bank_router
+                    .record_outcome(&bank, true, started.elapsed());
+                tracing::info!(%bank, "DVA issued via bank router");
+                return Ok(resp);
+            }
+            Ok(resp) => {
+                state
+                    .bank_router
+                    .record_outcome(&bank, false, started.elapsed());
+                warn!(
+                    bank = %bank,
+                    code = %resp.code,
+                    description = %resp.description,
+                    "DVA bank attempt failed at application layer — trying next"
+                );
+                last_app_fail = Some(resp);
+            }
+            Err(err) => {
+                state
+                    .bank_router
+                    .record_outcome(&bank, false, started.elapsed());
+                warn!(
+                    bank = %bank,
+                    error = %err,
+                    "DVA bank attempt failed at HTTP layer — trying next"
+                );
+                last_http_err = Some(err);
+            }
+        }
+    }
+
+    if let Some(body) = last_app_fail {
+        return Ok(body);
+    }
+    Err(map_upstream(last_http_err.unwrap_or_else(|| {
+        client::ZainpayError::UnexpectedStatus {
+            status: 502,
+            body: "no VA bank candidates available".into(),
+        }
+    })))
 }
 
 pub async fn balance(
