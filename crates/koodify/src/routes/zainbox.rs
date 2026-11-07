@@ -385,10 +385,11 @@ pub async fn card_transactions(
 }
 
 pub async fn subscribe(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
-    Json(body): Json<Value>,
+    Json(mut body): Json<Value>,
 ) -> JsonResult {
+    auth.scope_zainbox_body(&mut body)?;
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<ServiceSubscriptionRequest, _>(
         &state,
@@ -402,10 +403,11 @@ pub async fn subscribe(
 }
 
 pub async fn unsubscribe(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
-    Json(body): Json<Value>,
+    Json(mut body): Json<Value>,
 ) -> JsonResult {
+    auth.scope_zainbox_body(&mut body)?;
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<ServiceSubscriptionRequest, _>(
         &state,

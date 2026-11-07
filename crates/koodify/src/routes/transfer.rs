@@ -4,17 +4,18 @@ use axum::Json;
 use serde_json::Value;
 use client::FundsTransferRequest;
 
-use crate::auth::{AdminAuth, ApiKeyAuth};
+use crate::auth::ApiKeyAuth;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::{idempotency, payer, proxy};
 use crate::state::AppState;
 
 pub async fn funds_transfer(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(body): Json<Value>,
+    Json(mut body): Json<Value>,
 ) -> JsonResult {
+    auth.scope_zainbox_body(&mut body)?;
     let idem_key = idempotency::extract_key(&headers);
     let claim = if let Some(ref key) = idem_key {
         let hash = idempotency::transfer_request_hash(&body)

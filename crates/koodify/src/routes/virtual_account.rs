@@ -9,7 +9,7 @@ use client::{
     UpdateVirtualAccountStatusRequest,
 };
 
-use crate::auth::{AdminAuth, ApiKeyAuth};
+use crate::auth::ApiKeyAuth;
 use crate::db;
 use crate::metadata::CreateVirtualAccountInbound;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
@@ -359,11 +359,30 @@ async fn create_dynamic_with_adaptive_bank(
     })))
 }
 
+async fn ensure_account_owned(
+    auth: &ApiKeyAuth,
+    state: &AppState,
+    account_number: &str,
+) -> Result<(), (StatusCode, String)> {
+    if auth.is_admin() {
+        return Ok(());
+    }
+    match virtual_account::get_by_account_number(state, account_number).await {
+        Ok(Some(row)) => auth.ensure_zainbox(&row.zainbox_code),
+        Ok(None) => Err((
+            StatusCode::NOT_FOUND,
+            "virtual account not found (or not created via this gateway)".into(),
+        )),
+        Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string())),
+    }
+}
+
 pub async fn balance(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(account_number): Path<String>,
 ) -> JsonResult {
+    ensure_account_owned(&auth, &state, &account_number).await?;
     virtual_account::balance_with_metadata(&state, &account_number)
         .await
         .map(|r| Json(serde_json::to_value(r).unwrap_or(Value::Null)))
@@ -373,22 +392,26 @@ pub async fn balance(
 }
 
 pub async fn get_one(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(account_number): Path<String>,
 ) -> Result<Json<StoredVirtualAccount>, (StatusCode, String)> {
     match virtual_account::get_by_account_number(&state, &account_number).await {
-        Ok(Some(row)) => Ok(Json(row)),
+        Ok(Some(row)) => {
+            auth.ensure_zainbox(&row.zainbox_code)?;
+            Ok(Json(row))
+        }
         Ok(None) => Err((StatusCode::NOT_FOUND, "virtual account not found".into())),
         Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string())),
     }
 }
 
 pub async fn update_status(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
-    Json(body): Json<Value>,
+    Json(mut body): Json<Value>,
 ) -> JsonResult {
+    auth.scope_zainbox_body(&mut body)?;
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<UpdateVirtualAccountStatusRequest, _>(
         &state,
@@ -402,10 +425,11 @@ pub async fn update_status(
 }
 
 pub async fn update_bvn(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
-    Json(body): Json<Value>,
+    Json(mut body): Json<Value>,
 ) -> JsonResult {
+    auth.scope_zainbox_body(&mut body)?;
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<UpdateVirtualAccountBvnRequest, _>(
         &state,
@@ -419,11 +443,12 @@ pub async fn update_bvn(
 }
 
 pub async fn transactions(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(account_number): Path<String>,
     Query(q): Query<TxnQuery>,
 ) -> JsonResult {
+    ensure_account_owned(&auth, &state, &account_number).await?;
     state
         .zainpay
         .virtual_accounts()
@@ -441,7 +466,7 @@ pub async fn transactions(
 }
 
 pub async fn dynamic_deposit_status(
-    _auth: AdminAuth,
+    _auth: ApiKeyAuth,
     State(state): State<AppState>,
     Path(txn_ref): Path<String>,
 ) -> JsonResult {
@@ -458,10 +483,18 @@ pub async fn dynamic_deposit_status(
 }
 
 pub async fn fund_static(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
+    let account = body
+        .get("accountNumber")
+        .or_else(|| body.get("account_number"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if !account.is_empty() {
+        ensure_account_owned(&auth, &state, account).await?;
+    }
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<FundVirtualAccountRequest, _>(
         &state,
@@ -475,10 +508,18 @@ pub async fn fund_static(
 }
 
 pub async fn fund_dynamic(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> JsonResult {
+    let account = body
+        .get("accountNumber")
+        .or_else(|| body.get("account_number"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if !account.is_empty() {
+        ensure_account_owned(&auth, &state, account).await?;
+    }
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<FundVirtualAccountRequest, _>(
         &state,

@@ -80,28 +80,11 @@ async fn resolve_checkout_merchant(
 }
 
 pub async fn initialize_payment(
-    _auth: crate::auth::AdminAuth,
+    auth: crate::auth::ApiKeyAuth,
     State(state): State<AppState>,
     Json(mut body): Json<Value>,
 ) -> JsonResult {
-    let primary = body
-        .get("zainboxCode")
-        .or_else(|| body.get("zainbox_code"))
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
-    let Some(primary) = primary else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "zainboxCode is required".into(),
-        ));
-    };
-    // Normalize key for typed deserialize.
-    if let Some(obj) = body.as_object_mut() {
-        obj.insert("zainboxCode".into(), json!(primary));
-        obj.remove("zainbox_code");
-    }
+    let primary = auth.scope_zainbox_body(&mut body)?;
     initialize_with_optional_split(&state, "card.initialize", primary, body, false).await
 }
 
@@ -215,10 +198,11 @@ async fn initialize_with_optional_split(
 }
 
 pub async fn recurring_purchase(
-    _auth: crate::auth::AdminAuth,
+    auth: crate::auth::ApiKeyAuth,
     State(state): State<AppState>,
-    Json(body): Json<Value>,
+    Json(mut body): Json<Value>,
 ) -> JsonResult {
+    auth.scope_zainbox_body(&mut body)?;
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<RecurringCardPurchaseRequest, _>(
         &state,

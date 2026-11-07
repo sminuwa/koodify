@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use client::CreateSettlementRequest;
 
-use crate::auth::{AdminAuth, ApiKeyAuth};
+use crate::auth::ApiKeyAuth;
 use crate::routes::helpers::{map_proxy_error, map_upstream, JsonResult};
 use crate::services::proxy;
 use crate::state::AppState;
@@ -25,10 +25,11 @@ pub struct HistoryQuery {
 }
 
 pub async fn create(
-    _auth: AdminAuth,
+    auth: ApiKeyAuth,
     State(state): State<AppState>,
-    Json(body): Json<Value>,
+    Json(mut body): Json<Value>,
 ) -> JsonResult {
+    auth.scope_zainbox_body(&mut body)?;
     let zainpay = state.zainpay.clone();
     proxy::mutate_json_with_metadata::<CreateSettlementRequest, _>(
         &state,

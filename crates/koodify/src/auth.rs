@@ -3,16 +3,32 @@
 //! - `GATEWAY_API_KEY` → platform **admin** (full access)
 //! - Merchant `sk_test_…` / `sk_live_…` → **scoped** to that credential's zainbox
 //! - Checkout uses publishable `pk_…` on open routes (not this module)
+//!
+//! Merchant keys work on operational endpoints that can be scoped to a zainbox.
+//! Cross-tenant / global upstream queries stay admin-only (one shared Zainpay key).
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use axum::http::StatusCode;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
 use crate::db;
 use crate::state::AppState;
+
+/// Read `zainboxCode` / `zainbox_code` from a JSON object body.
+pub fn extract_zainbox_code(body: &Value) -> Option<String> {
+    body.as_object().and_then(|obj| {
+        obj.get("zainboxCode")
+            .or_else(|| obj.get("zainbox_code"))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+    })
+}
 
 fn header_api_key(parts: &Parts) -> &str {
     parts
@@ -106,6 +122,36 @@ impl ApiKeyAuth {
                 StatusCode::FORBIDDEN,
                 "forbidden: platform admin API key required".into(),
             ))
+        }
+    }
+
+    /// Ensure JSON body targets this merchant's zainbox.
+    ///
+    /// - Merchant + omitted code → inject credential `zainboxCode`
+    /// - Merchant + provided code → must match credential
+    /// - Admin + omitted code → `400` (must name the box)
+    pub fn scope_zainbox_body(
+        &self,
+        body: &mut Value,
+    ) -> Result<String, (StatusCode, String)> {
+        let provided = extract_zainbox_code(body);
+        match (&self.kind, provided) {
+            (AuthKind::Admin, Some(code)) => Ok(code),
+            (AuthKind::Admin, None) => Err((
+                StatusCode::BAD_REQUEST,
+                "zainboxCode is required when using the platform admin API key".into(),
+            )),
+            (AuthKind::Merchant(m), None) => {
+                if let Some(obj) = body.as_object_mut() {
+                    obj.insert("zainboxCode".into(), json!(m.zainbox_code));
+                    obj.remove("zainbox_code");
+                }
+                Ok(m.zainbox_code.clone())
+            }
+            (AuthKind::Merchant(_), Some(code)) => {
+                self.ensure_zainbox(&code)?;
+                Ok(code)
+            }
         }
     }
 }
@@ -230,5 +276,32 @@ mod tests {
         assert!(merchant.ensure_zainbox("main").is_ok());
         assert!(merchant.ensure_zainbox("other").is_err());
         assert!(merchant.require_admin().is_err());
+    }
+
+    #[test]
+    fn scope_zainbox_body_injects_and_rejects() {
+        let merchant = ApiKeyAuth {
+            kind: AuthKind::Merchant(MerchantPrincipal {
+                customer_id: 1,
+                zainbox_code: "main".into(),
+                environment: "live".into(),
+                credential_id: Uuid::nil(),
+                secret_key_prefix: "sk_live_abcd…".into(),
+            }),
+        };
+        let mut body = json!({"amount": "100"});
+        assert_eq!(merchant.scope_zainbox_body(&mut body).unwrap(), "main");
+        assert_eq!(body["zainboxCode"], "main");
+
+        let mut other = json!({"zainboxCode": "other"});
+        assert!(merchant.scope_zainbox_body(&mut other).is_err());
+
+        let admin = ApiKeyAuth {
+            kind: AuthKind::Admin,
+        };
+        let mut missing = json!({"amount": "100"});
+        assert!(admin.scope_zainbox_body(&mut missing).is_err());
+        let mut named = json!({"zainboxCode": "any"});
+        assert_eq!(admin.scope_zainbox_body(&mut named).unwrap(), "any");
     }
 }

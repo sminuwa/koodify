@@ -58,7 +58,7 @@ Docs: [docs/inline-checkout.html](docs/inline-checkout.html) · Script: `https:/
 5. Unknown or inactive keys are rejected.
 
 ### Open checkout routes
-**What it is:** The payment popup can start a payment and check status without the merchant’s secret key. Secret keys are only for admin-style actions.
+**What it is:** The payment popup can start a payment and check status without the merchant’s secret key. Merchant `sk_…` is for server APIs scoped to their zainbox; `GATEWAY_API_KEY` is for platform admin only.
 
 **Example:** The school website opens checkout with just its public key. Changing KYC still needs the secret admin key.
 
@@ -892,9 +892,10 @@ curl -X POST "https://api.koodify.ng/api/v1/zainboxes/sync-webhook-callbacks" \
 1. Upsert credentials for `(customerId, environment)` — or let provisioning sync them from the zainbox.
 2. Checkout resolves identity from `zainboxes.public_key` only; credentials mirror that key for dashboard/API compatibility.
 3. Provisioning mints `sk_test_…` / `sk_live_…` (SHA-256 stored; plaintext returned **once**). Rotate with `POST /credentials/{id}/rotate-secret`.
-4. Merchant sends `X-Api-Key: sk_…` → Koodify scopes access to that credential’s `zainboxCode` only. `GATEWAY_API_KEY` remains platform admin.
-5. `zainboxCode` stays server-side / for ops (reveal with `?revealZainboxCode=true`).
-6. Status can disable a key pair without deleting history.
+4. Merchant sends `X-Api-Key: sk_…` → Koodify scopes access to that credential’s `zainboxCode` only. Omitted `zainboxCode` on body is injected from the credential; a mismatched code returns `403`. `GATEWAY_API_KEY` remains platform admin (and must still name a `zainboxCode` on scoped bodies).
+5. Merchant `sk_…` covers VA create/get/balance/update/fund/txns, DVA create/status, transfers, settlements, card initialize/recurring, zainbox profile/ledger/balances/subscribe, payment splits, and activity — all scoped to that box. Platform-only: customers, KYC, credential mint/upsert, zainbox create/list/update/sync, merchant-wide txn summaries, reconcile, webhook admin.
+6. `zainboxCode` stays server-side / for ops (reveal with `?revealZainboxCode=true`).
+7. Status can disable a key pair without deleting history.
 
 ### Virtual accounts table
 **What it is:** Memory of VAs Koodify created, including your tags.
