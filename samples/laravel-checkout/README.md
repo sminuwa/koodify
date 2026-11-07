@@ -63,5 +63,5 @@ tail -f storage/logs/laravel.log
 ## Notes
 
 - Never put `sk_…` in the browser.
-- VA create needs a valid BVN in environments that enforce KYC.
+- VA create omits BVN / DOB / gender — Koodify fills `VA_DEFAULT_*` before calling Zainpay.
 - Docs: https://developer.koodify.ng

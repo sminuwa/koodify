@@ -7,8 +7,9 @@
         <h1>Create a static virtual account</h1>
         <p class="lede">
             Server call to <code>POST /api/v1/va/create</code> with your
-            <code>sk_…</code> key. Koodify resolves your zainbox from the secret and
-            picks a bank via Adaptive Bank/DVA Routing — you do not send either.
+            <code>sk_…</code> key. Koodify resolves your zainbox from the secret,
+            picks a bank via Adaptive Bank/DVA Routing, and fills BVN / DOB / gender
+            defaults — you do not send those.
         </p>
 
         @unless($configured)
@@ -24,18 +25,9 @@
         <form method="post" action="{{ route('virtual-accounts.store') }}">
             @csrf
 
-            <div class="grid">
-                <div class="field">
-                    <label for="title">Title</label>
-                    <input id="title" name="title" value="{{ old('title', $defaults['title']) }}" required>
-                </div>
-                <div class="field">
-                    <label for="gender">Gender</label>
-                    <select id="gender" name="gender" required>
-                        <option value="F" @selected(old('gender', $defaults['gender']) === 'F')>F</option>
-                        <option value="M" @selected(old('gender', $defaults['gender']) === 'M')>M</option>
-                    </select>
-                </div>
+            <div class="field">
+                <label for="title">Title</label>
+                <input id="title" name="title" value="{{ old('title', $defaults['title']) }}" required>
             </div>
 
             <div class="grid">
@@ -57,17 +49,6 @@
                 <div class="field">
                     <label for="mobileNumber">Mobile</label>
                     <input id="mobileNumber" name="mobileNumber" value="{{ old('mobileNumber', $defaults['mobileNumber']) }}" required>
-                </div>
-            </div>
-
-            <div class="grid">
-                <div class="field">
-                    <label for="bvn">BVN (11 digits)</label>
-                    <input id="bvn" name="bvn" value="{{ old('bvn', $defaults['bvn']) }}" required maxlength="11">
-                </div>
-                <div class="field">
-                    <label for="dob">Date of birth (DD-MM-YYYY)</label>
-                    <input id="dob" name="dob" value="{{ old('dob', $defaults['dob']) }}" required>
                 </div>
             </div>
 
@@ -99,7 +80,7 @@
 
         <p class="meta">
             API: <code>{{ rtrim(config('koodify.api_base'), '/') }}/api/v1/va/create</code><br>
-            Use a real BVN in environments that validate identity. Demo defaults are illustrative only.
+            BVN, DOB, and gender are applied by Koodify when omitted (<code>VA_DEFAULT_*</code>).
         </p>
     </div>
 @endsection

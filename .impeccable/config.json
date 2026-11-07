@@ -98,6 +98,15 @@
         ],
         "createdAt": "2026-11-06T22:54:24.772Z",
         "reason": "Intentional CRT terminal marketing layout; hierarchy is phosphor weight/case driven, not rem scale — existing design, unrelated to docs URL update"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "docs/developer/index.html"
+        ],
+        "createdAt": "2026-11-07T09:24:39.773Z",
+        "reason": "Existing API docs HTML; not a marketing layout — false positive on doc hierarchy"
       }
     ]
   }

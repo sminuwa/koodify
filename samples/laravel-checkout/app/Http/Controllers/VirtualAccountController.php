@@ -29,15 +29,12 @@ class VirtualAccountController extends Controller
             'surname' => ['required', 'string', 'max:80'],
             'email' => ['required', 'email', 'max:160'],
             'mobileNumber' => ['required', 'string', 'max:20'],
-            'bvn' => ['required', 'string', 'size:11'],
-            'dob' => ['required', 'string', 'max:20'],
-            'gender' => ['required', 'in:M,F'],
             'address' => ['required', 'string', 'max:255'],
             'state' => ['required', 'string', 'max:80'],
         ]);
 
-        // Merchants do not send zainboxCode (comes from sk_…) or bankType
-        // (Koodify Adaptive Bank/DVA Routing picks the rail).
+        // Merchants do not send zainboxCode / bankType (Koodify fills those).
+        // BVN, DOB, and gender are also omitted — Koodify injects platform defaults.
         $payload = [
             ...$validated,
             'metadata' => [
@@ -71,9 +68,6 @@ class VirtualAccountController extends Controller
             'surname' => 'Lovelace',
             'email' => 'ada@example.com',
             'mobileNumber' => '08012345678',
-            'bvn' => '12345678901',
-            'dob' => '10-12-1990',
-            'gender' => 'F',
             'address' => '12 Computing Lane, Lagos',
             'state' => 'Lagos',
         ];

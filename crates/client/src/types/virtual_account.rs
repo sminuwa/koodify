@@ -8,10 +8,16 @@ pub struct CreateVirtualAccountRequest {
     /// Optional for merchants — Koodify fills via Adaptive Bank/DVA Routing when empty.
     #[serde(default)]
     pub bank_type: String,
+    /// Optional for merchants — Koodify fills a Zainpay-compatible default when empty.
+    #[serde(default)]
     pub bvn: String,
+    /// Optional for merchants — Koodify fills a default `DD-MM-YYYY` when empty.
+    #[serde(default)]
     pub dob: String,
     pub email: String,
     pub first_name: String,
+    /// Optional for merchants — Koodify fills `M`/`F` default when empty.
+    #[serde(default)]
     pub gender: String,
     pub mobile_number: String,
     pub state: String,

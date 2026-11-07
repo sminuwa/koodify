@@ -37,6 +37,7 @@ pub async fn create(
 ) -> JsonResult {
     let (mut request, metadata) = inbound.split();
     resolve_zainbox_for_create(&auth, &mut request)?;
+    apply_va_identity_defaults(&state.config, &mut request);
 
     let forced_bank = {
         let t = request.bank_type.trim().trim_matches('"');
@@ -101,6 +102,19 @@ pub async fn create(
     }
 
     Ok(Json(response_json))
+}
+
+/// Merchants may omit BVN / DOB / gender — fill Zainpay-compatible defaults.
+fn apply_va_identity_defaults(config: &crate::config::Config, request: &mut CreateVirtualAccountRequest) {
+    if request.bvn.trim().is_empty() {
+        request.bvn = config.va_default_bvn.clone();
+    }
+    if request.dob.trim().is_empty() {
+        request.dob = config.va_default_dob.clone();
+    }
+    if request.gender.trim().is_empty() {
+        request.gender = config.va_default_gender.clone();
+    }
 }
 
 fn resolve_zainbox_for_create(

@@ -32,10 +32,16 @@ pub struct FlatCreateVirtualAccount {
     /// Merchants may omit this — Koodify applies Adaptive Bank/DVA Routing.
     #[serde(default)]
     pub bank_type: String,
+    /// Merchants may omit — Koodify fills `VA_DEFAULT_BVN`.
+    #[serde(default)]
     pub bvn: String,
+    /// Merchants may omit — Koodify fills `VA_DEFAULT_DOB`.
+    #[serde(default)]
     pub dob: String,
     pub email: String,
     pub first_name: String,
+    /// Merchants may omit — Koodify fills `VA_DEFAULT_GENDER`.
+    #[serde(default)]
     pub gender: String,
     pub mobile_number: String,
     pub state: String,
@@ -178,5 +184,24 @@ mod tests {
         assert!(req.bank_type.is_empty());
         assert!(req.zainbox_code.is_empty());
         assert_eq!(meta["customerId"], "cus_demo_001");
+    }
+
+    #[test]
+    fn merchant_payload_may_omit_bvn_dob_gender() {
+        let inbound: CreateVirtualAccountInbound = serde_json::from_value(json!({
+            "address": "12 Computing Lane, Lagos",
+            "email": "ada@example.com",
+            "firstName": "Ada",
+            "mobileNumber": "08012345678",
+            "state": "Lagos",
+            "surname": "Lovelace",
+            "title": "Ms"
+        }))
+        .unwrap();
+
+        let (req, _) = inbound.split();
+        assert!(req.bvn.is_empty());
+        assert!(req.dob.is_empty());
+        assert!(req.gender.is_empty());
     }
 }

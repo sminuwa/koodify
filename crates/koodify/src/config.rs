@@ -43,6 +43,13 @@ pub struct Config {
     pub reconcile_poll_cooldown_secs: u64,
     /// Max pending txns polled per pass (`RECONCILE_BATCH_SIZE`, default 40).
     pub reconcile_batch_size: u32,
+    /// Default BVN for permanent VA create when the merchant omits it (`VA_DEFAULT_BVN`).
+    /// Zainpay requires 11 digits starting with `22`.
+    pub va_default_bvn: String,
+    /// Default DOB (`DD-MM-YYYY`) when omitted (`VA_DEFAULT_DOB`).
+    pub va_default_dob: String,
+    /// Default gender (`M` / `F`) when omitted (`VA_DEFAULT_GENDER`).
+    pub va_default_gender: String,
 }
 
 impl Config {
@@ -111,6 +118,21 @@ impl Config {
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(40)
                 .clamp(1, 200),
+            va_default_bvn: env::var("VA_DEFAULT_BVN")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "22123456789".into()),
+            va_default_dob: env::var("VA_DEFAULT_DOB")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "15-06-1990".into()),
+            va_default_gender: env::var("VA_DEFAULT_GENDER")
+                .ok()
+                .map(|s| s.trim().to_ascii_uppercase())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "M".into()),
         })
     }
 
@@ -166,6 +188,9 @@ impl Config {
             reconcile_grace_secs: 45,
             reconcile_poll_cooldown_secs: 120,
             reconcile_batch_size: 40,
+            va_default_bvn: "22123456789".into(),
+            va_default_dob: "15-06-1990".into(),
+            va_default_gender: "M".into(),
         }
     }
 
