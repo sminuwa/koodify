@@ -273,26 +273,30 @@ npm run build
             POST to <code class="font-mono text-sm">callBackUrl</code>.
           </p>
           <pre class="mt-6 overflow-x-auto rounded-lg bg-ink-950 p-5 font-mono text-sm leading-relaxed text-slate-100"><code>{
-  "status": "success",
-  "reference": "ORDER_1793402668162",
+  "code": "00",
+  "status": "200 OK",
   "description": "Payment was successful",
-  "payer": {
-    "email": "customer@example.com",
-    "phone": "08012345678",
-    "name": "Ada Lovelace"
-  },
-  "customParam": {
-    "matric": "ND/12/2211",
-    "session": "2026",
-    "paymentType": "School Fees",
-    "studentId": "STU001"
+  "data": {
+    "reference": "ORDER_1793402668162",
+    "paymentStatus": "success",
+    "payer": {
+      "email": "customer@example.com",
+      "phone": "08012345678",
+      "name": "Ada Lovelace"
+    },
+    "customParam": {
+      "matric": "ND/12/2211",
+      "session": "2026",
+      "paymentType": "School Fees",
+      "studentId": "STU001"
+    }
   }
 }</code></pre>
           <div class="mt-8 overflow-x-auto rounded-lg ring-1 ring-slate-200 bg-white/80">
             <table class="min-w-full text-left text-sm">
               <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.14em] text-ink-500">
                 <tr>
-                  <th class="px-4 py-3 font-semibold">status</th>
+                  <th class="px-4 py-3 font-semibold">data.paymentStatus</th>
                   <th class="px-4 py-3 font-semibold">When</th>
                 </tr>
               </thead>

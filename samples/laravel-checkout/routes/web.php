@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountBalanceController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DynamicVirtualAccountController;
 use App\Http\Controllers\KoodifyWebhookController;
@@ -17,6 +18,11 @@ Route::get('/dynamic-virtual-accounts/create', [DynamicVirtualAccountController:
     ->name('dynamic-virtual-accounts.create');
 Route::post('/dynamic-virtual-accounts', [DynamicVirtualAccountController::class, 'store'])
     ->name('dynamic-virtual-accounts.store');
+
+Route::get('/account-balance', [AccountBalanceController::class, 'showForm'])
+    ->name('account-balance.show');
+Route::post('/account-balance', [AccountBalanceController::class, 'lookup'])
+    ->name('account-balance.lookup');
 
 Route::post('/webhooks/koodify', KoodifyWebhookController::class)
     ->name('webhooks.koodify');

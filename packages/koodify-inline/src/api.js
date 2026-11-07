@@ -105,6 +105,19 @@ function extractSessionKey(data) {
   return "";
 }
 
+/**
+ * Canonical Koodify/Zainpay envelope nests resource fields under `data`.
+ * Fall back to the root for older/partial payloads.
+ */
+function payloadFields(body) {
+  if (!body || typeof body !== "object") return {};
+  const nested = body.data;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return nested;
+  }
+  return body;
+}
+
 async function parseJson(res) {
   const text = await res.text();
   let body = null;
@@ -152,17 +165,22 @@ export async function initializeInlinePayment({
     }
   }
 
-  const sessionKey = extractSessionKey(body?.data);
+  const fields = payloadFields(body);
+  const sessionKey = extractSessionKey(fields) || extractSessionKey(body);
+  const meta =
+    fields.metadata && typeof fields.metadata === "object"
+      ? fields.metadata
+      : {};
   return {
     sessionKey,
     body,
     duplicate: code === "04",
-    payer: body?.data?.payer || body?.data?.metadata?.payer || null,
+    payer: fields.payer || meta.payer || null,
     customParam:
-      body?.data?.customParam ||
-      body?.data?.metadata?.customParam ||
-      body?.data?.customParams ||
-      body?.data?.metadata?.customParams ||
+      fields.customParam ||
+      meta.customParam ||
+      fields.customParams ||
+      meta.customParams ||
       null,
   };
 }
@@ -185,7 +203,10 @@ export async function generateTemporaryVa({
     headers: buildAuthHeaders(config, apiKey),
   });
   const body = await parseJson(res);
-  if (!res.ok || String(body?.code) !== "00" || !body?.data) {
+  const data = payloadFields(body);
+  const hasAccount =
+    data.accountNumber != null && String(data.accountNumber).trim() !== "";
+  if (!res.ok || String(body?.code) !== "00" || !hasAccount) {
     const err = new Error(
       body?.description || "Could not create transfer account"
     );
@@ -193,7 +214,6 @@ export async function generateTemporaryVa({
     err.body = body;
     throw err;
   }
-  const data = body.data;
   const kobo = parseFloat(data.amount);
   const naira = Number.isFinite(kobo) ? kobo / 100 : NaN;
   return {
@@ -225,17 +245,22 @@ export async function fetchVaPaymentStatus({
     headers: buildAuthHeaders(config, apiKey),
   });
   const body = await parseJson(res);
-  const status = String(body?.data?.paymentStatus || "").toLowerCase();
+  const fields = payloadFields(body);
+  const meta =
+    fields.metadata && typeof fields.metadata === "object"
+      ? fields.metadata
+      : {};
+  const status = String(fields.paymentStatus || "").toLowerCase();
   return {
     status,
-    callBackUrl: body?.data?.callBackUrl || "",
+    callBackUrl: fields.callBackUrl || "",
     description: body?.description || "",
-    payer: body?.data?.payer || body?.data?.metadata?.payer || null,
+    payer: fields.payer || meta.payer || null,
     customParam:
-      body?.data?.customParam ||
-      body?.data?.metadata?.customParam ||
-      body?.data?.customParams ||
-      body?.data?.metadata?.customParams ||
+      fields.customParam ||
+      meta.customParam ||
+      fields.customParams ||
+      meta.customParams ||
       null,
     body,
   };

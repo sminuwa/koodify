@@ -28,7 +28,7 @@ class KoodifyClient
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array<string, mixed> Koodify JSON envelope (flattened — no nested body/data wrapper)
+     * @return array<string, mixed> Koodify JSON envelope `{ code, status, description, data }`
      */
     public function createVirtualAccount(array $payload): array
     {
@@ -37,11 +37,24 @@ class KoodifyClient
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array<string, mixed> Koodify JSON envelope (flattened — no nested body/data wrapper)
+     * @return array<string, mixed> Koodify JSON envelope `{ code, status, description, data }`
      */
     public function createDynamicVirtualAccount(array $payload): array
     {
         return $this->postJson('/api/v1/dva/create', $payload);
+    }
+
+    /**
+     * @return array<string, mixed> Koodify JSON envelope `{ code, status, description, data }`
+     */
+    public function getVirtualAccountBalance(string $accountNumber): array
+    {
+        $accountNumber = trim($accountNumber);
+        if ($accountNumber === '') {
+            throw new RuntimeException('accountNumber is required.');
+        }
+
+        return $this->getJson('/api/v1/va/balance/'.rawurlencode($accountNumber));
     }
 
     /**
@@ -50,16 +63,37 @@ class KoodifyClient
      */
     private function postJson(string $path, array $payload): array
     {
+        return $this->send('post', $path, $payload);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getJson(string $path): array
+    {
+        return $this->send('get', $path);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $payload
+     * @return array<string, mixed>
+     */
+    private function send(string $method, string $path, ?array $payload = null): array
+    {
         try {
-            $response = Http::baseUrl($this->baseUrl)
+            $pending = Http::baseUrl($this->baseUrl)
                 ->acceptJson()
                 ->asJson()
                 ->withHeaders([
                     'X-Api-Key' => $this->secretKey,
                 ])
-                ->timeout(45)
-                ->post($path, $payload)
-                ->throw(fn () => false);
+                ->timeout(45);
+
+            $response = match ($method) {
+                'get' => $pending->get($path)->throw(fn () => false),
+                'post' => $pending->post($path, $payload ?? [])->throw(fn () => false),
+                default => throw new RuntimeException("Unsupported HTTP method: {$method}"),
+            };
         } catch (RequestException $e) {
             $response = $e->response;
             if ($response === null) {

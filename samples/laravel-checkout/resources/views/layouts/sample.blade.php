@@ -194,6 +194,7 @@
                 <a href="{{ route('checkout') }}" @class(['on' => request()->routeIs('checkout')])>Inline checkout</a>
                 <a href="{{ route('virtual-accounts.create') }}" @class(['on' => request()->routeIs('virtual-accounts.*')])>Static VA</a>
                 <a href="{{ route('dynamic-virtual-accounts.create') }}" @class(['on' => request()->routeIs('dynamic-virtual-accounts.*')])>Dynamic VA</a>
+                <a href="{{ route('account-balance.show') }}" @class(['on' => request()->routeIs('account-balance.*')])>Balance</a>
             </nav>
         </div>
 

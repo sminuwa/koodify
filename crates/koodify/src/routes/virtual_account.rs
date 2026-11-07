@@ -342,7 +342,7 @@ pub async fn create_dynamic(
         response_json = merge_metadata_into_response(response_json, metadata);
     }
 
-    // Middleware also flattens; shape here so unit/proxy paths stay uniform without HTTP.
+    // Middleware also shapes; apply here so unit/proxy paths stay uniform without HTTP.
     let mut response_json = crate::services::api_error::enrich(response_json);
     crate::services::merchant_response::shape_envelope(&mut response_json);
     Ok(Json(response_json))

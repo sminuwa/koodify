@@ -49,6 +49,27 @@ function emit(cb, payload) {
   }
 }
 
+/**
+ * Same envelope as gateway JSON APIs: `{ code, status, description, data }`.
+ * Payment outcome lives under `data.paymentStatus` (success | failed | cancelled).
+ */
+function callbackEnvelope(ok, description, data) {
+  if (ok) {
+    return {
+      code: "00",
+      status: "200 OK",
+      description,
+      data,
+    };
+  }
+  return {
+    code: "01",
+    status: "01",
+    description,
+    data,
+  };
+}
+
 /** Accept `customParam` or `customParams` as a plain object of merchant key/values. */
 function normalizeCustomParam(config) {
   const raw = config?.customParam ?? config?.customParams;
@@ -64,7 +85,7 @@ function normalizeCustomParam(config) {
  * in Koodify. Optional `baseUrl` for local/proxy; `auth: "zainpay"` for direct Zainpay.
  *
  * @param {object} paymentConfig
- * @param {function} callback - ({ status, reference, description, payer?, customParam? }) => void
+ * @param {function} callback - ({ code, status, description, data }) => void
  * @param {string} [apiKey] - optional; ignored for koodify gateway checkout
  * @param {"sandbox"|"live"} [mode="sandbox"] - only used for direct Zainpay hosts
  * @returns {Promise<object>}
@@ -73,22 +94,24 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
   return new Promise((resolve, reject) => {
     const missing = missingFields(paymentConfig);
     if (missing.length) {
-      const payload = {
-        status: "failed",
+      const payload = callbackEnvelope(false, `Missing required field(s): ${missing.join(", ")}`, {
         reference: paymentConfig?.txnRef || "",
-        description: `Missing required field(s): ${missing.join(", ")}`,
-      };
+        paymentStatus: "failed",
+      });
       emit(callback, payload);
       reject(payload);
       return;
     }
     const publicKey = resolvePublicKey(paymentConfig);
     if (!publicKey) {
-      const payload = {
-        status: "failed",
-        reference: paymentConfig?.txnRef || "",
-        description: "Missing publicKey (publishable pk_live_… from Koodify)",
-      };
+      const payload = callbackEnvelope(
+        false,
+        "Missing publicKey (publishable pk_live_… from Koodify)",
+        {
+          reference: paymentConfig?.txnRef || "",
+          paymentStatus: "failed",
+        }
+      );
       emit(callback, payload);
       reject(payload);
       return;
@@ -104,11 +127,10 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
     );
     // Direct Zainpay still needs a Bearer key; gateway uses publicKey → zainbox.
     if (!useGateway && (!apiKey || String(apiKey).trim() === "")) {
-      const payload = {
-        status: "failed",
+      const payload = callbackEnvelope(false, "Missing API key for direct Zainpay calls", {
         reference: paymentConfig.txnRef,
-        description: "Missing API key for direct Zainpay calls",
-      };
+        paymentStatus: "failed",
+      });
       emit(callback, payload);
       reject(payload);
       return;
@@ -133,11 +155,16 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
       settled = true;
       clearPolls();
       transferView?.stopTimer?.();
-      if (lastPayer && !payload.payer) payload.payer = lastPayer;
-      if (customParam && !payload.customParam) payload.customParam = customParam;
-      emit(callback, payload);
-      if (ok) resolve(payload);
-      else reject(payload);
+      const data = { ...(payload.data || {}) };
+      if (lastPayer && !data.payer) data.payer = lastPayer;
+      if (customParam && !data.customParam) data.customParam = customParam;
+      const envelope = {
+        ...payload,
+        data,
+      };
+      emit(callback, envelope);
+      if (ok) resolve(envelope);
+      else reject(envelope);
     };
 
     const clearPolls = () => {
@@ -158,26 +185,27 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
         if (settled) return;
         if (reason === "success") {
           finish(
-            {
-              status: "success",
+            callbackEnvelope(true, "Payment was successful", {
               reference: paymentConfig.txnRef,
-              description: "Payment was successful",
-            },
+              paymentStatus: "success",
+            }),
             true
           );
           modal.destroy();
           return;
         }
-        const status = reason === "cancelled" ? "cancelled" : "failed";
+        const paymentStatus = reason === "cancelled" ? "cancelled" : "failed";
         finish(
-          {
-            status,
-            reference: paymentConfig.txnRef,
-            description:
-              status === "cancelled"
-                ? "Payment cancelled"
-                : "Payment failed",
-          },
+          callbackEnvelope(
+            false,
+            paymentStatus === "cancelled"
+              ? "Payment cancelled"
+              : "Payment failed",
+            {
+              reference: paymentConfig.txnRef,
+              paymentStatus,
+            }
+          ),
           false
         );
         modal.destroy();
@@ -320,13 +348,12 @@ export function koodifyInitPayment(paymentConfig, callback, apiKey, mode) {
           successCloseTimer = setTimeout(() => {
             successCloseTimer = null;
             finish(
-              {
-                status: "success",
+              callbackEnvelope(true, "Payment was successful", {
                 reference: va.txnRef || paymentConfig.txnRef,
-                description: "Payment was successful",
+                paymentStatus: "success",
                 payer: lastPayer || undefined,
                 customParam: customParam || undefined,
-              },
+              }),
               true
             );
             modal.destroy();

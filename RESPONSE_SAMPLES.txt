@@ -1,0 +1,1252 @@
+Koodify API — response samples
+========================================================================
+
+Canonical envelope for every JSON endpoint:
+
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "/* resource fields */": "..."
+  }
+}
+
+Rules:
+- Always: code, status, description, then data.
+- Object resources: data is an object (e.g. data.accountNumber).
+- List resources: data is an array.
+- zainboxCode is never returned to merchants.
+- Envelope status is an HTTP-ish string (e.g. "200 OK"); a boolean
+  result inside the payload lives at data.status and does not replace it.
+- Treat payment success from data.paymentStatus / data.koodify.isPaid,
+  not from code alone.
+
+Samples below are illustrative successful shapes for the stable /api/v1
+surface. Field sets can vary slightly by upstream; the envelope does not.
+
+------------------------------------------------------------------------
+GET /health
+Plain text health check (not JSON envelope)
+------------------------------------------------------------------------
+ok
+
+------------------------------------------------------------------------
+POST /api/v1/va/create
+Create static virtual account
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountNumber": "5006079921",
+    "accountName": "Ada Lovelace",
+    "bankName": "gtBank",
+    "email": "ada@example.com",
+    "metadata": {
+      "customerId": "cus_demo_001"
+    }
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/dva/create
+Create dynamic virtual account
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountNumber": "9123456789",
+    "accountName": "Zainpay Checkout",
+    "amount": "50000",
+    "paymentStatus": "pending",
+    "timeToLive": 900,
+    "txnRef": "ORDER_889"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/va/{accountNumber}
+VA balance + recent transactions
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "virtualAccounts": [
+      {
+        "accountNumber": "5006079921",
+        "accountName": "Ada Lovelace"
+      }
+    ],
+    "balances": [
+      {
+        "accountNumber": "5006079921",
+        "balance": "125000.00"
+      }
+    ],
+    "transactions": [
+      {
+        "txnRef": "DEP_001",
+        "amount": "50000",
+        "txnType": "deposit"
+      }
+    ]
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/va/balance/{accountNumber}
+VA balance only
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountNumber": "5006079921",
+    "balanceAmount": "125000.00",
+    "accountName": "Ada Lovelace"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/va/transactions/{accountNumber}
+VA transactions
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "txnRef": "DEP_001",
+      "amount": "50000",
+      "txnType": "deposit",
+      "paymentStatus": "success"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+PATCH /api/v1/va/status
+Update VA status
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "status": true
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/va/bvn
+Update VA BVN
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "status": true
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/va/fund
+Sandbox fund static VA
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "FUND_001",
+    "paymentStatus": "success"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/dva/verify/{txnRef}
+DVA status + deposit verify
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "ORDER_889",
+    "paymentStatus": "success",
+    "amount": "50000",
+    "koodify": {
+      "paymentStatus": "success",
+      "isPaid": true
+    }
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/dva/deposit/{txnRef}
+DVA deposit status
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "ORDER_889",
+    "paymentStatus": "pending",
+    "koodify": {
+      "paymentStatus": "pending",
+      "isPaid": false
+    }
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/dva/fund
+Sandbox fund dynamic VA
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "ORDER_889",
+    "paymentStatus": "success"
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/checkout/initialize
+Server checkout initialize
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "sessionKey": "sess_demo_abc123",
+    "txnRef": "ORDER_889",
+    "amount": "100000"
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/checkout/initialize/inline
+Inline checkout session
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "sessionKey": "sess_demo_abc123",
+    "txnRef": "FEES_1730544000000",
+    "amount": "25000"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/checkout/account
+Temporary VA for checkout
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountNumber": "9006043531",
+    "accountName": "Zainpay Checkout",
+    "bankName": "gtBank",
+    "amount": "25000",
+    "paymentStatus": "pending",
+    "timeToLive": 1800,
+    "txnRef": "FEES_1730544000000"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/checkout/status
+Checkout / temp-VA payment status
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "FEES_1730544000000",
+    "paymentStatus": "success",
+    "amount": "25000",
+    "koodify": {
+      "paymentStatus": "success",
+      "isPaid": true
+    }
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/checkout/recurring
+Recurring card purchase
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "SUB_001",
+    "paymentStatus": "success"
+  }
+}
+
+------------------------------------------------------------------------
+PUT /api/v1/split-plans
+Create or update split plan
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "id": "plan_tuition_v1",
+    "name": "Tuition split",
+    "shares": [
+      {
+        "zainboxCode": "main_box",
+        "percent": 80
+      },
+      {
+        "zainboxCode": "ops_box",
+        "percent": 20
+      }
+    ]
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/split-plans
+List split plans
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "id": "plan_tuition_v1",
+      "name": "Tuition split"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/split-plans/{id}
+Get one split plan
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "id": "plan_tuition_v1",
+    "name": "Tuition split",
+    "shares": [
+      {
+        "zainboxCode": "main_box",
+        "percent": 80
+      },
+      {
+        "zainboxCode": "ops_box",
+        "percent": 20
+      }
+    ]
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/payment-splits/{txnRef}
+Inspect payment split run
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "paymentSplit": {
+      "txnRef": "ORDER_889",
+      "primaryZainboxCode": "main_box",
+      "checkoutAmount": "1000",
+      "status": "success",
+      "legs": [
+        {
+          "index": 0,
+          "zainboxCode": "tutor_box",
+          "role": "transfer",
+          "amount": "200",
+          "status": "success"
+        },
+        {
+          "index": 1,
+          "zainboxCode": "agent_box",
+          "role": "transfer",
+          "amount": "50",
+          "status": "success"
+        },
+        {
+          "index": 2,
+          "zainboxCode": "main_box",
+          "role": "keep",
+          "percent": 100,
+          "status": "success"
+        }
+      ]
+    }
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/payment-splits/{txnRef}
+Run / re-run payment split
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "paymentSplit": {
+      "txnRef": "ORDER_889",
+      "primaryZainboxCode": "main_box",
+      "checkoutAmount": "1000",
+      "status": "success",
+      "legs": [
+        {
+          "index": 0,
+          "zainboxCode": "tutor_box",
+          "role": "transfer",
+          "amount": "200",
+          "status": "success"
+        },
+        {
+          "index": 1,
+          "zainboxCode": "agent_box",
+          "role": "transfer",
+          "amount": "50",
+          "status": "success"
+        },
+        {
+          "index": 2,
+          "zainboxCode": "main_box",
+          "role": "keep",
+          "percent": 100,
+          "status": "success"
+        }
+      ]
+    }
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/payment-splits/{txnRef}/run
+Run payment split (alias)
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "paymentSplit": {
+      "txnRef": "ORDER_889",
+      "status": "success"
+    }
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/banks
+List banks
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "code": "058",
+      "name": "Guaranty Trust Bank"
+    },
+    {
+      "code": "50515",
+      "name": "Moniepoint MFB"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/banks/enquiry
+Name enquiry
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountName": "ADA LOVELACE",
+    "accountNumber": "0123456789",
+    "bankCode": "058"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/banks/resolve
+Name resolve composite
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountName": "ADA LOVELACE",
+    "accountNumber": "0123456789",
+    "bankCode": "058"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/bank/resolve
+Name resolve composite (alias)
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountName": "ADA LOVELACE",
+    "accountNumber": "0123456789",
+    "bankCode": "058"
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/transfers
+Funds transfer
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "PAYOUT_1001",
+    "status": "pending"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/transfers/{txnRef}/verify
+Verify transfer
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "PAYOUT_1001",
+    "status": "success",
+    "amount": "5000"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/transfers/network
+Transfer network status
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "status": true,
+    "description": "network available"
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/transfer
+Transfer and verify composite
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "transfer": {
+      "txnRef": "PAYOUT_001",
+      "paymentStatus": "success"
+    },
+    "verify": {
+      "txnRef": "PAYOUT_001",
+      "paymentStatus": "success"
+    }
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/payout/prep
+Payout prep composite
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "enquiry": {
+      "accountName": "ADA LOVELACE",
+      "accountNumber": "0123456789"
+    },
+    "balance": {
+      "balanceAmount": "500000.00"
+    }
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/settlements
+Create / update settlement
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "status": false
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/settlements
+Get settlement config
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "scheduleType": "T1",
+    "status": false
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/settlement
+Settlement create with history composite
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "settlement": {
+      "status": true
+    },
+    "history": []
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/settlements/history/{zainboxCode}
+Settlement history
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "amount": "50000",
+      "status": "success",
+      "settledAt": "2026-11-01T10:00:00Z"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/settlements/internal/{zainboxCode}
+Internal settlement account
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "accountNumber": "1100001234",
+    "bankName": "Access Bank"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainboxes
+List zainboxes
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "codeName": "main_box",
+      "name": "Main box"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+POST /api/v1/zainbox
+Create zainbox
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "codeName": "main_box",
+    "name": "Main"
+  }
+}
+
+------------------------------------------------------------------------
+PATCH /api/v1/zainbox
+Update zainbox
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "codeName": "main_box",
+    "name": "Main Updated"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}
+Zainbox snapshot composite
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "profile": {
+      "codeName": "main_box",
+      "name": "Main box"
+    },
+    "balances": [
+      {
+        "accountNumber": "5006079921",
+        "balance": "125000.00"
+      }
+    ]
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/wallet
+Zainbox wallet view
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "virtualAccounts": [
+      {
+        "accountNumber": "5006079921"
+      }
+    ],
+    "balances": [
+      {
+        "accountNumber": "5006079921",
+        "balance": "125000.00"
+      }
+    ]
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/transactions
+Zainbox activity
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "txnRef": "DEP_001",
+      "amount": "50000",
+      "txnType": "deposit"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/settlement
+Settlement context
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "settlement": {
+      "status": false
+    },
+    "history": []
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/billing
+Profile + billing
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "profile": {
+      "codeName": "main_box"
+    },
+    "billing": {}
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/subscriptions
+Subscriptions bundle
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "subscriptions": []
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/vas
+List VAs for zainbox
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "accountNumber": "5006079921",
+      "accountName": "Ada Lovelace"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/balances
+Accounts balance
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "accountNumber": "5006079921",
+      "balance": "125000.00"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/profile
+Zainbox profile v2
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "codeName": "main_box",
+    "name": "Main"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/profile/v1
+Zainbox profile v1
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "codeName": "main_box",
+    "name": "Main"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/deposit-summary
+Deposit summary
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "totalDeposits": "1500000.00",
+    "count": 42
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/card-transactions
+Card transactions
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "txnRef": "CARD_001",
+      "amount": "10000",
+      "paymentStatus": "success"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/zainbox/{zainboxCode}/ledger
+Zainbox ledger
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "txnRef": "LED_001",
+      "amount": "5000"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+POST /api/v1/zainbox/subscribe
+Subscribe zainbox
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "status": true
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/zainbox/unsubscribe
+Unsubscribe zainbox
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "status": true
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/transactions
+Merchant activity composite
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "summary": {
+      "count": 12,
+      "volume": "450000"
+    },
+    "transactions": [
+      {
+        "txnRef": "ORDER_889",
+        "amount": "1000",
+        "status": "success"
+      }
+    ]
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/transactions/summary
+Transactions summary
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "totalIn": "2000000.00",
+    "totalOut": "500000.00"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/transactions/list
+Transactions list
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "txnRef": "DEP_001",
+      "amount": "50000"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/reconcile/deposit/{txnRef}
+Verify deposit
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "ORDER_889",
+    "paymentStatus": "success",
+    "koodify": {
+      "paymentStatus": "success",
+      "isPaid": true
+    }
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/reconcile/bank-deposit
+Reconcile bank deposit
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "ORDER_889",
+    "paymentStatus": "success"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/reconcile/card-payment
+Reconcile card payment
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "CARD_001",
+    "paymentStatus": "success"
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/reconcile/pending
+Run pending reconcile jobs
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "processed": 3
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/webhooks/repush/deposit/{txnRef}
+Repush deposit webhook
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "ORDER_889",
+    "reposted": true
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/webhooks/repush/card/{txnRef}
+Repush card webhook
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "CARD_001",
+    "reposted": true
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/activity
+Recent activity
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "type": "payment.success",
+      "txnRef": "ORDER_889",
+      "at": "2026-11-02T10:04:12Z"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/activity/{txnRef}
+Activity by txnRef
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "type": "checkout.initialize",
+      "txnRef": "ORDER_889",
+      "at": "2026-11-02T10:00:00Z"
+    },
+    {
+      "type": "payment.success",
+      "txnRef": "ORDER_889",
+      "at": "2026-11-02T10:04:12Z"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+GET /api/v1/customers
+List customers
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "id": 1,
+      "email": "ada@example.com"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
+POST /api/v1/customers
+Create customer
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "id": 1,
+    "email": "ada@example.com",
+    "name": "Ada Lovelace"
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/deposit/{txnRef}
+Deposit check (alias of dva/verify)
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "txnRef": "ORDER_889",
+    "paymentStatus": "success"
+  }
+}
+
+------------------------------------------------------------------------
+JS koodifyInitPayment(payload, callback)
+callback
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "Payment was successful",
+  "data": {
+    "reference": "FEES_1730544000000",
+    "paymentStatus": "success",
+    "payer": {
+      "email": "parent@example.com",
+      "phone": "08012345678",
+      "name": "Ada Lovelace"
+    },
+    "customParam": {
+      "matric": "ND/12/2211",
+      "session": "2026"
+    }
+  }
+}
+
+========================================================================
+Error envelopes
+========================================================================
+
+------------------------------------------------------------------------
+Application failure example
+------------------------------------------------------------------------
+{
+  "code": "04",
+  "status": "04",
+  "description": "Txn not found",
+  "data": {
+    "koodify": {
+      "error": {
+        "koodifyCode": "txn_not_found",
+        "hint": "No matching transaction for this txnRef yet."
+      }
+    }
+  }
+}
+
+------------------------------------------------------------------------
+Validation / HTTP-style error envelope
+------------------------------------------------------------------------
+{
+  "code": "400",
+  "status": "400",
+  "description": "amount is required",
+  "data": null
+}
+

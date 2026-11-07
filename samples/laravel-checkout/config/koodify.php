@@ -38,7 +38,8 @@ return [
     | Inline checkout script
     |--------------------------------------------------------------------------
     */
-    'inline_js' => env('KOODIFY_INLINE_JS', 'https://js.koodify.ng/v1/koodify-inline.js'),
+    // Sample ships public/vendor/koodify-inline.js. Override with the CDN URL in production.
+    'inline_js' => env('KOODIFY_INLINE_JS', '/vendor/koodify-inline.js'),
 
     /*
     |--------------------------------------------------------------------------

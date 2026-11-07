@@ -52,7 +52,7 @@ koodifyInitPayment(
     // baseUrl: "http://localhost:8080", // local override only
   },
   function (response) {
-    // Browser only (tab open): { status, reference, description, payer?, customParam? }
+    // Browser only (tab open): { code, status, description, data: { reference, paymentStatus, payer?, customParam? } }
     // Server webhook POST to callBackUrl is separate — see Merchant webhook below
   }
 );

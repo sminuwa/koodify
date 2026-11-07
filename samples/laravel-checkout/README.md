@@ -4,7 +4,8 @@ Small Laravel app with:
 
 1. **Inline checkout** — browser `koodifyInitPayment` + webhook receiver  
 2. **Static VA create** — server `POST /api/v1/va/create` with `sk_…`  
-3. **Dynamic VA create** — server `POST /api/v1/dva/create` with `sk_…`
+3. **Dynamic VA create** — server `POST /api/v1/dva/create` with `sk_…`  
+4. **Account balance** — server `GET /api/v1/va/balance/{accountNumber}` with `sk_…`
 
 Merchants only need two keys:
 
@@ -22,6 +23,8 @@ Merchants only need two keys:
 | `POST /virtual-accounts` | Calls Koodify VA create |
 | `GET /dynamic-virtual-accounts/create` | Form to create a dynamic VA |
 | `POST /dynamic-virtual-accounts` | Calls Koodify DVA create |
+| `GET /account-balance` | Form to look up a VA balance |
+| `POST /account-balance` | Calls Koodify VA balance |
 | `POST /webhooks/koodify` | Merchant webhook (CSRF exempt; verify with `sk_…`) |
 
 ## Setup
@@ -43,7 +46,8 @@ php artisan serve
 
 - Checkout: `http://127.0.0.1:8000/`  
 - Static VA: `http://127.0.0.1:8000/virtual-accounts/create`  
-- Dynamic VA: `http://127.0.0.1:8000/dynamic-virtual-accounts/create`
+- Dynamic VA: `http://127.0.0.1:8000/dynamic-virtual-accounts/create`  
+- Balance: `http://127.0.0.1:8000/account-balance`
 
 ## Webhooks locally
 
@@ -67,6 +71,7 @@ tail -f storage/logs/laravel.log
 ## Notes
 
 - Never put `sk_…` in the browser.
+- Inline checkout loads `/vendor/koodify-inline.js` by default. Set `KOODIFY_INLINE_JS=https://js.koodify.ng/v1/koodify-inline.js` after publishing a matching CDN build.
 - Static VA omits BVN / DOB / gender — Koodify fills `VA_DEFAULT_*` before calling Zainpay.
 - Dynamic VA needs amount (kobo string), email, and txnRef. Duration is an integer seconds value (300–259200; default 900). `accountName` is fixed by Zainpay as `Zainpay Checkout`. BVN/DOB/gender are not used on DVA.
 - Docs: https://developer.koodify.ng

@@ -103,7 +103,8 @@
 
             koodifyInitPayment(payload, function (response) {
                 payBtn.disabled = false;
-                const ok = response && (response.status === 'success' || response.status === 'paid');
+                const paymentStatus = response && response.data && response.data.paymentStatus;
+                const ok = response && (response.code === '00' || paymentStatus === 'success' || paymentStatus === 'paid');
                 setStatus(response || { error: 'empty callback' }, ok ? 'ok' : 'err');
             });
         });
