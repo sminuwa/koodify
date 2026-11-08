@@ -1,9 +1,10 @@
-@extends('layouts.sample')
+@extends('layouts.merchant')
 
-@section('title', 'Koodify · Account balance')
+@section('title', 'Balance · Koodify')
+@section('crumb', 'Balance')
 
 @section('content')
-    <div class="card">
+    <div class="surface merchant-panel card">
         <h1>Check virtual account balance</h1>
         <p class="lede">
             Server call to <code>GET /api/v1/va/balance/{accountNumber}</code> with your

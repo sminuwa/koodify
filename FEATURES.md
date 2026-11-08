@@ -869,7 +869,8 @@ curl -X POST "https://api.koodify.ng/api/v1/zainboxes/sync-webhook-callbacks" \
 3. `GET /customers/{id}` returns dashboard detail: profile, `hasPassword`, assigned zainbox, publishable `publicKey`, KYC summary, credentials.
 4. Lookups: `GET /customers?email=`, `GET /customers/by-uuid/{uuid}`, `GET /customers/{id}/zainbox`.
 5. `PATCH /customers/{id}` for partial profile edits; `POST /customers/{id}/provision` retries zainbox create/sync.
-6. Credentials and KYC attach to that customer id. Login auth UI comes later (`password_hash` column is ready, never exposed).
+6. Credentials and KYC attach to that customer id.
+7. Merchant dashboard auth (no admin key): `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `PUT /api/v1/auth/kyc`, `POST /api/v1/auth/credentials/{env}/issue-secret`. Session token `Authorization: Bearer mt_…`. Optional `MERCHANT_KYC_AUTO_APPROVE=true` for sandbox. Laravel sample: `samples/laravel-checkout`.
 
 ### KYC
 **What it is:** Identity profile (name, BVN, address, …) linked to a customer. Approving KYC provisions the merchant zainbox.

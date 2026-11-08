@@ -146,6 +146,9 @@ pub struct CredentialSummary {
     pub environment: String,
     pub public_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret_key_prefix: Option<String>,
+    pub secret_key_set: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub zainbox_code: Option<String>,
     pub zainbox_code_set: bool,
     pub status: String,
@@ -154,10 +157,16 @@ pub struct CredentialSummary {
 impl CredentialSummary {
     fn from_row(row: &Credential, reveal: bool) -> Self {
         let zainbox_code_set = !row.zainbox_code.is_empty();
+        let secret_key_set = row
+            .secret_key_hash
+            .as_deref()
+            .is_some_and(|h| !h.is_empty());
         Self {
             id: row.id,
             environment: row.environment.clone(),
             public_key: row.public_key.clone(),
+            secret_key_prefix: row.secret_key_prefix.clone().filter(|s| !s.is_empty()),
+            secret_key_set,
             zainbox_code: if reveal {
                 Some(row.zainbox_code.clone())
             } else {
@@ -182,6 +191,9 @@ pub struct CustomerDetail {
     pub public_key: Option<String>,
     pub kyc: Option<KycSummary>,
     pub credentials: Vec<CredentialSummary>,
+    /// Portal compliance sections (business / representative / documents / declaration).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compliance: Option<Value>,
 }
 
 fn map_db(err: sqlx::Error) -> (StatusCode, String) {
@@ -208,7 +220,7 @@ async fn ensure_email_available(
     Ok(())
 }
 
-async fn load_detail(
+pub(crate) async fn load_detail(
     state: &AppState,
     customer: Customer,
     reveal: bool,
@@ -243,6 +255,10 @@ async fn load_detail(
         .map(|c| CredentialSummary::from_row(c, reveal))
         .collect();
 
+    let compliance = crate::routes::merchant_compliance::compliance_snapshot(&state.pool, customer.id)
+        .await
+        .ok();
+
     Ok(CustomerDetail {
         customer,
         has_password,
@@ -250,6 +266,7 @@ async fn load_detail(
         public_key,
         kyc,
         credentials,
+        compliance,
     })
 }
 

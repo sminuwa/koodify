@@ -9,13 +9,14 @@ class CheckoutController extends Controller
     public function __invoke(): View
     {
         $callbackUrl = config('koodify.callback_url') ?: url('/webhooks/koodify');
+        $publicKey = session('merchant.public_key') ?: config('koodify.public_key');
 
         return view('checkout', [
-            'publicKey' => config('koodify.public_key'),
+            'publicKey' => $publicKey,
             'inlineJs' => config('koodify.inline_js'),
             'callbackUrl' => $callbackUrl,
             'demoAmount' => config('koodify.demo_amount'),
-            'configured' => filled(config('koodify.public_key')),
+            'configured' => filled($publicKey),
         ]);
     }
 }

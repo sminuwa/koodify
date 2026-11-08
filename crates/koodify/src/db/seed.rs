@@ -73,7 +73,7 @@ pub async fn run(pool: &PgPool, gateway_api_key: &str) -> Result<()> {
     // Drop customer-linked rows first (FK to zainboxes is ON DELETE SET NULL).
     sqlx::query(
         r#"
-        TRUNCATE TABLE credentials, kyc_profiles, customers
+        TRUNCATE TABLE compliance_documents, compliance_sections, credentials, kyc_profiles, customers
         RESTART IDENTITY CASCADE
         "#,
     )

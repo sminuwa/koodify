@@ -1,9 +1,10 @@
-@extends('layouts.sample')
+@extends('layouts.merchant')
 
-@section('title', 'Koodify · Create virtual account')
+@section('title', 'Virtual accounts · Koodify')
+@section('crumb', 'Virtual accounts')
 
 @section('content')
-    <div class="card">
+    <div class="surface merchant-panel card">
         <h1>Create a static virtual account</h1>
         <p class="lede">
             Server call to <code>POST /api/v1/va/create</code> with your

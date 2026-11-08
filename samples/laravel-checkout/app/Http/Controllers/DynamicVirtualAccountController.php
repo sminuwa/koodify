@@ -6,20 +6,14 @@ use App\Services\KoodifyClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\View\View;
 use RuntimeException;
 use Throwable;
 
 class DynamicVirtualAccountController extends Controller
 {
-    public function createForm(): View
+    public function createForm(): RedirectResponse
     {
-        return view('dynamic-virtual-account', [
-            'configured' => filled(config('koodify.secret_key')),
-            'defaults' => $this->defaults(),
-            'result' => session('dva_result'),
-            'error' => session('dva_error'),
-        ]);
+        return redirect()->route('payment-simulation', ['tool' => 'dva']);
     }
 
     public function store(Request $request): RedirectResponse
@@ -40,10 +34,6 @@ class DynamicVirtualAccountController extends Controller
             ? (string) $validated['callBackUrl']
             : (string) (config('koodify.callback_url') ?: url('/webhooks/koodify'));
 
-        // Merchants omit zainboxCode / bankType / accountName — Koodify fills them.
-        // Duration is sent as an integer (Zainpay DVA docs); callBackUrl may be omitted
-        // when the gateway has PUBLIC_BASE_URL (inbound webhook). Keep merchant URL in payload
-        // so Koodify can forward deposit events outbound.
         $payload = [
             'email' => $validated['email'],
             'amount' => (string) $validated['amount'],
@@ -56,18 +46,20 @@ class DynamicVirtualAccountController extends Controller
             ],
         ];
 
+        $redirect = redirect()->route('payment-simulation', ['tool' => 'dva']);
+
         try {
-            $client = KoodifyClient::fromConfig();
+            $client = KoodifyClient::forMerchantApis();
             $result = $client->createDynamicVirtualAccount($payload);
         } catch (RuntimeException $e) {
-            return back()->withInput()->with('dva_error', $e->getMessage());
+            return $redirect->withInput()->with('dva_error', $e->getMessage());
         } catch (Throwable $e) {
             report($e);
 
-            return back()->withInput()->with('dva_error', 'Request failed: '.$e->getMessage());
+            return $redirect->withInput()->with('dva_error', 'Request failed: '.$e->getMessage());
         }
 
-        return back()->with('dva_result', $result);
+        return $redirect->with('dva_result', $result);
     }
 
     /**

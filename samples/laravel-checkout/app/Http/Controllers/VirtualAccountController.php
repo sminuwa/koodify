@@ -11,14 +11,41 @@ use Throwable;
 
 class VirtualAccountController extends Controller
 {
-    public function createForm(): View
+    public function index(): View
     {
-        return view('virtual-account', [
-            'configured' => filled(config('koodify.secret_key')),
-            'defaults' => $this->defaults(),
-            'result' => session('va_result'),
-            'error' => session('va_error'),
+        $configured = filled(session('merchant.secret_key')) || filled(config('koodify.secret_key'));
+        $accounts = [];
+        $error = null;
+        $result = null;
+
+        if ($configured) {
+            try {
+                $result = KoodifyClient::forMerchantApis()->listVirtualAccounts();
+                $data = $result['data'] ?? null;
+                if (is_array($data)) {
+                    $accounts = array_values(array_filter($data, 'is_array'));
+                } elseif (($result['code'] ?? '') !== '00' && ($result['status'] ?? '') !== '200 OK') {
+                    $error = $result['description'] ?? 'Could not load virtual accounts.';
+                }
+            } catch (RuntimeException $e) {
+                $error = $e->getMessage();
+            } catch (Throwable $e) {
+                report($e);
+                $error = 'Request failed: '.$e->getMessage();
+            }
+        }
+
+        return view('merchant.virtual-accounts', [
+            'configured' => $configured,
+            'accounts' => $accounts,
+            'error' => $error,
+            'raw' => $result,
         ]);
+    }
+
+    public function createForm(): RedirectResponse
+    {
+        return redirect()->route('payment-simulation', ['tool' => 'va']);
     }
 
     public function store(Request $request): RedirectResponse
@@ -33,8 +60,6 @@ class VirtualAccountController extends Controller
             'state' => ['required', 'string', 'max:80'],
         ]);
 
-        // Merchants do not send zainboxCode / bankType (Koodify fills those).
-        // BVN, DOB, and gender are also omitted — Koodify injects platform defaults.
         $payload = [
             ...$validated,
             'metadata' => [
@@ -43,33 +68,19 @@ class VirtualAccountController extends Controller
             ],
         ];
 
+        $redirect = redirect()->route('payment-simulation', ['tool' => 'va']);
+
         try {
-            $client = KoodifyClient::fromConfig();
+            $client = KoodifyClient::forMerchantApis();
             $result = $client->createVirtualAccount($payload);
         } catch (RuntimeException $e) {
-            return back()->withInput()->with('va_error', $e->getMessage());
+            return $redirect->withInput()->with('va_error', $e->getMessage());
         } catch (Throwable $e) {
             report($e);
 
-            return back()->withInput()->with('va_error', 'Request failed: '.$e->getMessage());
+            return $redirect->withInput()->with('va_error', 'Request failed: '.$e->getMessage());
         }
 
-        return back()->with('va_result', $result);
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function defaults(): array
-    {
-        return [
-            'title' => 'Ms',
-            'firstName' => 'Ada',
-            'surname' => 'Lovelace',
-            'email' => 'ada@example.com',
-            'mobileNumber' => '08012345678',
-            'address' => '12 Computing Lane, Lagos',
-            'state' => 'Lagos',
-        ];
+        return $redirect->with('va_result', $result);
     }
 }

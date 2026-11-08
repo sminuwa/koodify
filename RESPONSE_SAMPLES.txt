@@ -840,6 +840,69 @@ Subscriptions bundle
 }
 
 ------------------------------------------------------------------------
+GET /api/v1/auth/compliance
+Merchant compliance snapshot (Bearer mt_…)
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "business": { "status": "pending", "submittedAt": "2026-11-08T09:00:00Z", "data": { "businessName": "Hyde Commerce Ltd" } },
+    "representative": { "status": "pending", "submittedAt": "2026-11-08T09:05:00Z", "data": { "nin": "12345678901" } },
+    "documents": { "status": "none", "submittedAt": null, "data": {} },
+    "declaration": { "status": "none", "submittedAt": null, "data": {} }
+  }
+}
+
+------------------------------------------------------------------------
+PUT /api/v1/auth/compliance/{section}
+Submit business or declaration JSON (Bearer mt_…)
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "section": "business",
+    "status": "pending",
+    "data": { "businessName": "Hyde Commerce Ltd" }
+  }
+}
+
+------------------------------------------------------------------------
+POST /api/v1/auth/compliance/documents
+Multipart: cacCertificate, utilityBill, notes (Bearer mt_…)
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": {
+    "section": { "section": "documents", "status": "pending" },
+    "documents": [
+      { "docType": "cacCertificate", "name": "cac.pdf", "size": 12040 }
+    ]
+  }
+}
+
+------------------------------------------------------------------------
+GET /api/v1/vas
+List VAs for the authenticated merchant (zainbox from sk_…)
+------------------------------------------------------------------------
+{
+  "code": "00",
+  "status": "200 OK",
+  "description": "successful",
+  "data": [
+    {
+      "accountNumber": "5006079921",
+      "accountName": "Ada Lovelace"
+    }
+  ]
+}
+
+------------------------------------------------------------------------
 GET /api/v1/zainbox/{zainboxCode}/vas
 List VAs for zainbox
 ------------------------------------------------------------------------

@@ -6,6 +6,8 @@ pub mod credentials;
 pub mod customers;
 pub mod helpers;
 pub mod kyc;
+pub mod merchant_auth;
+pub mod merchant_compliance;
 pub mod operations;
 pub mod payment_split;
 pub mod reconcile;
@@ -76,6 +78,7 @@ pub fn router() -> Router<AppState> {
             post(composite::settlement_create_with_history),
         )
         // Static VA — talks to `/virtual-account/…` upstreams
+        .route("/api/v1/vas", get(virtual_account::list_mine))
         .route("/api/v1/va/create", post(virtual_account::create))
         .route(
             "/api/v1/va/balance/{account_number}",
@@ -285,6 +288,27 @@ pub fn router() -> Router<AppState> {
         .route(
             "/transactions/by-zainbox/{zainbox_code}",
             get(operations::by_zainbox_code),
+        )
+        // Merchant dashboard auth (public register/login + session token)
+        .route("/api/v1/auth/register", post(merchant_auth::register))
+        .route("/api/v1/auth/login", post(merchant_auth::login))
+        .route("/api/v1/auth/me", get(merchant_auth::me))
+        .route("/api/v1/auth/kyc", put(merchant_auth::submit_kyc))
+        .route(
+            "/api/v1/auth/compliance",
+            get(merchant_compliance::get_compliance),
+        )
+        .route(
+            "/api/v1/auth/compliance/documents",
+            post(merchant_compliance::submit_documents),
+        )
+        .route(
+            "/api/v1/auth/compliance/{section}",
+            put(merchant_compliance::submit_section),
+        )
+        .route(
+            "/api/v1/auth/credentials/{environment}/issue-secret",
+            post(merchant_auth::issue_secret),
         )
         // Customers / merchants (`uuid` + integer `id` = 1, 2, 3, …)
         // Stable aliases under `/api/v1/customers` for future merchant UI.

@@ -4,34 +4,41 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Publishable public key (browser)
+    | API base URL
     |--------------------------------------------------------------------------
     |
-    | Used only by the inline checkout script. Never put sk_… keys here.
+    | Merchant auth + KYC + credentials call this host. Prefer local gateway
+    | while developing: http://127.0.0.1:8080
     |
     */
-    'public_key' => env('KOODIFY_PUBLIC_KEY', ''),
+    'api_base' => env('KOODIFY_API_BASE', 'https://api.koodify.ng'),
 
     /*
     |--------------------------------------------------------------------------
-    | Secret key (server)
+    | Optional key fallbacks
     |--------------------------------------------------------------------------
     |
-    | Merchant sk_… for:
-    | - X-Api-Key on server routes (VA create, wallet, …)
-    | - verifying X-Koodify-Signature on inbound webhooks (HMAC-SHA256 of raw body)
-    |
-    | Never expose in browser / JS.
+    | After register → KYC → Credentials, the app prefers keys from the merchant
+    | session. These .env values remain useful for webhooks and offline demos.
+    | Never put sk_… in the browser.
     |
     */
+    'public_key' => env('KOODIFY_PUBLIC_KEY', ''),
     'secret_key' => env('KOODIFY_SECRET_KEY', ''),
 
     /*
     |--------------------------------------------------------------------------
-    | API base URL
+    | Platform admin portal
     |--------------------------------------------------------------------------
+    |
+    | GATEWAY_API_KEY from the Koodify gateway — used as X-Api-Key for
+    | /customers, /kyc, provision, etc. Portal login uses admin_email/password.
+    |
     */
-    'api_base' => env('KOODIFY_API_BASE', 'https://api.koodify.ng'),
+    'gateway_api_key' => env('KOODIFY_GATEWAY_API_KEY', ''),
+    'admin_email' => env('KOODIFY_ADMIN_EMAIL', 'admin@koodify.ng'),
+    'admin_password' => env('KOODIFY_ADMIN_PASSWORD', ''),
+    'admin_name' => env('KOODIFY_ADMIN_NAME', 'Koodify Admin'),
 
     /*
     |--------------------------------------------------------------------------

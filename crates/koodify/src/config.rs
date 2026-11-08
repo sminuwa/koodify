@@ -50,6 +50,11 @@ pub struct Config {
     pub va_default_dob: String,
     /// Default gender (`M` / `F`) when omitted (`VA_DEFAULT_GENDER`).
     pub va_default_gender: String,
+    /// When true, merchant-submitted KYC is auto-approved and provisions keys
+    /// (`MERCHANT_KYC_AUTO_APPROVE`, default false). Use for local/sandbox dashboards.
+    pub merchant_kyc_auto_approve: bool,
+    /// Directory for compliance document uploads (`COMPLIANCE_STORAGE_DIR`, default `./data/compliance`).
+    pub compliance_storage_dir: String,
 }
 
 impl Config {
@@ -133,6 +138,15 @@ impl Config {
                 .map(|s| s.trim().to_ascii_uppercase())
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "M".into()),
+            merchant_kyc_auto_approve: env::var("MERCHANT_KYC_AUTO_APPROVE")
+                .ok()
+                .map(|s| matches!(s.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+                .unwrap_or(false),
+            compliance_storage_dir: env::var("COMPLIANCE_STORAGE_DIR")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "./data/compliance".into()),
         })
     }
 
@@ -191,6 +205,8 @@ impl Config {
             va_default_bvn: "22123456789".into(),
             va_default_dob: "15-06-1990".into(),
             va_default_gender: "M".into(),
+            merchant_kyc_auto_approve: false,
+            compliance_storage_dir: "./data/compliance".into(),
         }
     }
 

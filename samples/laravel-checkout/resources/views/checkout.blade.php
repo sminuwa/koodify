@@ -1,9 +1,10 @@
-@extends('layouts.sample')
+@extends('layouts.merchant')
 
-@section('title', 'Koodify · Inline checkout demo')
+@section('title', 'Checkout · Koodify')
+@section('crumb', 'Checkout')
 
 @section('content')
-    <div class="card">
+    <div class="surface merchant-panel card">
         <h1>Pay with bank transfer</h1>
         <p class="lede">
             Loads <code>koodify-inline.js</code>, opens a temporary virtual account, and posts
@@ -12,7 +13,7 @@
 
         @unless($configured)
             <div class="banner">
-                Set <code>KOODIFY_PUBLIC_KEY</code> in <code>.env</code> (a <code>pk_live_…</code> or <code>pk_test_…</code> key), then refresh.
+                Complete KYC so Koodify can provision your <code>pk_…</code>, or set <code>KOODIFY_PUBLIC_KEY</code> in <code>.env</code>.
             </div>
         @endunless
 

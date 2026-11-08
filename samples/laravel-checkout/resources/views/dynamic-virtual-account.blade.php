@@ -1,9 +1,10 @@
-@extends('layouts.sample')
+@extends('layouts.merchant')
 
-@section('title', 'Koodify · Create dynamic VA')
+@section('title', 'Dynamic VA · Koodify')
+@section('crumb', 'Dynamic VA')
 
 @section('content')
-    <div class="card">
+    <div class="surface merchant-panel card">
         <h1>Create a dynamic virtual account</h1>
         <p class="lede">
             One-time account for a fixed amount via <code>POST /api/v1/dva/create</code>.

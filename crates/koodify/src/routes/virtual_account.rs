@@ -30,6 +30,27 @@ pub struct TxnQuery {
     pub date_to: Option<String>,
 }
 
+/// `GET /api/v1/vas` — list virtual accounts for the authenticated merchant zainbox.
+///
+/// Merchants never send `zainboxCode`; it is taken from the secret key.
+/// Platform admin keys should use `GET /api/v1/zainbox/{code}/vas` instead.
+pub async fn list_mine(auth: ApiKeyAuth, State(state): State<AppState>) -> JsonResult {
+    let Some(merchant) = auth.merchant() else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "admin keys must call GET /api/v1/zainbox/{zainboxCode}/vas".into(),
+        ));
+    };
+
+    state
+        .zainpay
+        .zainbox()
+        .virtual_accounts(&merchant.zainbox_code)
+        .await
+        .map(|r| Json(serde_json::to_value(r).unwrap_or(Value::Null)))
+        .map_err(map_upstream)
+}
+
 pub async fn create(
     auth: ApiKeyAuth,
     State(state): State<AppState>,

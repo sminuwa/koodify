@@ -1,4 +1,5 @@
 pub mod activity_events;
+pub mod compliance;
 pub mod credentials;
 pub mod customers;
 pub mod idempotency;
