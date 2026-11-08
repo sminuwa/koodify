@@ -78,18 +78,46 @@ async fn after_kyc_write(
         )
         .await
         {
-            Ok(Some(result)) => Some(json!({
-                "zainboxCode": result.zainbox.zainbox_code,
-                "publicKey": result.public_key,
-                "createdNewZainbox": result.created_new_zainbox,
-                // Secrets are merchant-issued from Credentials — not returned on approve.
-                "secretsReadyToIssue": true,
-                "mintedSecrets": result.minted_secrets.iter().map(|s| json!({
-                    "environment": s.environment,
-                    "secretKey": s.secret_key,
-                    "secretKeyPrefix": s.prefix,
-                })).collect::<Vec<_>>(),
-            })),
+            Ok(Some(result)) => {
+                if let Ok(Some(customer)) =
+                    db::customers::find_by_id(&state.pool, kyc.customer_id).await
+                {
+                    let to = customer
+                        .email
+                        .as_deref()
+                        .or(Some(kyc.email.as_str()))
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty());
+                    if let Some(email) = to {
+                        if let Err(err) = crate::services::mail::send_kyc_approved(
+                            &state.config,
+                            email,
+                            &customer.display_name,
+                            Some(result.public_key.as_str()),
+                        )
+                        .await
+                        {
+                            tracing::warn!(
+                                error = %err,
+                                customer_id = kyc.customer_id,
+                                "failed to send KYC approval email"
+                            );
+                        }
+                    }
+                }
+                Some(json!({
+                    "zainboxCode": result.zainbox.zainbox_code,
+                    "publicKey": result.public_key,
+                    "createdNewZainbox": result.created_new_zainbox,
+                    // Secrets are merchant-issued from Credentials — not returned on approve.
+                    "secretsReadyToIssue": true,
+                    "mintedSecrets": result.minted_secrets.iter().map(|s| json!({
+                        "environment": s.environment,
+                        "secretKey": s.secret_key,
+                        "secretKeyPrefix": s.prefix,
+                    })).collect::<Vec<_>>(),
+                }))
+            }
             Ok(None) => None,
             Err(err) => {
                 // KYC row is already saved/approved — surface provision failure for retry.

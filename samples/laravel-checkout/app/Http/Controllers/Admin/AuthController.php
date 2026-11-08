@@ -3,15 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\KoodifyAdminClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 class AuthController extends Controller
 {
     public function showLogin(): View|RedirectResponse
     {
-        if (session('admin.authenticated')) {
+        if (session('admin.token')) {
             return redirect()->route('admin.dashboard');
         }
 
@@ -21,37 +23,36 @@ class AuthController extends Controller
     public function login(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'username' => ['required', 'string', 'max:120'],
             'password' => ['required', 'string'],
         ]);
 
-        $email = strtolower(trim($validated['email']));
-        $password = $validated['password'];
-        $expectedEmail = strtolower((string) config('koodify.admin_email'));
-        $expectedPassword = (string) config('koodify.admin_password');
-
-        if ($expectedEmail === '' || $expectedPassword === '') {
+        try {
+            $result = KoodifyAdminClient::login(
+                $validated['username'],
+                $validated['password'],
+            );
+        } catch (Throwable $e) {
             return back()
                 ->withInput()
-                ->with('error', 'Configure KOODIFY_ADMIN_EMAIL and KOODIFY_ADMIN_PASSWORD in .env.');
+                ->with('error', 'Could not reach Koodify: '.$e->getMessage());
         }
 
-        if ($email !== $expectedEmail || ! hash_equals($expectedPassword, $password)) {
+        if (($result['code'] ?? '') !== '00' || ! is_array($result['data'] ?? null)) {
             return back()
                 ->withInput()
-                ->with('error', 'We could not verify those details.');
+                ->with('error', $result['description'] ?? 'We could not verify those details.');
         }
 
-        if ((string) config('koodify.gateway_api_key') === '') {
-            return back()
-                ->withInput()
-                ->with('error', 'Set KOODIFY_GATEWAY_API_KEY so the portal can call Koodify admin APIs.');
-        }
+        $data = $result['data'];
+        $user = is_array($data['user'] ?? null) ? $data['user'] : [];
 
         session([
             'admin.authenticated' => true,
-            'admin.email' => $email,
-            'admin.name' => (string) config('koodify.admin_name', 'Koodify Admin'),
+            'admin.token' => (string) ($data['token'] ?? ''),
+            'admin.username' => (string) ($user['username'] ?? $validated['username']),
+            'admin.name' => (string) ($user['displayName'] ?? $user['username'] ?? 'Admin'),
+            'admin.email' => (string) ($user['email'] ?? ''),
         ]);
 
         return redirect()->route('admin.dashboard');
@@ -59,7 +60,13 @@ class AuthController extends Controller
 
     public function logout(): RedirectResponse
     {
-        session()->forget(['admin.authenticated', 'admin.email', 'admin.name']);
+        session()->forget([
+            'admin.authenticated',
+            'admin.token',
+            'admin.username',
+            'admin.name',
+            'admin.email',
+        ]);
 
         return redirect()->route('admin.login')->with('status', 'Signed out.');
     }

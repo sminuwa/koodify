@@ -68,6 +68,10 @@ pub async fn build_app(config: Config) -> Result<(Router, AppState)> {
         bank_router,
     };
 
+    if let Err(err) = routes::admin_portal::ensure_bootstrap_admin(&state).await {
+        tracing::warn!(error = %err, "failed to bootstrap admin user");
+    }
+
     let app = routes::router()
         .layer(axum::middleware::from_fn(
             services::merchant_response::shape_json_middleware,

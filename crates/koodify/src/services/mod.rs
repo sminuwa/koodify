@@ -1,4 +1,5 @@
 pub mod activity;
+pub mod admin_session;
 pub mod api_error;
 pub mod bank_router;
 pub mod deprecation;

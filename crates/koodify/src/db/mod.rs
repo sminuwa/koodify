@@ -2,6 +2,7 @@ pub mod activity_events;
 pub mod compliance;
 pub mod credentials;
 pub mod customers;
+pub mod users;
 pub mod idempotency;
 pub mod kyc;
 pub mod models;

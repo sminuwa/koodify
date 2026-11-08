@@ -11,26 +11,22 @@ class DashboardController extends Controller
 {
     public function __invoke(): View
     {
-        $merchantCount = null;
-        $pendingKyc = 0;
-        $customers = [];
+        $stats = [
+            'merchants' => 0,
+            'pendingKyc' => 0,
+            'approvedKyc' => 0,
+            'pendingComplianceSections' => 0,
+            'awaitingProvision' => 0,
+            'pendingQueue' => [],
+        ];
         $apiError = null;
 
         try {
-            $client = KoodifyAdminClient::fromConfig();
-            $result = $client->listCustomers();
-            // Admin list returns a JSON array (not always enveloped).
-            $rows = $result['data'] ?? $result;
-            if (is_array($rows) && array_is_list($rows)) {
-                $customers = $rows;
-                $merchantCount = count($rows);
-                foreach ($rows as $row) {
-                    if (($row['status'] ?? '') === 'pending') {
-                        $pendingKyc++;
-                    }
-                }
-            } elseif (isset($result['description'])) {
-                $apiError = (string) $result['description'];
+            $result = KoodifyAdminClient::fromSession()->dashboard();
+            if (($result['code'] ?? '') === '00' && is_array($result['data'] ?? null)) {
+                $stats = array_merge($stats, $result['data']);
+            } else {
+                $apiError = (string) ($result['description'] ?? 'Dashboard unavailable.');
             }
         } catch (Throwable $e) {
             $apiError = $e->getMessage();
@@ -38,9 +34,12 @@ class DashboardController extends Controller
 
         return view('admin.dashboard', [
             'adminName' => session('admin.name', 'Admin'),
-            'merchantCount' => $merchantCount,
-            'pendingKyc' => $pendingKyc,
-            'recentCustomers' => array_slice(array_reverse($customers), 0, 6),
+            'merchantCount' => (int) ($stats['merchants'] ?? 0),
+            'pendingKyc' => (int) ($stats['pendingKyc'] ?? 0),
+            'approvedKyc' => (int) ($stats['approvedKyc'] ?? 0),
+            'pendingSections' => (int) ($stats['pendingComplianceSections'] ?? 0),
+            'awaitingProvision' => (int) ($stats['awaitingProvision'] ?? 0),
+            'pendingQueue' => is_array($stats['pendingQueue'] ?? null) ? $stats['pendingQueue'] : [],
             'apiError' => $apiError,
         ]);
     }

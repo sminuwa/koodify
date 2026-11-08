@@ -1,21 +1,27 @@
 @extends('layouts.admin')
 
-@section('title', $title.' · Koodify Admin')
-@section('breadcrumb', $title)
+@section('title', $title.' · Admin')
+@section('crumb', $title)
 
 @section('content')
 <div class="page-heading">
   <div>
-    <span class="card-kicker">COMING SOON</span>
-    <h1>{{ $title }}</h1>
-    <p class="muted">This section is part of the admin UI prototype and will be wired to live Koodify APIs next.</p>
+    <h1>
+      <span class="page-heading-mark" aria-hidden="true"><i class="bi bi-layers"></i></span>
+      {{ $title }}
+    </h1>
+    <p>This section will be wired to live Koodify APIs next.</p>
   </div>
 </div>
-<section class="surface">
-  <div class="empty-state">
+
+<section class="surface merchant-panel">
+  <div class="empty-state" style="padding:40px;text-align:center">
     <h3>{{ $title }} preview</h3>
-    <p>Use <b>Merchants</b> for live KYC approval today. Overview already reads the customer registry.</p>
-    <p style="margin-top:16px"><a class="primary-button" href="{{ route('admin.merchants.index') }}" style="display:inline-flex;padding:12px 18px;text-decoration:none"><span>Go to Merchants</span><b>→</b></a></p>
+    <p class="lede">Use Merchants for live KYC approval today. Overview already reads the pending review queue.</p>
+    <div class="admin-actions" style="justify-content:center">
+      <a class="btn btn-primary" href="{{ route('admin.merchants.index') }}">Go to Merchants</a>
+      <a class="btn btn-outline-secondary" href="{{ route('admin.dashboard') }}">Overview</a>
+    </div>
   </div>
 </section>
 @endsection

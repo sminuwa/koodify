@@ -31,11 +31,12 @@ return [
     | Platform admin portal
     |--------------------------------------------------------------------------
     |
-    | GATEWAY_API_KEY from the Koodify gateway — used as X-Api-Key for
-    | /customers, /kyc, provision, etc. Portal login uses admin_email/password.
+    | Prefer signing in at /admin/auth (gateway `users` → Bearer at_…).
+    | KOODIFY_GATEWAY_API_KEY remains an optional X-Api-Key fallback.
     |
     */
     'gateway_api_key' => env('KOODIFY_GATEWAY_API_KEY', ''),
+    'admin_username' => env('KOODIFY_ADMIN_USERNAME', 'admin'),
     'admin_email' => env('KOODIFY_ADMIN_EMAIL', 'admin@koodify.ng'),
     'admin_password' => env('KOODIFY_ADMIN_PASSWORD', ''),
     'admin_name' => env('KOODIFY_ADMIN_NAME', 'Koodify Admin'),

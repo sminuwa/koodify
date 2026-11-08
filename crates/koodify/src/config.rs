@@ -55,6 +55,14 @@ pub struct Config {
     pub merchant_kyc_auto_approve: bool,
     /// Directory for compliance document uploads (`COMPLIANCE_STORAGE_DIR`, default `./data/compliance`).
     pub compliance_storage_dir: String,
+    /// Bootstrap admin username when `users` is empty (`ADMIN_USERNAME`, default `admin`).
+    pub admin_bootstrap_username: String,
+    /// Bootstrap admin password (`ADMIN_PASSWORD`, default `Admin123!`).
+    pub admin_bootstrap_password: String,
+    /// Bootstrap admin display name (`ADMIN_DISPLAY_NAME`).
+    pub admin_bootstrap_display_name: String,
+    /// Bootstrap admin email (`ADMIN_EMAIL`).
+    pub admin_bootstrap_email: Option<String>,
 }
 
 impl Config {
@@ -147,6 +155,25 @@ impl Config {
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "./data/compliance".into()),
+            admin_bootstrap_username: env::var("ADMIN_USERNAME")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "admin".into()),
+            admin_bootstrap_password: env::var("ADMIN_PASSWORD")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "Admin123!".into()),
+            admin_bootstrap_display_name: env::var("ADMIN_DISPLAY_NAME")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "Koodify Admin".into()),
+            admin_bootstrap_email: env::var("ADMIN_EMAIL")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
         })
     }
 
@@ -207,6 +234,10 @@ impl Config {
             va_default_gender: "M".into(),
             merchant_kyc_auto_approve: false,
             compliance_storage_dir: "./data/compliance".into(),
+            admin_bootstrap_username: "admin".into(),
+            admin_bootstrap_password: "Admin123!".into(),
+            admin_bootstrap_display_name: "Koodify Admin".into(),
+            admin_bootstrap_email: Some("admin@koodify.ng".into()),
         }
     }
 

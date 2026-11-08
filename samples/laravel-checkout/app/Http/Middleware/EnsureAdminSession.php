@@ -10,7 +10,7 @@ class EnsureAdminSession
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! session('admin.authenticated')) {
+        if (! session('admin.token') || ! session('admin.authenticated')) {
             return redirect()
                 ->route('admin.login')
                 ->with('error', 'Sign in to the admin portal.');

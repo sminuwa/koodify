@@ -73,6 +73,77 @@ pub async fn send_merchant_notice(config: &Config, notice: ReceiptEmail) -> anyh
     .await
 }
 
+/// Notify a merchant that KYC was approved and they can issue API secrets.
+pub async fn send_kyc_approved(
+    config: &Config,
+    to: &str,
+    business_name: &str,
+    public_key: Option<&str>,
+) -> anyhow::Result<()> {
+    let name = escape(business_name.trim());
+    let pk_row = public_key
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|pk| {
+            format!(
+                "<p style=\"margin:16px 0 0;font-size:14px;color:#334155\">Publishable key: \
+                 <code style=\"background:#f1f5f9;padding:2px 6px;border-radius:4px\">{pk}</code></p>",
+                pk = escape(pk)
+            )
+        })
+        .unwrap_or_default();
+    let html = format!(
+        r#"<!doctype html>
+<html><body style="margin:0;background:#f8fafc;font-family:Inter,Segoe UI,sans-serif;color:#0f172a">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px 32px">
+        <tr><td>
+          <img src="cid:koodify-logo" alt="Koodify" height="28" style="display:block;margin-bottom:20px"/>
+          <h1 style="margin:0 0 8px;font-size:22px;letter-spacing:-0.02em">Your account is approved</h1>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:#475569">
+            Hi {name}, your Koodify merchant KYC has been approved. Your payment account is being provisioned.
+          </p>
+          {pk_row}
+          <p style="margin:18px 0 0;font-size:15px;line-height:1.55;color:#475569">
+            Sign in to your merchant portal and open <strong>Credentials</strong> to generate your secret API key (<code>sk_…</code>).
+            Keep that secret on your server only.
+          </p>
+          <p style="margin:24px 0 0;font-size:12px;color:#94a3b8">© Koodify · Account verification</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"#,
+        name = name,
+        pk_row = pk_row,
+    );
+
+    let mail = ReceiptEmail {
+        to: to.to_string(),
+        payer_name: Some(business_name.to_string()),
+        payer_email: Some(to.to_string()),
+        amount_label: "—".into(),
+        currency: "NGN".into(),
+        reference: format!("kyc-approved-{}", chrono::Utc::now().timestamp()),
+        paid_at: None,
+        business_name: Some(business_name.to_string()),
+        narration: Some("KYC approved".into()),
+        sender_bank: None,
+        sender_account: None,
+        sender_name: None,
+        custom_params: vec![],
+    };
+    send_templated(
+        config,
+        &mail,
+        "Your Koodify account is approved",
+        html,
+        "kyc approved",
+    )
+    .await
+}
+
 async fn send_templated(
     config: &Config,
     mail: &ReceiptEmail,

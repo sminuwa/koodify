@@ -1,4 +1,5 @@
 pub mod activity;
+pub mod admin_portal;
 pub mod bank;
 pub mod card;
 pub mod composite;
@@ -309,6 +310,27 @@ pub fn router() -> Router<AppState> {
         .route(
             "/api/v1/auth/credentials/{environment}/issue-secret",
             post(merchant_auth::issue_secret),
+        )
+        // Admin portal (users table login + ops)
+        .route("/api/v1/admin/auth/login", post(admin_portal::login))
+        .route("/api/v1/admin/auth/me", get(admin_portal::me))
+        .route("/api/v1/admin/dashboard", get(admin_portal::dashboard))
+        .route("/api/v1/admin/merchants", get(admin_portal::list_merchants))
+        .route(
+            "/api/v1/admin/merchants/{id}",
+            get(admin_portal::merchant_detail),
+        )
+        .route(
+            "/api/v1/admin/merchants/{id}/compliance/{section}",
+            patch(admin_portal::set_compliance_section),
+        )
+        .route(
+            "/api/v1/admin/merchants/{id}/kyc/approve",
+            post(admin_portal::approve_kyc),
+        )
+        .route(
+            "/api/v1/admin/merchants/{id}/kyc/reject",
+            post(admin_portal::reject_kyc),
         )
         // Customers / merchants (`uuid` + integer `id` = 1, 2, 3, …)
         // Stable aliases under `/api/v1/customers` for future merchant UI.

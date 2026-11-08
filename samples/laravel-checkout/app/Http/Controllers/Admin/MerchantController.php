@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\KoodifyAdminClient;
+use App\Support\ComplianceProgress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,7 +18,7 @@ class MerchantController extends Controller
         $error = null;
 
         try {
-            $result = KoodifyAdminClient::fromConfig()->listCustomers();
+            $result = KoodifyAdminClient::fromSession()->listCustomers();
             $rows = $result['data'] ?? $result;
             $customers = is_array($rows) && array_is_list($rows) ? $rows : [];
             if ($customers === [] && isset($result['description']) && ($result['code'] ?? '') !== '00') {
@@ -36,9 +37,8 @@ class MerchantController extends Controller
     public function show(int $id): View|RedirectResponse
     {
         try {
-            $client = KoodifyAdminClient::fromConfig();
+            $client = KoodifyAdminClient::fromSession();
             $detail = $client->getCustomer($id);
-            // Detail may be enveloped by middleware or raw CustomerDetail.
             $profile = $detail['data'] ?? $detail;
             if (! is_array($profile) || ! isset($profile['id'])) {
                 return redirect()
@@ -46,22 +46,15 @@ class MerchantController extends Controller
                     ->with('error', $detail['description'] ?? 'Merchant not found.');
             }
 
-            $kyc = $profile['kyc'] ?? null;
-            $fullKyc = null;
-            try {
-                $kycResp = $client->getKycByCustomer($id);
-                $fullKyc = $kycResp['data'] ?? $kycResp;
-                if (! is_array($fullKyc) || ! isset($fullKyc['id'])) {
-                    $fullKyc = null;
-                }
-            } catch (Throwable) {
-                $fullKyc = null;
-            }
+            $compliance = ComplianceProgress::fromGateway(
+                is_array($profile['compliance'] ?? null) ? $profile['compliance'] : null
+            );
 
             return view('admin.merchants.show', [
                 'profile' => $profile,
-                'kyc' => $kyc,
-                'fullKyc' => $fullKyc,
+                'kyc' => $profile['kyc'] ?? null,
+                'fullKyc' => is_array($profile['kyc'] ?? null) ? $profile['kyc'] : null,
+                'compliance' => $compliance,
             ]);
         } catch (Throwable $e) {
             return redirect()
@@ -73,25 +66,22 @@ class MerchantController extends Controller
     public function approveKyc(Request $request, int $id): RedirectResponse
     {
         $validated = $request->validate([
-            'kycId' => ['required', 'uuid'],
-            'status' => ['required', 'in:approved,rejected,pending'],
+            'action' => ['required', 'in:approved,rejected'],
         ]);
 
         try {
-            $result = KoodifyAdminClient::fromConfig()
-                ->updateKycStatus($validated['kycId'], $validated['status']);
+            $client = KoodifyAdminClient::fromSession();
+            $result = $validated['action'] === 'approved'
+                ? $client->approveMerchantKyc($id)
+                : $client->rejectMerchantKyc($id);
 
-            $ok = ($result['code'] ?? '') === '00'
-                || isset($result['id'])
-                || isset($result['data']['id']);
-
-            if (! $ok && isset($result['description'])) {
-                return back()->with('error', (string) $result['description']);
+            if (($result['code'] ?? '') !== '00') {
+                return back()->with('error', $result['description'] ?? 'KYC update failed.');
             }
 
-            $msg = $validated['status'] === 'approved'
-                ? 'KYC approved and account provisioned. The merchant can now generate secret keys from Credentials.'
-                : 'KYC status updated to '.$validated['status'].'.';
+            $msg = $validated['action'] === 'approved'
+                ? 'KYC approved. Merchant emailed (if Resend is configured) and zainbox provisioned. They can generate sk_… from Credentials.'
+                : 'KYC rejected.';
 
             return redirect()
                 ->route('admin.merchants.show', $id)
@@ -101,10 +91,37 @@ class MerchantController extends Controller
         }
     }
 
+    public function approveSection(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'section' => ['required', 'in:business,representative,documents,declaration'],
+            'status' => ['required', 'in:approved,rejected,pending'],
+        ]);
+
+        try {
+            $result = KoodifyAdminClient::fromSession()->setComplianceSection(
+                $id,
+                $validated['section'],
+                $validated['status'],
+            );
+
+            if (($result['code'] ?? '') !== '00') {
+                return back()->with('error', $result['description'] ?? 'Section update failed.');
+            }
+
+            return back()->with(
+                'status',
+                ucfirst($validated['section']).' marked '.$validated['status'].'.'
+            );
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
     public function provision(int $id): RedirectResponse
     {
         try {
-            $result = KoodifyAdminClient::fromConfig()->provisionCustomer($id);
+            $result = KoodifyAdminClient::fromSession()->provisionCustomer($id);
             $desc = $result['description'] ?? $result['data']['description'] ?? 'Provision requested.';
 
             return redirect()

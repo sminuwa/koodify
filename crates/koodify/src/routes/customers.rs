@@ -484,7 +484,7 @@ pub async fn zainbox(
 
 /// `POST /customers/{id}/provision` — create/sync zainbox + keys (admin retry / manual).
 pub async fn provision(
-    _auth: AdminAuth,
+    _auth: crate::services::admin_session::AdminPortalAuth,
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<Value>, (StatusCode, String)> {

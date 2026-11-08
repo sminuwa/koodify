@@ -29,15 +29,19 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AdminAuthController::class, 'login'])->name('login.submit');
-    Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
+    Route::redirect('/login', '/admin/auth');
+    Route::get('/auth', [AdminAuthController::class, 'showLogin'])->name('login');
+    Route::post('/auth', [AdminAuthController::class, 'login'])->name('login.submit');
+    Route::post('/auth/logout', [AdminAuthController::class, 'logout'])->name('logout');
+    // Back-compat aliases
+    Route::post('/logout', [AdminAuthController::class, 'logout']);
 
     Route::middleware(EnsureAdminSession::class)->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/merchants', [AdminMerchantController::class, 'index'])->name('merchants.index');
         Route::get('/merchants/{id}', [AdminMerchantController::class, 'show'])->name('merchants.show');
         Route::post('/merchants/{id}/kyc', [AdminMerchantController::class, 'approveKyc'])->name('merchants.kyc');
+        Route::post('/merchants/{id}/compliance', [AdminMerchantController::class, 'approveSection'])->name('merchants.compliance');
         Route::post('/merchants/{id}/provision', [AdminMerchantController::class, 'provision'])->name('merchants.provision');
         Route::get('/{section}', AdminSectionController::class)
             ->whereIn('section', ['transactions', 'customers', 'services', 'reports', 'settings', 'activity'])
