@@ -275,6 +275,10 @@ pub async fn submit_kyc(
     let mut data = serde_json::to_value(&kyc).unwrap_or(Value::Null);
 
     if db::kyc::is_approved_status(&kyc.status) {
+        let _ = db::compliance::set_all_sections_status(&state.pool, session.customer_id, "approved")
+            .await
+            .map_err(map_db)?;
+
         match merchant_provision::maybe_provision_after_kyc(
             &state.pool,
             &state.zainpay,
@@ -291,6 +295,7 @@ pub async fn submit_kyc(
                             "zainboxCode": result.zainbox.zainbox_code,
                             "publicKey": result.public_key,
                             "createdNewZainbox": result.created_new_zainbox,
+                            "secretsReadyToIssue": true,
                             "mintedSecrets": result.minted_secrets.iter().map(|s| json!({
                                 "environment": s.environment,
                                 "secretKey": s.secret_key,
@@ -318,8 +323,8 @@ pub async fn submit_kyc(
 
 /// `POST /api/v1/auth/credentials/{environment}/issue-secret`
 ///
-/// Mints `sk_…` when missing (or rotates when `rotate=true` query — reserved).
-/// Plaintext is returned **once**.
+/// Merchant self-serve: mints `sk_…` when missing, or rotates an existing secret.
+/// Plaintext is returned **once**. Requires admin KYC approval (zainbox + `pk_…`).
 pub async fn issue_secret(
     session: MerchantSession,
     State(state): State<AppState>,
@@ -336,10 +341,54 @@ pub async fn issue_secret(
         }
     };
 
-    let customer = db::customers::find_by_id(&state.pool, session.customer_id)
+    let mut customer = db::customers::find_by_id(&state.pool, session.customer_id)
         .await
         .map_err(map_db)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "customer not found".into()))?;
+
+    // If KYC is approved but provision never finished, complete it now so the
+    // merchant can still issue secrets without an ops retry.
+    if customer
+        .zainbox_code
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .is_none()
+    {
+        let kyc = db::kyc::find_by_customer_id(&state.pool, session.customer_id)
+            .await
+            .map_err(map_db)?;
+        match kyc {
+            Some(row) if db::kyc::is_approved_status(&row.status) => {
+                let result = merchant_provision::ensure_merchant_zainbox(
+                    &state.pool,
+                    &state.zainpay,
+                    &state.config,
+                    session.customer_id,
+                )
+                .await
+                .map_err(|err| {
+                    (
+                        StatusCode::BAD_GATEWAY,
+                        format!("could not provision merchant account: {err}"),
+                    )
+                })?;
+                customer = result.customer;
+            }
+            Some(_) => {
+                return Err((
+                    StatusCode::CONFLICT,
+                    "waiting for admin KYC approval before you can issue API secrets".into(),
+                ));
+            }
+            None => {
+                return Err((
+                    StatusCode::CONFLICT,
+                    "submit Company Representative KYC and wait for admin approval before issuing secrets".into(),
+                ));
+            }
+        }
+    }
 
     let zainbox_code = customer
         .zainbox_code
@@ -348,7 +397,7 @@ pub async fn issue_secret(
         .ok_or_else(|| {
             (
                 StatusCode::CONFLICT,
-                "complete KYC approval before issuing API secrets".into(),
+                "merchant account is not provisioned yet — contact support".into(),
             )
         })?;
 
@@ -364,55 +413,61 @@ pub async fn issue_secret(
             )
         })?;
 
-    let (credentials, minted) = merchant_provision::sync_credentials_from_zainbox(
+    let (credentials, _) = merchant_provision::sync_credentials_from_zainbox(
         &state.pool,
         customer.id,
         zainbox_code,
         &public_key,
         &state.config.gateway_api_key,
+        false,
     )
     .await
     .map_err(|err| (StatusCode::BAD_GATEWAY, err.to_string()))?;
 
-    let secret = minted
-        .into_iter()
-        .find(|s| s.environment == env)
-        .or_else(|| {
-            // Already had a secret — mint a fresh one via rotate semantics.
-            None
-        });
-
-    if let Some(secret) = secret {
-        return Ok(ok(json!({
-            "environment": secret.environment,
-            "secretKey": secret.secret_key,
-            "secretKeyPrefix": secret.prefix,
-            "publicKey": public_key,
-            "minted": true,
-        })));
-    }
-
-    // Secret already existed: rotate so the dashboard can show plaintext once.
     let row = credentials
         .into_iter()
         .find(|c| c.environment == env)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "credential row missing".into()))?;
 
-    let plaintext = crate::auth::mint_secret_key(env);
-    let hash = crate::auth::hash_secret_key(&plaintext);
-    let prefix = crate::auth::secret_key_prefix(&plaintext);
-    let wrapped = crate::services::secret_wrap::wrap_secret(&state.config.gateway_api_key, &plaintext)
-        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
-    db::credentials::set_secret_hash(&state.pool, row.id, &hash, &prefix, &wrapped)
-        .await
-        .map_err(map_db)?;
+    let had_secret = row
+        .secret_key_hash
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .is_some();
+
+    let (row, plaintext) = if had_secret {
+        // Rotate — mint a fresh secret and replace the hash.
+        let plaintext = crate::auth::mint_secret_key(env);
+        let hash = crate::auth::hash_secret_key(&plaintext);
+        let prefix = crate::auth::secret_key_prefix(&plaintext);
+        let wrapped =
+            crate::services::secret_wrap::wrap_secret(&state.config.gateway_api_key, &plaintext)
+                .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+        let row = db::credentials::set_secret_hash(&state.pool, row.id, &hash, &prefix, &wrapped)
+            .await
+            .map_err(map_db)?;
+        (row, plaintext)
+    } else {
+        let (row, secret) =
+            merchant_provision::ensure_secret_key(&state.pool, &row, &state.config.gateway_api_key)
+                .await
+                .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+        let plaintext = secret.ok_or_else(|| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to mint secret key".into(),
+            )
+        })?;
+        (row, plaintext)
+    };
 
     Ok(ok(json!({
         "environment": env,
         "secretKey": plaintext,
-        "secretKeyPrefix": prefix,
+        "secretKeyPrefix": row.secret_key_prefix,
         "publicKey": public_key,
         "minted": true,
-        "rotated": true,
+        "rotated": had_secret,
     })))
 }

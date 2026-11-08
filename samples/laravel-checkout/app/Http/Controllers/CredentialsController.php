@@ -42,8 +42,8 @@ class CredentialsController extends Controller
 
         $rotated = ! empty($result['data']['rotated']);
         $msg = $rotated
-            ? 'Secret key rotated. Copy it now — it will not be shown again from the API.'
-            : 'Secret key issued. Copy it now — it will not be shown again from the API.';
+            ? 'Secret key rotated. Copy it now — it will not be shown again.'
+            : 'Secret key generated. Copy it now — it will not be shown again.';
 
         return back()->with('status', $msg);
     }

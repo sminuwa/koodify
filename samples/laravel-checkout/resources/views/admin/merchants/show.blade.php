@@ -30,7 +30,7 @@
   <div class="surface-heading">
     <div>
       <h3>KYC</h3>
-      <p class="muted">Approve to provision zainbox + keys. Reject to send back for review.</p>
+      <p class="muted">Approve to provision the merchant zainbox and publishable key. The merchant then generates secret keys from Credentials.</p>
     </div>
     @if($kyc)
       @php $kst = $kyc['status'] ?? ''; @endphp

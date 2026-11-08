@@ -57,7 +57,7 @@
           <span class="card-kicker">WELCOME BACK</span>
           <h2>Sign in to your account<span class="accent-dot">.</span></h2>
           <p class="muted">Enter your credentials to access the admin portal.</p>
-          <form method="post" action="{{ route('admin.login.submit') }}" id="loginForm">
+          <form method="post" action="{{ route('admin.login.submit') }}" id="loginForm" class="auth-submit-form">
             @csrf
             <label for="loginEmail">Email address</label>
             <div class="input-wrap"><span class="input-icon">✉</span><input id="loginEmail" name="email" type="email" value="{{ old('email', config('koodify.admin_email')) }}" placeholder="you@company.com" autocomplete="username" required></div>
@@ -73,7 +73,16 @@
             @else
               <p class="form-message" id="loginMessage" aria-live="polite"></p>
             @endif
-            <button class="primary-button" type="submit"><span>Sign in to portal</span><b>→</b></button>
+            <button
+              class="primary-button auth-submit-btn"
+              type="submit"
+              data-idle-label="Sign in to portal"
+              data-loading-label="Signing in…"
+            >
+              <span class="auth-submit-spinner" aria-hidden="true"></span>
+              <span class="auth-submit-label">Sign in to portal</span>
+              <b class="auth-submit-arrow">→</b>
+            </button>
           </form>
           <div class="auth-switch">Merchant account? <a class="text-button" href="{{ route('login') }}" style="border:0;background:none;padding:0;color:inherit;font:inherit;font-weight:700;cursor:pointer">Open merchant portal</a></div>
           <div class="auth-legal">By continuing, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</div>
@@ -83,6 +92,15 @@
     </section>
   </main>
   <div class="toast" id="toast" role="status"></div>
+  <style>
+    .auth-submit-btn{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;width:100%}
+    .auth-submit-btn:disabled{cursor:wait;opacity:.85}
+    .auth-submit-spinner{width:1rem;height:1rem;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;display:none;flex-shrink:0}
+    .auth-submit-btn.is-loading .auth-submit-spinner{display:inline-block;animation:auth-spin .7s linear infinite}
+    .auth-submit-btn.is-loading .auth-submit-arrow{display:none}
+    @keyframes auth-spin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){.auth-submit-btn.is-loading .auth-submit-spinner{animation:none;opacity:.7}}
+  </style>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
     document.querySelectorAll('.show-password').forEach(btn => {
@@ -98,6 +116,38 @@
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2800);
     });
+
+    (function () {
+      function setLoading(btn, loading) {
+        if (!btn) return;
+        var label = btn.querySelector('.auth-submit-label');
+        var idle = btn.getAttribute('data-idle-label') || 'Sign in to portal';
+        var busy = btn.getAttribute('data-loading-label') || 'Signing in…';
+        btn.disabled = loading;
+        btn.classList.toggle('is-loading', loading);
+        btn.setAttribute('aria-busy', loading ? 'true' : 'false');
+        if (label) label.textContent = loading ? busy : idle;
+      }
+
+      document.querySelectorAll('form.auth-submit-form').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+          if (form.dataset.submitting === '1') {
+            event.preventDefault();
+            return;
+          }
+          form.dataset.submitting = '1';
+          setLoading(form.querySelector('button.auth-submit-btn[type="submit"]'), true);
+        });
+      });
+
+      window.addEventListener('pageshow', function (event) {
+        if (!event.persisted) return;
+        document.querySelectorAll('form.auth-submit-form').forEach(function (form) {
+          form.dataset.submitting = '0';
+          setLoading(form.querySelector('button.auth-submit-btn[type="submit"]'), false);
+        });
+      });
+    })();
   </script>
 </body>
 </html>

@@ -53,8 +53,13 @@
   }
 
   $done = collect($sections)->whereIn('state', ['done', 'progress'])->count();
+  $approvedCount = collect($sections)->where('state', 'done')->count();
   $total = count($sections);
   $percent = (int) round(($done / max($total, 1)) * 100);
+  $allApproved = $approvedCount === $total;
+  $hasPublicKey = filled($profile['publicKey'] ?? session('merchant.public_key'));
+  $kycStatus = strtolower((string) data_get($profile, 'kyc.status', ''));
+  $kycApproved = in_array($kycStatus, ['approved', 'active'], true);
 
   $questions = [
     ['q' => 'Why do I need to complete compliance?', 'a' => 'Live payments stay off until the business is verified. Compliance confirms who owns the account and where settlements should go.'],
@@ -74,12 +79,35 @@
     <section class="ky-hero">
       <div class="ky-hero-copy">
         <p class="ky-kicker">Account verification</p>
-        <h2>Complete your KYC</h2>
-        <p>Open each compliance section, submit the required details, and track approval status as your account is reviewed.</p>
-        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#compliance-modal-{{ $nextSection }}">
-          Continue compliance
-          <i class="bi bi-arrow-right" aria-hidden="true"></i>
-        </button>
+        @if ($allApproved && $hasPublicKey)
+          <h2>Verification complete</h2>
+          <p>Your account is provisioned. Generate publishable and secret API keys from Credentials — secrets are shown once when you issue them.</p>
+          <a class="btn btn-primary" href="{{ route('credentials.show') }}">
+            Issue API keys
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+          </a>
+        @elseif ($allApproved && $kycApproved)
+          <h2>Approved — finishing setup</h2>
+          <p>Admin approved your KYC. Open Credentials to generate your secret keys; provisioning will complete on first issue if needed.</p>
+          <a class="btn btn-primary" href="{{ route('credentials.show') }}">
+            Go to Credentials
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+          </a>
+        @elseif ($allApproved)
+          <h2>Submitted — awaiting admin approval</h2>
+          <p>All compliance sections are in. An admin will approve KYC to provision your account. After that you generate API keys yourself.</p>
+          <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#compliance-modal-{{ $nextSection }}">
+            Review sections
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+          </button>
+        @else
+          <h2>Complete your KYC</h2>
+          <p>Open each compliance section, submit the required details, and track approval status as your account is reviewed.</p>
+          <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#compliance-modal-{{ $nextSection }}">
+            Continue compliance
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+          </button>
+        @endif
       </div>
       <div class="ky-art" aria-hidden="true">
         <img src="{{ asset('images/compliance-kyc.png') }}" alt="">
@@ -228,6 +256,7 @@
 
           <form
             id="{{ $formId }}"
+            class="compliance-submit-form"
             method="post"
             action="{{ route('compliance.section') }}"
             @if ($key === 'documents') enctype="multipart/form-data" @endif
@@ -382,7 +411,16 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
           @unless ($locked)
-            <button class="btn btn-primary" type="submit" form="{{ $formId }}">Submit for approval</button>
+            <button
+              class="btn btn-primary compliance-submit-btn"
+              type="submit"
+              form="{{ $formId }}"
+              data-idle-label="Submit for approval"
+              data-loading-label="Submitting…"
+            >
+              <span class="compliance-submit-spinner" aria-hidden="true"></span>
+              <span class="compliance-submit-label">Submit for approval</span>
+            </button>
           @endunless
         </div>
       </div>
@@ -398,7 +436,7 @@
   .ky-row.is-progress .ky-dot{background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.16)}
   .ky-row.is-done .ky-state{color:#047857}
   .ky-row.is-done .ky-dot{background:#10b981;box-shadow:0 0 0 4px rgba(16,185,129,.16)}
-  .ky-step-open{width:100%;border:0;background:transparent;text-align:left;cursor:pointer;font:inherit;padding:6px}
+  .ky-step-open{width:100%;border:0;background:transparent;text-align:left;cursor:pointer;font:inherit;}
   .compliance-modal .modal-dialog{max-width:720px;width:calc(100% - 1.5rem);margin:0.75rem auto;height:auto;max-height:calc(100dvh - 1.5rem)}
   .compliance-modal .modal-content{border:0;border-radius:18px;overflow:hidden;box-shadow:0 28px 56px rgba(11,27,51,.18);height:100%;max-height:calc(100dvh - 1.5rem);display:flex;flex-direction:column}
   .compliance-modal .modal-header,
@@ -421,6 +459,12 @@
   .compliance-modal.show .modal-content{animation:compliance-pop .28s cubic-bezier(.23,1,.32,1)}
   @keyframes compliance-pop{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.compliance-modal.show .modal-content{animation:none}}
+  .compliance-submit-btn{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;min-width:11.5rem}
+  .compliance-submit-btn:disabled{cursor:wait;opacity:.85}
+  .compliance-submit-spinner{width:1rem;height:1rem;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;display:none;flex-shrink:0}
+  .compliance-submit-btn.is-loading .compliance-submit-spinner{display:inline-block;animation:compliance-spin .7s linear infinite}
+  @keyframes compliance-spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.compliance-submit-btn.is-loading .compliance-submit-spinner{animation:none;opacity:.7}}
 </style>
 @endpush
 
@@ -434,6 +478,42 @@
         bootstrap.Modal.getOrCreateInstance(el).show();
       }
     }
+
+    function submitButtonFor(form) {
+      return document.querySelector('button.compliance-submit-btn[form="' + form.id + '"]')
+        || form.querySelector('button.compliance-submit-btn[type="submit"]');
+    }
+
+    function setLoading(btn, loading) {
+      if (!btn) return;
+      var label = btn.querySelector('.compliance-submit-label');
+      var idle = btn.getAttribute('data-idle-label') || 'Submit for approval';
+      var busy = btn.getAttribute('data-loading-label') || 'Submitting…';
+      btn.disabled = loading;
+      btn.classList.toggle('is-loading', loading);
+      btn.setAttribute('aria-busy', loading ? 'true' : 'false');
+      if (label) label.textContent = loading ? busy : idle;
+    }
+
+    document.querySelectorAll('form.compliance-submit-form').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (form.dataset.submitting === '1') {
+          event.preventDefault();
+          return;
+        }
+        form.dataset.submitting = '1';
+        setLoading(submitButtonFor(form), true);
+      });
+    });
+
+    // Restore controls if the browser restores this page from bfcache after a failed navigation.
+    window.addEventListener('pageshow', function (event) {
+      if (!event.persisted) return;
+      document.querySelectorAll('form.compliance-submit-form').forEach(function (form) {
+        form.dataset.submitting = '0';
+        setLoading(submitButtonFor(form), false);
+      });
+    });
   });
 </script>
 @endpush

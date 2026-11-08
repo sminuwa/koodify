@@ -146,6 +146,29 @@ pub async fn upsert_document(
     .await
 }
 
+/// Mark every existing compliance section for a customer with the given status
+/// (used when admin approves KYC so portal sections match the KYC decision).
+pub async fn set_all_sections_status(
+    pool: &PgPool,
+    customer_id: i64,
+    status: &str,
+) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query(
+        r#"
+        UPDATE compliance_sections
+        SET status = $2,
+            reviewed_at = now(),
+            updated_at = now()
+        WHERE customer_id = $1
+        "#,
+    )
+    .bind(customer_id)
+    .bind(status)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected())
+}
+
 pub async fn list_documents(
     pool: &PgPool,
     customer_id: i64,

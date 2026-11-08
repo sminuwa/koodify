@@ -69,13 +69,18 @@ pub async fn ensure_secret_key(
     Ok((row, Some(plaintext)))
 }
 
-/// Sync test+live credentials so `public_key` matches the zainbox; mint secrets if missing.
+/// Sync test+live credentials so `public_key` matches the zainbox.
+///
+/// When `mint_secrets` is false (admin KYC approval / provision), credential rows
+/// are created without `sk_…` — merchants issue secrets themselves from Credentials.
+/// Seed / ops paths may pass `mint_secrets: true`.
 pub async fn sync_credentials_from_zainbox(
     pool: &PgPool,
     customer_id: i64,
     zainbox_code: &str,
     public_key: &str,
     gateway_api_key: &str,
+    mint_secrets: bool,
 ) -> Result<(Vec<Credential>, Vec<ProvisionedSecret>)> {
     let meta = json!({ "zainboxCode": zainbox_code, "source": "zainbox-public-key" });
     let mut out = Vec::with_capacity(2);
@@ -96,15 +101,19 @@ pub async fn sync_credentials_from_zainbox(
         .with_context(|| {
             format!("upsert {environment} credentials for customer {customer_id}")
         })?;
-        let (row, secret) = ensure_secret_key(pool, &row, gateway_api_key).await?;
-        if let Some(secret_key) = secret {
-            minted.push(ProvisionedSecret {
-                environment: environment.to_string(),
-                prefix: secret_key_prefix(&secret_key),
-                secret_key,
-            });
+        if mint_secrets {
+            let (row, secret) = ensure_secret_key(pool, &row, gateway_api_key).await?;
+            if let Some(secret_key) = secret {
+                minted.push(ProvisionedSecret {
+                    environment: environment.to_string(),
+                    prefix: secret_key_prefix(&secret_key),
+                    secret_key,
+                });
+            }
+            out.push(row);
+        } else {
+            out.push(row);
         }
-        out.push(row);
     }
     Ok((out, minted))
 }
@@ -174,12 +183,14 @@ pub async fn ensure_merchant_zainbox(
             }
         };
         let public_key = zainboxes::ensure_public_key(pool, &code).await?;
+        // Admin provision unlocks the account; merchants mint sk_… themselves.
         let (credentials, minted_secrets) = sync_credentials_from_zainbox(
             pool,
             customer_id,
             &code,
             &public_key,
             &config.gateway_api_key,
+            false,
         )
         .await?;
         if let Some(kyc) = db::kyc::find_by_customer_id(pool, customer_id).await? {
@@ -289,6 +300,7 @@ pub async fn ensure_merchant_zainbox(
         &zainbox_code,
         &public_key,
         &config.gateway_api_key,
+        false,
     )
     .await?;
 
@@ -297,7 +309,7 @@ pub async fn ensure_merchant_zainbox(
         zainbox_code = %zainbox_code,
         public_key = %public_key,
         minted_secrets = minted_secrets.len(),
-        "provisioned merchant zainbox after KYC approval"
+        "provisioned merchant zainbox after KYC approval (secrets issued by merchant)"
     );
 
     Ok(ProvisionResult {

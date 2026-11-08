@@ -65,6 +65,11 @@ async fn after_kyc_write(
     kyc: KycProfile,
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let provision = if db::kyc::is_approved_status(&kyc.status) {
+        // Keep portal compliance tiles in sync with the KYC decision.
+        let _ = db::compliance::set_all_sections_status(&state.pool, kyc.customer_id, "approved")
+            .await
+            .map_err(map_db)?;
+
         match merchant_provision::maybe_provision_after_kyc(
             &state.pool,
             &state.zainpay,
@@ -77,6 +82,8 @@ async fn after_kyc_write(
                 "zainboxCode": result.zainbox.zainbox_code,
                 "publicKey": result.public_key,
                 "createdNewZainbox": result.created_new_zainbox,
+                // Secrets are merchant-issued from Credentials — not returned on approve.
+                "secretsReadyToIssue": true,
                 "mintedSecrets": result.minted_secrets.iter().map(|s| json!({
                     "environment": s.environment,
                     "secretKey": s.secret_key,

@@ -89,9 +89,13 @@ class MerchantController extends Controller
                 return back()->with('error', (string) $result['description']);
             }
 
+            $msg = $validated['status'] === 'approved'
+                ? 'KYC approved and account provisioned. The merchant can now generate secret keys from Credentials.'
+                : 'KYC status updated to '.$validated['status'].'.';
+
             return redirect()
                 ->route('admin.merchants.show', $id)
-                ->with('status', 'KYC status updated to '.$validated['status'].'.');
+                ->with('status', $msg);
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }

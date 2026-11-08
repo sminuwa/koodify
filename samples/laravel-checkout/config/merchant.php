@@ -16,6 +16,7 @@ return [
             'heading' => 'Developer',
             'items' => [
                 ['label' => 'Compliance', 'route' => 'compliance.show', 'match' => 'compliance.*', 'icon' => 'bi-shield-check'],
+                ['label' => 'Credentials', 'route' => 'credentials.show', 'match' => 'credentials.*', 'icon' => 'bi-key'],
                 ['label' => 'Guides & Tutorials', 'route' => 'guides', 'icon' => 'bi-journal-check'],
                 ['label' => 'Payment Simulation', 'route' => 'payment-simulation', 'icon' => 'bi-play-circle'],
                 ['label' => 'API Docs', 'url' => 'https://docs.koodify.ng/', 'icon' => 'bi-journal-text'],
@@ -30,9 +31,8 @@ return [
             ],
         ],
         [
-            'heading' => 'Authentication',
+            'heading' => 'Account settings',
             'items' => [
-                ['label' => 'Credentials', 'route' => 'credentials.show', 'match' => 'credentials.*', 'icon' => 'bi-key'],
                 ['label' => 'Profile', 'route' => 'profile', 'icon' => 'bi-person'],
                 ['label' => 'Logout', 'action' => 'logout', 'icon' => 'bi-box-arrow-right'],
             ],

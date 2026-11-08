@@ -151,6 +151,7 @@ pub async fn run(pool: &PgPool, gateway_api_key: &str) -> Result<()> {
             &zb.zainbox_code,
             &public_key,
             gateway_api_key,
+            true,
         )
         .await
         .with_context(|| {

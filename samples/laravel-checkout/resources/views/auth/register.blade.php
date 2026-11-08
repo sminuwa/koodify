@@ -3,7 +3,7 @@
 @section('title', 'Create account')
 
 @section('content')
-<form class="login-card" method="POST" action="{{ route('register') }}">
+<form class="login-card auth-submit-form" method="POST" action="{{ route('register') }}">
   @csrf
   <a href="{{ route('register') }}" class="brand login-brand">
     <img class="brand-logo" src="{{ asset('images/koodify-logo-full.png') }}" alt="Koodify">
@@ -45,7 +45,15 @@
 
   <label class="check-row"><input type="checkbox" name="accept_terms" value="1" required> I agree to the Terms and Privacy Policy</label>
 
-  <button class="btn btn-primary login-submit" type="submit">Create merchant account</button>
+  <button
+    class="btn btn-primary login-submit auth-submit-btn"
+    type="submit"
+    data-idle-label="Create merchant account"
+    data-loading-label="Creating account…"
+  >
+    <span class="auth-submit-spinner" aria-hidden="true"></span>
+    <span class="auth-submit-label">Create merchant account</span>
+  </button>
   <p class="login-alt">Already registered? <a href="{{ route('login') }}">Sign in</a></p>
   <p class="login-legal">By continuing, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
 </form>
