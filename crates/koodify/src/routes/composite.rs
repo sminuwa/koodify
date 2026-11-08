@@ -20,6 +20,14 @@ pub struct DateRangeQuery {
     pub payment_channel: Option<String>,
     pub date_from: Option<String>,
     pub date_to: Option<String>,
+    /// Optional for platform admin; ignored for merchant `sk_…` (auto-scoped).
+    pub zainbox_code: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ZainboxCodeQuery {
+    pub zainbox_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -193,13 +201,57 @@ pub async fn name_resolve(
         .and_then(to_json)
 }
 
+/// `GET /api/v1/wallet` — merchant `sk_…` auto-scopes to their zainbox; admin needs `?zainboxCode=`.
+pub async fn merchant_wallet(
+    auth: ApiKeyAuth,
+    State(state): State<AppState>,
+    Query(q): Query<ZainboxCodeQuery>,
+) -> JsonResult {
+    let code = auth.resolve_zainbox(q.zainbox_code.as_deref())?;
+    state
+        .zainpay
+        .composite()
+        .zainbox_wallet_view(code)
+        .await
+        .map_err(map_upstream)
+        .and_then(to_json)
+}
+
 /// `GET /api/v1/transactions` — summary + transaction list.
+///
+/// Merchant `sk_…` is scoped to their zainbox (same data as `/zainbox/{code}/transactions`).
+/// Platform admin uses the merchant-wide Zainpay summary unless `?zainboxCode=` is set.
 /// Aliases (deprecated): `/api/v1/merchant/transactions`, `/api/v1/merchant/activity`.
 pub async fn merchant_activity(
     auth: ApiKeyAuth,
     State(state): State<AppState>,
     Query(q): Query<DateRangeQuery>,
 ) -> JsonResult {
+    // Merchant sk_… (or admin with ?zainboxCode=) → zainbox-scoped activity.
+    if auth.merchant().is_some()
+        || q.zainbox_code
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|s| !s.is_empty())
+    {
+        let code = auth.resolve_zainbox(q.zainbox_code.as_deref())?;
+        return state
+            .zainpay
+            .composite()
+            .zainbox_activity(
+                code,
+                q.count.as_deref(),
+                q.txn_type.as_deref(),
+                q.account_number.as_deref(),
+                q.payment_channel.as_deref(),
+                q.date_from.as_deref(),
+                q.date_to.as_deref(),
+            )
+            .await
+            .map_err(map_upstream)
+            .and_then(to_json);
+    }
+
     auth.require_admin()?;
     state
         .zainpay

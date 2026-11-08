@@ -7,7 +7,7 @@ Two portals in one Laravel sample, both calling **Koodify APIs**:
 | **Merchant** | `/login` · `/register` | Businesses (session `mt_…`) |
 | **Admin** | `/admin/auth` | Platform ops (`at_…` from gateway `users`) — same UI shell as merchant |
 
-UI for admin comes from the Desktop `koodify-admin-portal` prototype (`public/admin/css`).
+Admin reuses the merchant portal shell (`public/css/style.css`). Legacy prototype assets live under `public/admin-assets/` if needed.
 
 ## Merchant flow
 

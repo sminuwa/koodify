@@ -146,10 +146,10 @@
             <span>@yield('crumb', 'Dashboard')</span>
           </div>
         @endunless
-        @if(session('status') && !request()->routeIs('get-started'))
+        @if(session('status') && ! request()->routeIs(['get-started', 'credentials.*']))
           <div class="flash ok">{{ session('status') }}</div>
         @endif
-        @if(session('error'))
+        @if(session('error') && ! request()->routeIs('credentials.*'))
           <div class="flash err">{{ session('error') }}</div>
         @endif
         @yield('content')

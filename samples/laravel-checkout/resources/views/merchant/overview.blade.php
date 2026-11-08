@@ -10,83 +10,95 @@
   $hour = (int) now()->format('G');
   $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
 
-  $range = request('range', 'daily');
-  if (! in_array($range, ['daily', 'weekly', 'monthly'], true)) {
-      $range = 'daily';
-  }
+  $range = $range ?? 'daily';
   $rangeLabels = [
       'daily' => 'Last 14 days',
       'weekly' => 'Last 8 weeks',
       'monthly' => 'Last 6 months',
   ];
-  $periodLabel = $rangeLabels[$range];
+  $periodLabel = $rangeLabels[$range] ?? 'Last 14 days';
 
   $naira = function (float $amount): string {
       return '₦'.number_format($amount, 2);
   };
 
-  // Sample presentational figures (transaction APIs not wired yet).
-  $kpis = [
-      ['label' => 'Total Collected', 'value' => $naira(2450000), 'change' => 12.6, 'icon' => 'bi-receipt', 'tone' => 'is-blue', 'spark' => 'in', 'color' => '#5b4dff'],
-      ['label' => 'Total Payouts', 'value' => $naira(820000), 'change' => 4.2, 'icon' => 'bi-arrow-left-right', 'tone' => 'is-blue', 'spark' => 'out', 'color' => '#b7c3d6'],
-      ['label' => 'Transactions', 'value' => number_format(1284), 'change' => 8.1, 'icon' => 'bi-file-earmark-text', 'tone' => 'is-violet', 'spark' => 'both', 'color' => '#7c3aed'],
-      ['label' => 'Available to pay out', 'value' => $naira(1630000), 'change' => null, 'icon' => 'bi-wallet2', 'tone' => 'is-green', 'spark' => null, 'color' => null, 'note' => 'Waiting payout'],
-  ];
-
-  $points = match ($range) {
-      'weekly' => [
-          ['label' => 'W1', 'in' => 420000, 'out' => 180000],
-          ['label' => 'W2', 'in' => 510000, 'out' => 210000],
-          ['label' => 'W3', 'in' => 390000, 'out' => 150000],
-          ['label' => 'W4', 'in' => 640000, 'out' => 260000],
-          ['label' => 'W5', 'in' => 580000, 'out' => 240000],
-          ['label' => 'W6', 'in' => 710000, 'out' => 300000],
-          ['label' => 'W7', 'in' => 680000, 'out' => 280000],
-          ['label' => 'W8', 'in' => 760000, 'out' => 310000],
-      ],
-      'monthly' => [
-          ['label' => 'Jun', 'in' => 1800000, 'out' => 720000],
-          ['label' => 'Jul', 'in' => 2100000, 'out' => 800000],
-          ['label' => 'Aug', 'in' => 1950000, 'out' => 750000],
-          ['label' => 'Sep', 'in' => 2400000, 'out' => 910000],
-          ['label' => 'Oct', 'in' => 2650000, 'out' => 980000],
-          ['label' => 'Nov', 'in' => 2450000, 'out' => 820000],
-      ],
-      default => [
-          ['label' => 'Oct 25', 'in' => 120000, 'out' => 45000],
-          ['label' => 'Oct 26', 'in' => 98000, 'out' => 32000],
-          ['label' => 'Oct 27', 'in' => 150000, 'out' => 61000],
-          ['label' => 'Oct 28', 'in' => 132000, 'out' => 40000],
-          ['label' => 'Oct 29', 'in' => 176000, 'out' => 72000],
-          ['label' => 'Oct 30', 'in' => 160000, 'out' => 55000],
-          ['label' => 'Oct 31', 'in' => 210000, 'out' => 88000],
-          ['label' => 'Nov 01', 'in' => 188000, 'out' => 64000],
-          ['label' => 'Nov 02', 'in' => 205000, 'out' => 70000],
-          ['label' => 'Nov 03', 'in' => 240000, 'out' => 91000],
-          ['label' => 'Nov 04', 'in' => 198000, 'out' => 60000],
-          ['label' => 'Nov 05', 'in' => 225000, 'out' => 78000],
-          ['label' => 'Nov 06', 'in' => 260000, 'out' => 95000],
-          ['label' => 'Nov 07', 'in' => 275000, 'out' => 102000],
-      ],
-  };
+  $insights = is_array($insights ?? null) ? $insights : [];
+  $totalCollected = (float) ($insights['totalCollected'] ?? 0);
+  $totalPayouts = (float) ($insights['totalPayouts'] ?? 0);
+  $transactionCount = (int) ($insights['transactionCount'] ?? 0);
+  $availableBalance = (float) ($insights['availableBalance'] ?? 0);
+  $points = is_array($insights['points'] ?? null) ? $insights['points'] : [];
+  $boxes = is_array($insights['boxes'] ?? null) ? $insights['boxes'] : [];
+  $transactions = is_array($insights['transactions'] ?? null) ? $insights['transactions'] : [];
+  $peak = max(1.0, (float) (max(array_column($boxes, 'collected') ?: [0]) ?: 0));
   $moneyIn = array_sum(array_column($points, 'in'));
   $moneyOut = array_sum(array_column($points, 'out'));
+  $configured = (bool) ($configured ?? false);
+  $emptyReason = $emptyReason ?? null;
 
-  $boxes = [
-      ['name' => 'Main collections', 'codeName' => 'main', 'collected' => 1250000],
-      ['name' => 'Checkout', 'codeName' => 'checkout', 'collected' => 680000],
-      ['name' => 'Virtual accounts', 'codeName' => 'va', 'collected' => 420000],
-      ['name' => 'Transfers', 'codeName' => 'transfers', 'collected' => 100000],
+  $kpis = [
+      [
+          'label' => 'Total Collected',
+          'value' => $configured ? $naira($totalCollected) : '—',
+          'change' => $configured ? null : null,
+          'icon' => 'bi-receipt',
+          'tone' => 'is-blue',
+          'spark' => $configured ? 'in' : null,
+          'color' => '#5b4dff',
+          'note' => $configured ? 'In selected period' : 'Complete setup to unlock',
+      ],
+      [
+          'label' => 'Total Payouts',
+          'value' => $configured ? $naira($totalPayouts) : '—',
+          'change' => null,
+          'icon' => 'bi-arrow-left-right',
+          'tone' => 'is-blue',
+          'spark' => $configured ? 'out' : null,
+          'color' => '#b7c3d6',
+          'note' => $configured ? 'Outflows in period' : 'Complete setup to unlock',
+      ],
+      [
+          'label' => 'Transactions',
+          'value' => $configured ? number_format($transactionCount) : '—',
+          'change' => null,
+          'icon' => 'bi-file-earmark-text',
+          'tone' => 'is-violet',
+          'spark' => $configured ? 'both' : null,
+          'color' => '#7c3aed',
+          'note' => $configured ? 'In selected period' : 'Complete setup to unlock',
+      ],
+      [
+          'label' => 'Available to pay out',
+          'value' => $configured ? $naira($availableBalance) : '—',
+          'change' => null,
+          'icon' => 'bi-wallet2',
+          'tone' => 'is-green',
+          'spark' => null,
+          'color' => null,
+          'note' => $configured ? 'Wallet balance' : 'Complete setup to unlock',
+      ],
   ];
-  $peak = max(1, max(array_column($boxes, 'collected')));
 
-  $transactions = [
-      ['reference' => 'TXN-839201', 'zainbox' => 'Checkout', 'sender' => 'Amaka Adeyemi', 'type' => 'Payment', 'amount' => 245000, 'out' => false, 'date' => now(), 'status' => 'Successful', 'tone' => 'is-success'],
-      ['reference' => 'TXN-839200', 'zainbox' => 'Main collections', 'sender' => 'GTBank transfer', 'type' => 'Bank transfer', 'amount' => 82500, 'out' => false, 'date' => now(), 'status' => 'Pending', 'tone' => 'is-pending'],
-      ['reference' => 'TXN-839199', 'zainbox' => 'Virtual accounts', 'sender' => 'Amina Mart', 'type' => 'Virtual account', 'amount' => 1250000, 'out' => false, 'date' => now()->subDay(), 'status' => 'Successful', 'tone' => 'is-success'],
-      ['reference' => 'TXN-839198', 'zainbox' => 'Transfers', 'sender' => 'Payroll', 'type' => 'Transfer', 'amount' => 36700, 'out' => true, 'date' => now()->subDay(), 'status' => 'Failed', 'tone' => 'is-failed'],
-      ['reference' => 'TXN-839197', 'zainbox' => 'Checkout', 'sender' => 'FreshCart', 'type' => 'Payment', 'amount' => 18400, 'out' => false, 'date' => now()->subDays(2), 'status' => 'Successful', 'tone' => 'is-success'],
-  ];
+  $emptyCopy = match ($emptyReason) {
+      'issue_secret' => [
+          'title' => 'Issue your secret key',
+          'body' => 'Your publishable key is ready. Generate an sk_… from Credentials so the dashboard can load live collections and payouts.',
+          'cta' => 'Open Credentials',
+          'href' => route('credentials.show'),
+      ],
+      'awaiting_provision' => [
+          'title' => 'Waiting for account provisioning',
+          'body' => 'Compliance is in review or approved. Once your publishable key is provisioned, issue a secret key and this dashboard will fill with live activity.',
+          'cta' => 'Check Credentials',
+          'href' => route('credentials.show'),
+      ],
+      default => [
+          'title' => 'Complete compliance to unlock your dashboard',
+          'body' => 'Finish KYC / compliance, wait for admin approval, then issue API keys. Until then these cards stay empty.',
+          'cta' => 'Continue compliance',
+          'href' => route('compliance.show'),
+      ],
+  };
 @endphp
 
 <section class="ops-dashboard" id="opsDashboard">
@@ -96,26 +108,54 @@
         <span class="page-heading-mark" aria-hidden="true"><i class="bi bi-grid"></i></span>
         <span>{{ $greeting }}, {{ $first }} <span class="dash-wave" aria-hidden="true">👋</span></span>
       </h2>
-      <p>Here's what's happening with your payments today.</p>
+      <p>
+        @if ($configured)
+          Live activity for {{ $zainboxCode ?: 'your merchant account' }} · {{ $periodLabel }}.
+        @else
+          Finish setup to load collections, payouts, and recent activity.
+        @endif
+      </p>
     </div>
     <div class="dropdown">
-      <button class="range-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <button class="range-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false" @disabled(! $configured)>
         <i class="bi bi-calendar3" aria-hidden="true"></i>
         <span>{{ $periodLabel }}</span>
         <i class="bi bi-chevron-down" aria-hidden="true"></i>
       </button>
-      <ul class="dropdown-menu dropdown-menu-end range-menu">
-        <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'daily']) }}">Last 14 days</a></li>
-        <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'weekly']) }}">Last 8 weeks</a></li>
-        <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'monthly']) }}">Last 6 months</a></li>
-      </ul>
+      @if ($configured)
+        <ul class="dropdown-menu dropdown-menu-end range-menu">
+          <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'daily']) }}">Last 14 days</a></li>
+          <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'weekly']) }}">Last 8 weeks</a></li>
+          <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'monthly']) }}">Last 6 months</a></li>
+        </ul>
+      @endif
     </div>
   </header>
+
+  @if (! empty($apiError))
+    <div class="flash err">{{ $apiError }}</div>
+  @endif
+
+  @unless ($configured)
+    <section class="gs-panel dash-empty-banner">
+      <div class="gs-panel-title">
+        <span class="gs-panel-mark" aria-hidden="true"><i class="bi bi-shield-check"></i></span>
+        <div>
+          <h2>{{ $emptyCopy['title'] }}</h2>
+          <p>{{ $emptyCopy['body'] }}</p>
+        </div>
+      </div>
+      <div class="dash-empty-actions">
+        <a class="btn btn-primary" href="{{ $emptyCopy['href'] }}">{{ $emptyCopy['cta'] }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+        <a class="gs-outline" href="{{ route('get-started') }}">View Get Started</a>
+      </div>
+    </section>
+  @endunless
 
   <div class="kpi-row">
     <div class="dashboard-figures">
       @foreach ($kpis as $kpi)
-        <article class="gs-stat">
+        <article class="gs-stat {{ $configured ? '' : 'is-empty' }}">
           <span class="gs-stat-icon {{ $kpi['tone'] }}" aria-hidden="true"><i class="bi {{ $kpi['icon'] }}"></i></span>
           <span class="gs-stat-copy">
             <small>{{ $kpi['label'] }}</small>
@@ -147,38 +187,47 @@
           <span class="gs-panel-mark" aria-hidden="true"><i class="bi bi-bar-chart-line"></i></span>
           <div>
             <h2>Money Movement</h2>
-            <p>Daily collection and payout trend</p>
+            <p>{{ $configured ? 'Collection and payout trend' : 'Charts unlock after API keys are issued' }}</p>
           </div>
         </div>
-        <div class="dropdown">
-          <button class="range-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <span>{{ $periodLabel }}</span>
-            <i class="bi bi-chevron-down" aria-hidden="true"></i>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end range-menu">
-            <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'daily']) }}">Last 14 days</a></li>
-            <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'weekly']) }}">Last 8 weeks</a></li>
-            <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'monthly']) }}">Last 6 months</a></li>
-          </ul>
-        </div>
+        @if ($configured)
+          <div class="dropdown">
+            <button class="range-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <span>{{ $periodLabel }}</span>
+              <i class="bi bi-chevron-down" aria-hidden="true"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end range-menu">
+              <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'daily']) }}">Last 14 days</a></li>
+              <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'weekly']) }}">Last 8 weeks</a></li>
+              <li><a class="dropdown-item" href="{{ route('dashboard', ['range' => 'monthly']) }}">Last 6 months</a></li>
+            </ul>
+          </div>
+        @endif
       </div>
-      <div class="flow-summary">
-        <div>
-          <span>Money In</span>
-          <strong>{{ $naira($moneyIn) }}</strong>
+      @if ($configured)
+        <div class="flow-summary">
+          <div>
+            <span>Money In</span>
+            <strong>{{ $naira((float) $moneyIn) }}</strong>
+          </div>
+          <div>
+            <span>Money Out</span>
+            <strong>{{ $naira((float) $moneyOut) }}</strong>
+          </div>
+          <div class="flow-legend">
+            <span><i class="is-in"></i> Money In</span>
+            <span><i class="is-out"></i> Money Out</span>
+          </div>
         </div>
-        <div>
-          <span>Money Out</span>
-          <strong>{{ $naira($moneyOut) }}</strong>
+        <div class="chart-frame">
+          <canvas id="dashboardFlow" aria-label="Money movement for {{ $periodLabel }}" data-series='@json($points)'></canvas>
         </div>
-        <div class="flow-legend">
-          <span><i class="is-in"></i> Money In</span>
-          <span><i class="is-out"></i> Money Out</span>
+      @else
+        <div class="dash-empty-panel">
+          <i class="bi bi-bar-chart" aria-hidden="true"></i>
+          <p>No movement data yet. Complete compliance and issue keys to see collections vs payouts.</p>
         </div>
-      </div>
-      <div class="chart-frame">
-        <canvas id="dashboardFlow" aria-label="Money movement for {{ $periodLabel }}" data-series='@json($points)'></canvas>
-      </div>
+      @endif
     </section>
 
     <section class="gs-panel">
@@ -187,20 +236,33 @@
           <span class="gs-panel-mark" aria-hidden="true"><i class="bi bi-box"></i></span>
           <div>
             <h2>Collections by service</h2>
-            <p>Top performing channels</p>
+            <p>{{ $configured ? 'Top performing channels' : 'Channels appear after your first collections' }}</p>
           </div>
         </div>
         <a class="menu-link" href="{{ route('payment-simulation') }}">View tools</a>
       </div>
-      <ul class="box-bars">
-        @foreach ($boxes as $row)
-          <li>
-            <span class="box-bars-name">{{ $row['name'] }}</span>
-            <span class="box-bars-track" aria-hidden="true"><span style="width: {{ max(4, ($row['collected'] / $peak) * 100) }}%"></span></span>
-            <strong>{{ $naira($row['collected']) }}</strong>
-          </li>
-        @endforeach
-      </ul>
+      @if ($configured && $transactionCount > 0)
+        <ul class="box-bars">
+          @foreach ($boxes as $row)
+            <li>
+              <span class="box-bars-name">{{ $row['name'] }}</span>
+              <span class="box-bars-track" aria-hidden="true"><span style="width: {{ max(4, ($row['collected'] / $peak) * 100) }}%"></span></span>
+              <strong>{{ $naira((float) $row['collected']) }}</strong>
+            </li>
+          @endforeach
+        </ul>
+      @else
+        <div class="dash-empty-panel">
+          <i class="bi bi-inbox" aria-hidden="true"></i>
+          <p>
+            @if ($configured)
+              No channel breakdown for this period yet.
+            @else
+              Empty until compliance is complete and keys are issued.
+            @endif
+          </p>
+        </div>
+      @endif
     </section>
   </div>
 
@@ -211,44 +273,81 @@
           <span class="gs-panel-mark" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></span>
           <div>
             <h2>Recent Transactions</h2>
-            <p>Latest sample activity across your merchant tools</p>
+            <p>{{ $configured ? 'Latest activity on your merchant zainbox' : 'Transaction history unlocks after setup' }}</p>
           </div>
         </div>
-        <a class="menu-link" href="{{ route('transactions') }}">View all</a>
+        @if ($configured)
+          <a class="menu-link" href="{{ route('transactions') }}">View all</a>
+        @endif
       </div>
-      <div class="table-wrap">
-        <table class="dash-table">
-          <thead>
-            <tr>
-              <th scope="col">Reference</th>
-              <th scope="col">Channel</th>
-              <th scope="col">Customer / Source</th>
-              <th scope="col">Amount</th>
-              <th scope="col">Date</th>
-              <th scope="col">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach ($transactions as $transaction)
+      @if ($configured && count($transactions))
+        <div class="table-wrap">
+          <table class="dash-table">
+            <thead>
               <tr>
-                <td class="dash-ref">{{ $transaction['reference'] }}</td>
-                <td>{{ $transaction['zainbox'] }}</td>
-                <td>
-                  <b>{{ $transaction['sender'] }}</b>
-                  <small class="tx-ref">{{ $transaction['type'] }}</small>
-                </td>
-                <td class="{{ $transaction['out'] ? 'amount-out' : 'amount-in' }}">{{ $naira($transaction['amount']) }}</td>
-                <td>
-                  <b class="dash-when">{{ $transaction['date']->format('M j, Y') }}</b>
-                  <small class="tx-ref">{{ $transaction['date']->format('H:i') }}</small>
-                </td>
-                <td><span class="status-pill {{ $transaction['tone'] }}">{{ $transaction['status'] }}</span></td>
+                <th scope="col">Reference</th>
+                <th scope="col">Channel</th>
+                <th scope="col">Customer / Source</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Date</th>
+                <th scope="col">Status</th>
               </tr>
-            @endforeach
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              @foreach ($transactions as $transaction)
+                @php
+                  $when = $transaction['date'] ?? null;
+                @endphp
+                <tr>
+                  <td class="dash-ref">{{ $transaction['reference'] }}</td>
+                  <td>{{ $transaction['zainbox'] }}</td>
+                  <td>
+                    <b>{{ $transaction['sender'] }}</b>
+                    <small class="tx-ref">{{ $transaction['type'] }}</small>
+                  </td>
+                  <td class="{{ ! empty($transaction['out']) ? 'amount-out' : 'amount-in' }}">{{ $naira((float) $transaction['amount']) }}</td>
+                  <td>
+                    @if ($when)
+                      <b class="dash-when">{{ $when->format('M j, Y') }}</b>
+                      <small class="tx-ref">{{ $when->format('H:i') }}</small>
+                    @else
+                      <b class="dash-when">—</b>
+                    @endif
+                  </td>
+                  <td><span class="status-pill {{ $transaction['tone'] }}">{{ $transaction['status'] }}</span></td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+      @else
+        <div class="dash-empty-panel">
+          <i class="bi bi-receipt" aria-hidden="true"></i>
+          <p>
+            @if ($configured)
+              No transactions in this period.
+            @else
+              Once you finish compliance and issue <code>pk_…</code> / <code>sk_…</code>, recent payments will show here.
+            @endif
+          </p>
+          @unless ($configured)
+            <a class="btn btn-outline-primary" href="{{ $emptyCopy['href'] }}">{{ $emptyCopy['cta'] }}</a>
+          @endunless
+        </div>
+      @endif
     </section>
   </div>
 </section>
 @endsection
+
+@push('head')
+<style>
+  .dash-empty-banner{margin-bottom:14px;padding-bottom:16px}
+  .dash-empty-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 4px}
+  .dash-empty-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:180px;padding:28px 18px;text-align:center;color:#64748b}
+  .dash-empty-panel i{font-size:28px;color:#94a3b8}
+  .dash-empty-panel p{margin:0;max-width:42ch;font-size:14px;line-height:1.45}
+  .gs-stat.is-empty{opacity:.92}
+  .gs-stat.is-empty strong{color:#94a3b8}
+</style>
+@endpush

@@ -125,6 +125,25 @@ impl ApiKeyAuth {
         }
     }
 
+    /// Zainbox for this caller: merchant `sk_…` uses the credential box; admin must pass `code`.
+    pub fn resolve_zainbox<'a>(
+        &'a self,
+        explicit: Option<&'a str>,
+    ) -> Result<&'a str, (StatusCode, String)> {
+        match (&self.kind, explicit.map(str::trim).filter(|s| !s.is_empty())) {
+            (AuthKind::Merchant(m), None) => Ok(m.zainbox_code.as_str()),
+            (AuthKind::Merchant(_), Some(code)) => {
+                self.ensure_zainbox(code)?;
+                Ok(code)
+            }
+            (AuthKind::Admin, Some(code)) => Ok(code),
+            (AuthKind::Admin, None) => Err((
+                StatusCode::BAD_REQUEST,
+                "zainboxCode is required when using the platform admin API key".into(),
+            )),
+        }
+    }
+
     /// Ensure JSON body targets this merchant's zainbox.
     ///
     /// - Merchant + omitted code → inject credential `zainboxCode`

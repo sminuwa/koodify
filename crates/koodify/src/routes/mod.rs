@@ -58,6 +58,7 @@ pub fn router() -> Router<AppState> {
             "/api/v1/zainbox/{zainbox_code}/subscriptions",
             get(composite::subscriptions_bundle),
         )
+        .route("/api/v1/wallet", get(composite::merchant_wallet))
         .route(
             "/api/v1/transactions",
             get(composite::merchant_activity),

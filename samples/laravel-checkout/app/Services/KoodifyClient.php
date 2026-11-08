@@ -212,13 +212,97 @@ class KoodifyClient
     }
 
     /**
+     * @param  array<string, string|int|null>  $query
+     * @return array<string, mixed>
+     */
+    public function getVirtualAccountTransactions(string $accountNumber, array $query = []): array
+    {
+        $accountNumber = trim($accountNumber);
+        if ($accountNumber === '') {
+            throw new RuntimeException('accountNumber is required.');
+        }
+
+        return $this->send(
+            'get',
+            '/api/v1/va/transactions/'.rawurlencode($accountNumber),
+            query: $query,
+            auth: 'secret',
+        );
+    }
+
+    /**
+     * Merchant sk_… auto-scopes to the credential zainbox (`GET /api/v1/wallet`).
+     *
+     * @return array<string, mixed>
+     */
+    public function merchantWallet(?string $zainboxCode = null): array
+    {
+        $query = [];
+        if (is_string($zainboxCode) && trim($zainboxCode) !== '') {
+            $query['zainboxCode'] = trim($zainboxCode);
+        }
+
+        return $this->send('get', '/api/v1/wallet', query: $query, auth: 'secret');
+    }
+
+    /**
+     * Merchant sk_… auto-scopes to the credential zainbox (`GET /api/v1/transactions`).
+     *
+     * @param  array<string, string|int|null>  $query
+     * @return array<string, mixed>
+     */
+    public function merchantTransactions(array $query = []): array
+    {
+        return $this->send('get', '/api/v1/transactions', query: $query, auth: 'secret');
+    }
+
+    /**
+     * @param  array<string, string|int|null>  $query
+     * @return array<string, mixed>
+     */
+    public function zainboxWallet(string $zainboxCode): array
+    {
+        $zainboxCode = trim($zainboxCode);
+        if ($zainboxCode === '') {
+            throw new RuntimeException('zainboxCode is required.');
+        }
+
+        return $this->send(
+            'get',
+            '/api/v1/zainbox/'.rawurlencode($zainboxCode).'/wallet',
+            auth: 'secret',
+        );
+    }
+
+    /**
+     * @param  array<string, string|int|null>  $query
+     * @return array<string, mixed>
+     */
+    public function zainboxTransactions(string $zainboxCode, array $query = []): array
+    {
+        $zainboxCode = trim($zainboxCode);
+        if ($zainboxCode === '') {
+            throw new RuntimeException('zainboxCode is required.');
+        }
+
+        return $this->send(
+            'get',
+            '/api/v1/zainbox/'.rawurlencode($zainboxCode).'/transactions',
+            query: $query,
+            auth: 'secret',
+        );
+    }
+
+    /**
      * @param  array<string, mixed>|null  $payload
+     * @param  array<string, string|int|null>  $query
      * @return array<string, mixed>
      */
     private function send(
         string $method,
         string $path,
         ?array $payload = null,
+        array $query = [],
         bool|string $auth = 'secret',
     ): array {
         try {
@@ -245,8 +329,13 @@ class KoodifyClient
                 ]);
             }
 
+            $cleanQuery = array_filter(
+                $query,
+                static fn ($value) => $value !== null && $value !== '',
+            );
+
             $response = match ($method) {
-                'get' => $pending->get($path),
+                'get' => $pending->get($path, $cleanQuery),
                 'post' => $pending->post($path, $payload ?? []),
                 'put' => $pending->put($path, $payload ?? []),
                 'patch' => $pending->patch($path, $payload ?? []),
