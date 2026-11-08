@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 use tokio::fs;
 use uuid::Uuid;
 
+use crate::db;
 use crate::db::compliance::{self, ComplianceDocument, ComplianceSection};
 use crate::services::merchant_session::MerchantSession;
 use crate::state::AppState;
@@ -153,6 +154,31 @@ pub async fn submit_section(
     let row = compliance::upsert_section(&state.pool, session.customer_id, &section, status, &data)
         .await
         .map_err(map_db)?;
+
+    // Business name is the merchant display name — keep customers.display_name in sync.
+    if section == "business" {
+        if let Some(name) = data
+            .get("businessName")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            db::customers::patch(
+                &state.pool,
+                session.customer_id,
+                db::customers::PatchCustomer {
+                    display_name: Some(name),
+                    email: None,
+                    mobile_number: None,
+                    zainbox_code: None,
+                    metadata: None,
+                    status: None,
+                },
+            )
+            .await
+            .map_err(map_db)?;
+        }
+    }
 
     Ok(ok(section_view(&row)))
 }

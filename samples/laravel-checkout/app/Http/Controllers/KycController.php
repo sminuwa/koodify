@@ -68,8 +68,8 @@ class KycController extends Controller
                 'surname' => $validated['surname'],
                 'email' => $validated['email'],
                 'mobileNumber' => $validated['mobileNumber'],
+                // Gateway accepts `nin` (aliased onto kyc_profiles.bvn) — do not also send `bvn`.
                 'nin' => $nin,
-                'bvn' => $nin,
                 'dob' => $validated['dob'],
                 'gender' => $validated['gender'],
                 'address' => $validated['address'],
@@ -126,7 +126,6 @@ class KycController extends Controller
         $rules = match ($section) {
             'business' => [
                 'businessName' => ['required', 'string', 'max:160'],
-                'tradingName' => ['nullable', 'string', 'max:160'],
                 'businessType' => ['required', 'string', 'max:80'],
                 'preferredPayment' => ['required', 'string', 'max:80'],
                 'monthlyVolume' => ['required', 'string', 'max:80'],
@@ -146,6 +145,16 @@ class KycController extends Controller
                 ->withInput()
                 ->with('error', $result['description'] ?? 'Compliance submission failed.')
                 ->with('compliance_open', $section);
+        }
+
+        if ($section === 'business') {
+            $name = trim((string) ($validated['businessName'] ?? ''));
+            if ($name !== '') {
+                session([
+                    'merchant.display_name' => $name,
+                    'merchant.profile.displayName' => $name,
+                ]);
+            }
         }
 
         $labels = [

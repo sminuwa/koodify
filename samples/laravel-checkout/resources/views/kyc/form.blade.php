@@ -238,14 +238,9 @@
             <fieldset @disabled($locked)>
               @if ($key === 'business')
                 <div class="row g-3">
-                  <div class="col-md-6">
+                  <div class="col-12">
                     <label class="field" for="businessName">Business name
-                      <input class="form-control" id="businessName" name="businessName" placeholder="e.g. Hyde Commerce Ltd" value="{{ old('businessName', $data['businessName'] ?? '') }}" required>
-                    </label>
-                  </div>
-                  <div class="col-md-6">
-                    <label class="field" for="tradingName">Trading name
-                      <input class="form-control" id="tradingName" name="tradingName" placeholder="e.g. Hyde Pay" value="{{ old('tradingName', $data['tradingName'] ?? '') }}">
+                      <input class="form-control" id="businessName" name="businessName" placeholder="e.g. Hyde Commerce Ltd" value="{{ old('businessName', $data['businessName'] ?? ($profile['displayName'] ?? '')) }}" required>
                     </label>
                   </div>
                   <div class="col-md-6">
